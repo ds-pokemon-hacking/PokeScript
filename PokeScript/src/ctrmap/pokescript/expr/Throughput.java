@@ -87,7 +87,7 @@ public class Throughput {
 
 	public Variable getVariable() {
 		if (isVariable()) {
-			return ((VariableThroughput) this).getVariable();
+			return ((VariableThroughput) this).var;
 		}
 		return null;
 	}

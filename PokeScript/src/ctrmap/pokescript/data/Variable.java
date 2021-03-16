@@ -65,7 +65,7 @@ public abstract class Variable {
 
 	public int getPointer(NCompileGraph g) {
 		if (getLocation() == VarLoc.STACK) {
-			return (index + 1) * g.provider.getMemoryInfo().getStackIndexingStep();
+			return (index + (g.provider.getMemoryInfo().isStackOrderNatural() ? 1 : 0)) * g.provider.getMemoryInfo().getStackIndexingStep();
 		} else {
 			return index * g.provider.getMemoryInfo().getGlobalsIndexingStep();
 		}

@@ -33,7 +33,7 @@ public class NTRInstructionConstructor {
 			}
 		}
 
-		NTRArgument[] args = new NTRArgument[header.args.length + argAsReturnIdx == -1 ? 0 : 1 + argAsReturnIdxExtra.size()];
+		NTRArgument[] args = new NTRArgument[header.args.length + (argAsReturnIdx == -1 ? 0 : 1) + argAsReturnIdxExtra.size()];
 		
 		NTRDataType defaultArgType = NTRDataType.U16;
 		if (cg.hasPragma(CompilerPragma.FUNCARG_BYTES_DEFAULT)){
@@ -64,6 +64,7 @@ public class NTRInstructionConstructor {
 		}
 		
 		NTRInstructionPrototype proto = new NTRInstructionPrototype(-1, args);
+		proto.debugName = header.name;
 		
 		if (header.extendsBase != null){
 			String eb = header.extendsBase;

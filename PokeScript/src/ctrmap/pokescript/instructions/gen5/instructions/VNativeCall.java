@@ -68,7 +68,7 @@ public class VNativeCall extends ANativeCall {
 					nativeArgs[i] = call.args[i].getImmediateValue();
 				} else if (call.args[i].isVariable()) {
 					Variable var = call.args[i].getVariable();
-					nativeArgs[i] = var.index;
+					nativeArgs[i] = var.index + VConstants.VAR_START_LOCAL;
 				} else {
 					l.addAll(NTRInstructionCall.compileIL(call.args[i].getCode(DataType.ANY), g));
 

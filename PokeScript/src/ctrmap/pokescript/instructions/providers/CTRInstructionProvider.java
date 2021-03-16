@@ -41,6 +41,11 @@ public class CTRInstructionProvider implements AInstructionProvider {
 		public boolean isArgsUnderStackFrame() {
 			return true;
 		}	
+
+		@Override
+		public boolean isStackOrderNatural() {
+			return true;
+		}
 	};
 	
 	@Override

@@ -36,6 +36,11 @@ public class IVInstructionProvider implements AInstructionProvider {
 		public int getGlobalsIndexingStep() {
 			return 1;
 		}
+
+		@Override
+		public boolean isStackOrderNatural() {
+			return false;
+		}
 	};
 	
 	@Override

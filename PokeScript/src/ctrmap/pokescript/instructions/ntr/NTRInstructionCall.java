@@ -69,6 +69,7 @@ public class NTRInstructionCall extends ACompiledInstruction {
 	
 	public void write(DataOutput out) throws IOException {
 		out.writeShort(definition.opCode);
+
 		for (int ai = 0; ai < definition.parameters.length; ai++){
 			int argV = 0;
 			if (ai < args.length){
