@@ -67,8 +67,7 @@ public enum VOpCode {
 		for (int i = 0; i < argTypes.length; i++) {
 			args[i] = new NTRArgument(argTypes[i]);
 		}
-		this.proto = new NTRInstructionPrototype(args);
-		proto.opCode = ordinal();
+		this.proto = new NTRInstructionPrototype(ordinal(), args);
 		proto.debugName = toString();
 	}
 

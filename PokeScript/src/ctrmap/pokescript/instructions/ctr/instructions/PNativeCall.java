@@ -50,17 +50,6 @@ public class PNativeCall extends ANativeCall {
 	}
 
 	@Override
-	public List<AInstruction> getAllInstructions() {
-		List<AInstruction> l = ArraysEx.asList(this);
-		for (int j = 0; j < call.args.length; j++) {
-			for (AInstruction i : call.args[j].getCode(DataType.ANY)) {
-				l.addAll(i.getAllInstructions());
-			}
-		}
-		return l;
-	}
-
-	@Override
 	public int getAllocatedPointerSpace(NCompileGraph cg) {
 		//call = 8
 		//args = nArgs * 4

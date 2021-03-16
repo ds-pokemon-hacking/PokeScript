@@ -83,4 +83,9 @@ public class CTRInstructionProvider implements AInstructionProvider {
 		return CTRMemoryInfo;
 	}
 
+	@Override
+	public MetaFunctionHandler getMetaFuncHandler(String handlerName) {
+		return null;
+	}
+
 }

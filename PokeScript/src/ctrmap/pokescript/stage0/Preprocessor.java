@@ -393,6 +393,25 @@ public class Preprocessor {
 			}
 
 			unfiltered.append(c);
+			
+			if (c == ':'){
+				//might be part of a method declaration - scan back for a bracket
+				boolean allowDDBreak = true;
+				for (int i = sb.length() - 2; i >= 0; i--){
+					char c2 = sb.charAt(i);
+					if (!Character.isWhitespace(c2)){
+						if (c2 == ')'){
+							allowDDBreak = false;
+						}
+						break;
+					}
+				}
+				
+				if (!allowDDBreak){
+					continue;
+				}
+			}
+			
 			if (!isInComment && blevel == 0 && termList.contains(c)) {
 				break;
 			}

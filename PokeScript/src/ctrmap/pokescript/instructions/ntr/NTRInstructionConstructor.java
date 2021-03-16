@@ -5,7 +5,9 @@ import ctrmap.pokescript.stage0.CompilerAnnotation;
 import ctrmap.pokescript.stage0.CompilerPragma;
 import ctrmap.pokescript.stage0.content.DeclarationContent;
 import ctrmap.pokescript.stage1.NCompileGraph;
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -15,8 +17,12 @@ public class NTRInstructionConstructor {
 
 	public static NTRInstructionPrototype constructFromMethodHeader(NCompileGraph cg, InboundDefinition header) {
 		int argAsReturnIdx = -1;
+		List<Integer> argAsReturnIdxExtra = new ArrayList<>();
 		if (header.hasAnnotation(NTRAnnotations.NAME_ARG_AS_RETURN)) {
 			argAsReturnIdx = header.getAnnotation(NTRAnnotations.NAME_ARG_AS_RETURN).getIntArg(NTRAnnotations.ARG_ARG_NUM);
+		}
+		for (CompilerAnnotation a : header.getAnnotations(NTRAnnotations.NAME_ARG_AS_RETURN_ALT)){
+			argAsReturnIdxExtra.add(a.getIntArg(NTRAnnotations.ARG_ARG_NUM));
 		}
 		Map<String, Integer> argBytesOverride = new HashMap<>();
 		if (header.hasAnnotation(NTRAnnotations.NAME_ARG_BYTES_OVERRIDE)){
@@ -27,7 +33,7 @@ public class NTRInstructionConstructor {
 			}
 		}
 
-		NTRArgument[] args = new NTRArgument[header.args.length + argAsReturnIdx == -1 ? 0 : 1];
+		NTRArgument[] args = new NTRArgument[header.args.length + argAsReturnIdx == -1 ? 0 : 1 + argAsReturnIdxExtra.size()];
 		
 		NTRDataType defaultArgType = NTRDataType.U16;
 		if (cg.hasPragma(CompilerPragma.FUNCARG_BYTES_DEFAULT)){
@@ -37,10 +43,15 @@ public class NTRInstructionConstructor {
 		int argSrcReloc = 0;
 		for (int i = 0; i < args.length; i++) {
 			if (i == argAsReturnIdx) {
-				args[i] = new NTRArgument(NTRDataType.VAR, true);
+				args[i] = new NTRArgument(NTRDataType.VAR, 0);
 
 				argSrcReloc--;
-			} else {
+			} else if (argAsReturnIdxExtra.contains(i)){
+				args[i] = new NTRArgument(NTRDataType.VAR, argAsReturnIdxExtra.indexOf(i) + 1);
+				
+				argSrcReloc--;
+			}
+			else {
 				DeclarationContent.Argument arg = header.args[i + argSrcReloc];
 				
 				NTRDataType type = defaultArgType;
@@ -48,14 +59,15 @@ public class NTRInstructionConstructor {
 					type = getNTRDTForBytes(argBytesOverride.get(arg.name));
 				}
 				
-				args[i] = new NTRArgument(type, false);
+				args[i] = new NTRArgument(type);
 			}
 		}
 		
-		NTRInstructionPrototype proto = new NTRInstructionPrototype(args);
+		NTRInstructionPrototype proto = new NTRInstructionPrototype(-1, args);
 		
 		if (header.extendsBase != null){
 			String eb = header.extendsBase;
+
 			int opCode = -1;
 			if (eb.startsWith("0x")){
 				try {

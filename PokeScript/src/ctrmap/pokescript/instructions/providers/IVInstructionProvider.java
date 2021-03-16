@@ -78,4 +78,9 @@ public class IVInstructionProvider implements AInstructionProvider {
 		return IVMemoryInfo;
 	}
 
+	@Override
+	public MetaFunctionHandler getMetaFuncHandler(String handlerName) {
+		return null;
+	}
+
 }

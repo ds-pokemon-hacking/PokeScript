@@ -70,7 +70,7 @@ public class VAssembler {
 
 		Map<AInstruction, NCompilableMethod> publicsInstructionHooks = new HashMap<>();
 		for (NCompilableMethod m : graph.methods) {
-			if (m.hasModifier(Modifier.PUBLIC) && m.hasModifier(Modifier.STATIC) && !m.hasModifier(Modifier.NATIVE)) {
+			if (m.hasModifier(Modifier.PUBLIC) && m.hasModifier(Modifier.STATIC) && !m.hasModifier(Modifier.NATIVE) && !m.hasModifier(Modifier.META)) {
 				publicsInstructionHooks.put(m.body.get(0), m);
 			}
 		}

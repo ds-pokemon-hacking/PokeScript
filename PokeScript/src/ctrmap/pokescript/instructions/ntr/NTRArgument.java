@@ -3,14 +3,18 @@ package ctrmap.pokescript.instructions.ntr;
 
 public class NTRArgument {
 	public NTRDataType dataType;
-	public boolean isReturnCallBack;
+	public int returnCallBackIndex;
 	
 	public NTRArgument(NTRDataType type){
-		this.dataType = type;
+		this(type, -1);
 	}
 	
-	public NTRArgument(NTRDataType type, boolean isReturnCallBack){
-		this(type);
-		this.isReturnCallBack = isReturnCallBack;
+	public NTRArgument(NTRDataType type, int returnCallBackIndex){
+		dataType = type;
+		this.returnCallBackIndex = returnCallBackIndex;
+	}
+	
+	public boolean isReturnCallback(){
+		return returnCallBackIndex > -1;
 	}
 }

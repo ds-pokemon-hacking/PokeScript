@@ -5,6 +5,7 @@ import ctrmap.pokescript.instructions.ntr.NTRInstructionPrototype;
 import ctrmap.pokescript.instructions.ntr.NTRInstructionCall;
 import ctrmap.pokescript.instructions.ntr.NTRDataType;
 import ctrmap.pokescript.instructions.ntr.NTRArgument;
+import static ctrmap.pokescript.instructions.ntr.NTRDataType.*;
 
 /**
  *
@@ -27,18 +28,18 @@ public enum IVOpCode {
 	IfAddrReg,
 	IfAddrValue,
 	IfAddrAddr,
-	IfVarValue(new NTRInstructionPrototype(new NTRArgument(NTRDataType.VAR), new NTRArgument(NTRDataType.U16))),
-	IfVarVar(new NTRInstructionPrototype(new NTRArgument(NTRDataType.VAR), new NTRArgument(NTRDataType.VAR))),
+	IfVarValue(VAR, U16),
+	IfVarVar(VAR, VAR),
 	Unknown_013,
 	GlobalCall,
 	LocalCall,
-	Jump(new NTRInstructionPrototype(new NTRArgument(NTRDataType.S32))),
+	Jump(S32),
 	JumpIfObjId,
 	JumpIfBgId,
 	JumpIfPlayerDir,
 	CallFunc,
 	Return(),
-	JumpIf(new NTRInstructionPrototype(new NTRArgument(NTRDataType.U8), new NTRArgument(NTRDataType.S32))),
+	JumpIf(U8, S32),
 	CallIf,
 	FlagSet,
 	FlagReset,
@@ -48,21 +49,25 @@ public enum IVOpCode {
 	TrainerFlagSet,
 	TrainerFlagReset,
 	TrainerFlagGet,
-	AddVar(new NTRInstructionPrototype(new NTRArgument(NTRDataType.VAR), new NTRArgument(NTRDataType.FLEX))),
-	SubVar(new NTRInstructionPrototype(new NTRArgument(NTRDataType.VAR), new NTRArgument(NTRDataType.FLEX))),
-	SetVarConst(new NTRInstructionPrototype(new NTRArgument(NTRDataType.VAR), new NTRArgument(NTRDataType.U16))),
-	CopyVar(new NTRInstructionPrototype(new NTRArgument(NTRDataType.VAR), new NTRArgument(NTRDataType.VAR))),
+	AddVar(VAR, FLEX),
+	SubVar(VAR, FLEX),
+	SetVarConst(VAR, U16),
+	CopyVar(VAR, VAR),
 	SetVarFlex;
 	
 	public final NTRInstructionPrototype proto;
 	
 	private IVOpCode(){
-		proto = new NTRInstructionPrototype();
+		proto = null;
 	}
 	
-	private IVOpCode(NTRInstructionPrototype proto){
-		this.proto = proto;
-		proto.opCode = ordinal();
+	private IVOpCode(NTRDataType... argTypes) {
+		NTRArgument[] args = new NTRArgument[argTypes.length];
+		for (int i = 0; i < argTypes.length; i++) {
+			args[i] = new NTRArgument(argTypes[i]);
+		}
+		this.proto = new NTRInstructionPrototype(ordinal(), args);
+		proto.debugName = toString();
 	}
 	
 	public NTRInstructionCall createCall(int... args){

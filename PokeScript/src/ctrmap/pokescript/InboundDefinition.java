@@ -133,7 +133,9 @@ public class InboundDefinition {
 					return false;
 				}
 			}
-			if (possiblyDowncast(out.args[i].type) != args[i].typeDef.baseType) {
+			DataType incomingType = out.args[i].type;
+			DataType reqType = args[i].typeDef.baseType;
+			if (incomingType != reqType && incomingType.getBaseType() != reqType) {
 				if (args[i].typeDef.baseType == DataType.FLOAT && possiblyDowncast(out.args[i].type) == DataType.INT) {
 					continue;
 				}

@@ -10,6 +10,7 @@ import ctrmap.pokescript.ide.autocomplete.AutoCompleteKeyListener;
 import ctrmap.stdlib.fs.accessors.DiskFile;
 import ctrmap.stdlib.gui.file.CMFileDialog;
 import ctrmap.pokescript.LangPlatform;
+import ctrmap.pokescript.ide.settings.IDESettings;
 import ctrmap.pokescript.stage2.VScriptHeaderGen;
 import ctrmap.scriptformats.gen5.VScriptFile;
 import ctrmap.stdlib.fs.FSUtil;
@@ -52,29 +53,31 @@ public class PSIDE extends javax.swing.JFrame {
 	private AutoComplete ac;
 	private TextAreaMarkManager marks = new TextAreaMarkManager();
 
+	private IDESettings settingsFrame;
+
 	public static final String PSIDE_ERR_COLUMN_ID_FILE = "File";
 	public static final String PSIDE_ERR_COLUMN_ID_LINE = "Line";
 	public static final String PSIDE_ERR_COLUMN_ID_CAUSE = "Cause";
 
 	public PSIDE(LangCompiler.CompilerArguments args) {
 		initComponents();
-		
-		if (args.getPlatform() == LangPlatform.EV_SWAN){
+
+		if (args.getPlatform() == LangPlatform.EV_SWAN) {
 			JMenuItem makeHeader = new JMenuItem("Generate script header");
 			makeHeader.addActionListener(new ActionListener() {
 				@Override
 				public void actionPerformed(ActionEvent e) {
 					File dest = CMFileDialog.openSaveFileDialog(LangConstants.LANG_SOURCE_FILE_EXTENSION_FILTER);
-					
-					if (dest != null){
+
+					if (dest != null) {
 						VScriptHeaderGen.writeScrHeaderToFile(dest, localDoc);
 					}
 				}
 			});
-			
+
 			compileMenu.add(makeHeader);
 		}
-		
+
 		compilerCfg = args;
 
 		errorTable.getColumn(PSIDE_ERR_COLUMN_ID_FILE).setMaxWidth(250);
@@ -115,6 +118,8 @@ public class PSIDE extends javax.swing.JFrame {
 			}
 		});
 		textArea.addKeyListener(new AutoCompleteKeyListener(ac));
+
+		settingsFrame = new IDESettings(this);
 	}
 
 	public void openFile(File f) {
@@ -216,6 +221,9 @@ public class PSIDE extends javax.swing.JFrame {
         ideSplitPane = new javax.swing.JSplitPane();
         errorTableScrollPane = new javax.swing.JScrollPane();
         errorTable = new javax.swing.JTable();
+        topSplitPane = new javax.swing.JSplitPane();
+        projectTreeSP = new javax.swing.JScrollPane();
+        projectTree = new javax.swing.JTree();
         textAreaSP = new org.fife.ui.rtextarea.RTextScrollPane();
         textArea = new ctrmap.pokescript.ide.CustomRSTA();
         menuBar = new javax.swing.JMenuBar();
@@ -224,6 +232,8 @@ public class PSIDE extends javax.swing.JFrame {
         btnSave = new javax.swing.JMenuItem();
         compileMenu = new javax.swing.JMenu();
         btnCompileToFile = new javax.swing.JMenuItem();
+        optionsMenu = new javax.swing.JMenu();
+        btnOpenSettings = new javax.swing.JMenuItem();
 
         setDefaultCloseOperation(javax.swing.WindowConstants.DISPOSE_ON_CLOSE);
         setTitle("PS6-IDE for CTRMap");
@@ -265,11 +275,21 @@ public class PSIDE extends javax.swing.JFrame {
 
         ideSplitPane.setRightComponent(errorTableScrollPane);
 
+        topSplitPane.setResizeWeight(0.2);
+
+        javax.swing.tree.DefaultMutableTreeNode treeNode1 = new javax.swing.tree.DefaultMutableTreeNode("Projects");
+        projectTree.setModel(new javax.swing.tree.DefaultTreeModel(treeNode1));
+        projectTreeSP.setViewportView(projectTree);
+
+        topSplitPane.setLeftComponent(projectTreeSP);
+
         textArea.setColumns(20);
         textArea.setRows(5);
         textAreaSP.setViewportView(textArea);
 
-        ideSplitPane.setLeftComponent(textAreaSP);
+        topSplitPane.setRightComponent(textAreaSP);
+
+        ideSplitPane.setLeftComponent(topSplitPane);
 
         fileMenu.setText("File");
 
@@ -305,6 +325,18 @@ public class PSIDE extends javax.swing.JFrame {
 
         menuBar.add(compileMenu);
 
+        optionsMenu.setText("Options");
+
+        btnOpenSettings.setText("Settings");
+        btnOpenSettings.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent evt) {
+                btnOpenSettingsActionPerformed(evt);
+            }
+        });
+        optionsMenu.add(btnOpenSettings);
+
+        menuBar.add(optionsMenu);
+
         setJMenuBar(menuBar);
 
         javax.swing.GroupLayout layout = new javax.swing.GroupLayout(getContentPane());
@@ -313,7 +345,7 @@ public class PSIDE extends javax.swing.JFrame {
             layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
             .addGroup(layout.createSequentialGroup()
                 .addContainerGap()
-                .addComponent(ideSplitPane, javax.swing.GroupLayout.DEFAULT_SIZE, 883, Short.MAX_VALUE)
+                .addComponent(ideSplitPane, javax.swing.GroupLayout.DEFAULT_SIZE, 745, Short.MAX_VALUE)
                 .addContainerGap())
         );
         layout.setVerticalGroup(
@@ -374,14 +406,19 @@ public class PSIDE extends javax.swing.JFrame {
 
 		if (f != null) {
 			new DiskFile(f).setBytes(LangCompiler.compileStreamToBinary(new ByteArrayInputStream(textArea.getText().getBytes(StandardCharsets.UTF_8)), compilerCfg));
-			
-			if (compilerCfg.getPlatform() == LangPlatform.EV_SWAN){
+
+			if (compilerCfg.getPlatform() == LangPlatform.EV_SWAN) {
 				DiskFile ascii = new DiskFile(FSUtil.getFileNameWithoutExtension(f.getAbsolutePath()) + ".txt");
 				VScriptFile scr = LangCompiler.compileStreamV(new ByteArrayInputStream(textArea.getText().getBytes(StandardCharsets.UTF_8)), compilerCfg);
 				ascii.setBytes(scr.getASCII().getBytes(StandardCharsets.UTF_8));
 			}
 		}
     }//GEN-LAST:event_btnCompileToFileActionPerformed
+
+    private void btnOpenSettingsActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_btnOpenSettingsActionPerformed
+		settingsFrame.setLocationRelativeTo(this);
+		settingsFrame.setVisible(true);
+    }//GEN-LAST:event_btnOpenSettingsActionPerformed
 
 	public String getCode() {
 		return textArea.getText();
@@ -416,6 +453,7 @@ public class PSIDE extends javax.swing.JFrame {
     // Variables declaration - do not modify//GEN-BEGIN:variables
     private javax.swing.JMenuItem btnCompileToFile;
     private javax.swing.JMenuItem btnOpen;
+    private javax.swing.JMenuItem btnOpenSettings;
     private javax.swing.JMenuItem btnSave;
     private javax.swing.JMenu compileMenu;
     private javax.swing.JTable errorTable;
@@ -423,7 +461,11 @@ public class PSIDE extends javax.swing.JFrame {
     private javax.swing.JMenu fileMenu;
     private javax.swing.JSplitPane ideSplitPane;
     private javax.swing.JMenuBar menuBar;
+    private javax.swing.JMenu optionsMenu;
+    private javax.swing.JTree projectTree;
+    private javax.swing.JScrollPane projectTreeSP;
     private ctrmap.pokescript.ide.CustomRSTA textArea;
     private org.fife.ui.rtextarea.RTextScrollPane textAreaSP;
+    private javax.swing.JSplitPane topSplitPane;
     // End of variables declaration//GEN-END:variables
 }

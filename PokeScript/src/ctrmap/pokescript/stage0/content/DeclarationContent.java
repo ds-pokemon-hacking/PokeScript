@@ -97,7 +97,10 @@ public class DeclarationContent extends AbstractContent {
 
 		} else {
 			NCompilableMethod m = getMethod();
-			m.initWithCompiler(graph);
+			m.initWithCompiler(line, graph);
+			if (m.metaHandler != null){
+				m.metaHandler.onDeclare(this);
+			}
 			graph.addMethod(m);
 		}
 	}
@@ -219,7 +222,18 @@ public class DeclarationContent extends AbstractContent {
 							}
 						}
 						
+						checkModifiers(a.requestedModifiers, Modifier.ModifierTarget.ARG, line);
 						a.typeDef = new TypeDef(argCmdCmds[defStart]);
+						
+						if (a.requestedModifiers.contains(Modifier.VAR)){
+							if (a.typeDef.baseType != DataType.CLASS){
+								a.typeDef.baseType = a.typeDef.baseType.getVarType();
+							}
+							else {
+								line.throwException("A class parameter can not have the var modifier specified.");
+							}
+						}
+						
 						a.name = argCmdCmds[defStart + 1];
 						if (!Preprocessor.checkNameValidity(a.name)) {
 							line.throwException("Illegal character in name: " + a.name);
@@ -246,10 +260,11 @@ public class DeclarationContent extends AbstractContent {
 				
 				int extendsIdx = str.indexOf(':', braceCnt.endIndex);
 				if (extendsIdx != -1){
-					String extendsStr = str.substring(extendsIdx + 1, str.length() - 1).trim();
+					String extendsStr = str.substring(extendsIdx + 1, str.length()).trim();
 					
 					cnt.declaredExtendsName = extendsStr;
 				}
+				checkModifiers(cnt.declaredModifiers, Modifier.ModifierTarget.METHOD, line);
 			} else if (declaredType != DataType.CLASS) {
 				if (declaredType == DataType.VOID) {
 					line.throwException("A variable can not be of the void type.");
@@ -262,6 +277,7 @@ public class DeclarationContent extends AbstractContent {
 					}
 					cnt.initFromContent = Preprocessor.getStrWithoutTerminator(str.substring(initStart, str.length()).trim());
 				}
+				checkModifiers(cnt.declaredModifiers, Modifier.ModifierTarget.VAR, line);
 			} else {
 				//Class definition
 				if (!line.hasType(EffectiveLine.LineType.BLOCK_START) || hasSetting) {
@@ -272,6 +288,14 @@ public class DeclarationContent extends AbstractContent {
 			return cnt;
 		} else {
 			return null;
+		}
+	}
+	
+	public static void checkModifiers(List<Modifier> modifiers, Modifier.ModifierTarget tgt, EffectiveLine line){
+		for (Modifier m : modifiers){
+			if (!m.supportsTarget(tgt)){
+				line.throwException("Modifier " + m.name + " not supported on target " + tgt);
+			}
 		}
 	}
 

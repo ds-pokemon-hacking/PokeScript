@@ -77,15 +77,4 @@ public class VLocalCall extends ALocalCall {
 		
 		return l;
 	}
-
-	@Override
-	public List<AInstruction> getAllInstructions() {
-		List<AInstruction> l = ArraysEx.asList(this);
-		for (int j = 0; j < call.args.length; j++) {
-			for (AInstruction i : call.args[j].getCode(DataType.ANY)) {
-				l.addAll(i.getAllInstructions());
-			}
-		}
-		return l;
-	}
 }

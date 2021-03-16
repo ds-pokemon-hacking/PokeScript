@@ -2,8 +2,6 @@ package ctrmap.pokescript.ide;
 
 import ctrmap.pokescript.LangCompiler;
 import ctrmap.pokescript.LangPlatform;
-import ctrmap.pokescript.instructions.providers.CTRInstructionProvider;
-import ctrmap.pokescript.instructions.providers.VInstructionProvider;
 import ctrmap.stdlib.fs.accessors.DiskFile;
 import java.util.Enumeration;
 import java.util.prefs.Preferences;

@@ -7,7 +7,8 @@ public class NTRInstructionPrototype {
 	public String debugName;
 	public NTRArgument[] parameters;
 	
-	public NTRInstructionPrototype(NTRArgument... args){
+	public NTRInstructionPrototype(int opCode, NTRArgument... args){
+		this.opCode = opCode;
 		parameters = args;
 	}
 	

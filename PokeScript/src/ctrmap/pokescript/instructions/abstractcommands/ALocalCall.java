@@ -5,6 +5,8 @@ import ctrmap.pokescript.expr.Throughput;
 import ctrmap.pokescript.stage1.NCompileGraph;
 import ctrmap.pokescript.stage1.NExpression;
 import ctrmap.pokescript.types.DataType;
+import ctrmap.stdlib.util.ArraysEx;
+import java.util.List;
 
 public abstract class ALocalCall extends AInstruction {
 
@@ -25,5 +27,17 @@ public abstract class ALocalCall extends AInstruction {
 	
 	public int getArgCount() {
 		return call.args.length;
+	}
+	
+	
+	@Override
+	public List<AInstruction> getAllInstructions() {
+		List<AInstruction> l = ArraysEx.asList(this);
+		for (int j = 0; j < call.args.length; j++) {
+			for (AInstruction i : call.args[j].getCode(DataType.ANY)) {
+				l.addAll(i.getAllInstructions());
+			}
+		}
+		return l;
 	}
 }

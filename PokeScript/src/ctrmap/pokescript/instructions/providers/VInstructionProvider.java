@@ -15,6 +15,7 @@ import ctrmap.pokescript.instructions.gen5.instructions.VCaseTable;
 import ctrmap.pokescript.instructions.gen5.instructions.VConditionJump;
 import ctrmap.pokescript.instructions.gen5.instructions.VLocalCall;
 import ctrmap.pokescript.instructions.gen5.instructions.VNativeCall;
+import ctrmap.pokescript.instructions.gen5.metahandlers.VMovementFuncHandler;
 
 public class VInstructionProvider implements AInstructionProvider {
 
@@ -78,6 +79,15 @@ public class VInstructionProvider implements AInstructionProvider {
 	@Override
 	public MemoryInfo getMemoryInfo() {
 		return VMemoryInfo;
+	}
+
+	@Override
+	public MetaFunctionHandler getMetaFuncHandler(String handlerName) {
+		switch (handlerName){
+			case "VMovementFunc":
+				return new VMovementFuncHandler();
+		}
+		return null;
 	}
 
 }

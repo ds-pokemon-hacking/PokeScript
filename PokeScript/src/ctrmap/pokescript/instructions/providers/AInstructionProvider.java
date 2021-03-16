@@ -21,4 +21,6 @@ public interface AInstructionProvider {
 	public abstract AAccessGlobal getGlobalWrite(String globalName);
 	
 	public abstract MemoryInfo getMemoryInfo();
+	
+	public abstract MetaFunctionHandler getMetaFuncHandler(String handlerName);
 }

@@ -79,15 +79,4 @@ public class PLocalCall extends ALocalCall {
 		//the float itself gets pushed by the push_pri at the end of the method
 		return r;
 	}
-
-	@Override
-	public List<AInstruction> getAllInstructions() {
-		List<AInstruction> l = ArraysEx.asList(this);
-		for (int j = 0; j < call.args.length; j++) {
-			for (AInstruction i : call.args[j].getCode(DataType.ANY)) {
-				l.addAll(i.getAllInstructions());
-			}
-		}
-		return l;
-	}
 }

@@ -4,7 +4,6 @@ package ctrmap.pokescript.instructions.ntr;
 import ctrmap.pokescript.instructions.abstractcommands.ACompiledInstruction;
 import ctrmap.pokescript.instructions.abstractcommands.AInstruction;
 import ctrmap.pokescript.instructions.gen5.VConstants;
-import ctrmap.pokescript.instructions.gen5.VOpCode;
 import ctrmap.pokescript.stage1.NCompileGraph;
 import ctrmap.scriptformats.gen5.VScriptFile;
 import java.io.DataOutput;
@@ -24,13 +23,13 @@ public class NTRInstructionCall extends ACompiledInstruction {
 		int argSrcReloc = 0;
 		args = new int[definition.parameters.length];
 		for (int i = 0; i < definition.parameters.length; i++){
-			if (definition.parameters[i].isReturnCallBack){
-				args[i] = VConstants.GP_REG_PRI;
-				argSrcReloc = 1;
+			if (definition.parameters[i].returnCallBackIndex >= 0){
+				args[i] = VConstants.GP_REG_PRI + this.definition.parameters[i].returnCallBackIndex;
+				argSrcReloc++;
 			}
 			else {
 				int av = 0;
-				int ai = argSrcReloc + i;
+				int ai = i - argSrcReloc;
 				if (ai < arguments.length){
 					av = arguments[ai];
 				}

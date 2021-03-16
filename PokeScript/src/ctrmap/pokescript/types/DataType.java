@@ -56,6 +56,18 @@ public enum DataType {
 		return this;
 	}
 	
+	public DataType getVarType(){
+		switch (this){
+			case BOOLEAN:
+				return VAR_BOOLEAN;
+			case INT:
+				return VAR_INT;
+			case FLOAT:
+				return VAR_FLOAT;
+		}
+		return this;
+	}
+	
 	public TypeDef typeDef(){
 		if (getFriendlyName() == null){
 			throw new NullPointerException("Uninstantiatable type.");

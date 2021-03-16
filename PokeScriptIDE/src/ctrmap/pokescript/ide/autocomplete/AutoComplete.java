@@ -70,9 +70,7 @@ public class AutoComplete {
 
 	public void setResultHandlerHighlightBoxesRender() {
 		area.removeAllCustomHighlights(rslHandlerHighLights);
-		System.out.println("gl size " + rslHandlerHighLights.size());
 		rslHandlerHighLights.clear();
-		System.out.println("after size " + rslHandlerHighLights.size());
 
 		if (getCurrentRslHandler() != null) {
 			rslHandlerHighLights.addAll(getCurrentRslHandler().getHighLights());

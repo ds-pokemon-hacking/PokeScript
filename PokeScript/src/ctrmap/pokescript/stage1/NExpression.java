@@ -254,11 +254,7 @@ public class NExpression {
 										def.name = m.name;
 									}
 									ALocalCall ins;
-									if (m.hasModifier(Modifier.NATIVE)) {
-										ins = cg.provider.getNativeCall(def);
-									} else {
-										ins = cg.provider.getMethodCall(def);
-									}
+									ins = cg.getMethodCall(def, m);
 									right = new Throughput(m.retnType.baseType, ArraysEx.asList(ins));
 								} else {
 									line.throwException("Unresolved symbol: " + rightS);

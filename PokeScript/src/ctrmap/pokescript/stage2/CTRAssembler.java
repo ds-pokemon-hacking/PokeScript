@@ -29,7 +29,7 @@ public class CTRAssembler {
 		for (AInstruction ins : method.body) {
 			for (AInstruction sub : ins.getAllInstructions()) {
 				if (sub instanceof ALocalCall) {
-					NCompilableMethod m = graph.getCompilableMethod(((ALocalCall) sub).call);
+					NCompilableMethod m = graph.getMethodByDef(((ALocalCall) sub).call);
 					if (m != null) {
 						processTimesUsed(m, graph);
 					}
