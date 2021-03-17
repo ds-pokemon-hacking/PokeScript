@@ -41,7 +41,7 @@ public class NTRInstructionCall extends ACompiledInstruction {
 	public void setupLink(VScriptFile scr, NTRInstructionLinkSetup... linkableOpCodes){
 		for (int i = 0; i < linkableOpCodes.length; i++){
 			if (linkableOpCodes[i].opCode == definition.opCode){
-				link = new NTRInstructionLink(this, scr.getInstructionByPtr(args[linkableOpCodes[i].argNo]), linkableOpCodes[i].argNo);
+				link = new NTRInstructionLink(this, scr.getInstructionByPtr(pointer + getSize() + args[linkableOpCodes[i].argNo]), linkableOpCodes[i].argNo);
 				break;
 			}
 		}

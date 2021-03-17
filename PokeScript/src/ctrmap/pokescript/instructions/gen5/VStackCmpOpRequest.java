@@ -13,4 +13,22 @@ public class VStackCmpOpRequest {
 	public static final int EQUAL = 5;
 	public static final int BOOL_AND = 6;
 	public static final int BOOL_OR = 7;
+	
+	public static int getVmCmpReqForStkCmpReq(int stkCmpReq){
+		switch (stkCmpReq){
+			case GEQUAL:
+				return VCmpResultRequest.GEQUAL;
+			case NEQUAL:
+				return VCmpResultRequest.NEQUAL;
+			case LESS:
+				return VCmpResultRequest.LESS;
+			case LEQUAL:
+				return VCmpResultRequest.LEQUAL;
+			case GREATER:
+				return VCmpResultRequest.GREATER;
+			case EQUAL:
+				return VCmpResultRequest.EQUAL;
+		}
+		return stkCmpReq;
+	}
 }

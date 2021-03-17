@@ -78,4 +78,13 @@ public enum VOpCode {
 	public int getSize() {
 		return proto.getSize();
 	}
+	
+	public static VOpCode parse(String str){
+		for (VOpCode opc : values()){
+			if (opc.name().equals(str)){
+				return opc;
+			}
+		}
+		return null;
+	}
 }

@@ -14,6 +14,7 @@ import ctrmap.pokescript.stage1.NCompilableMethod;
 import ctrmap.pokescript.stage1.NCompileGraph;
 import static ctrmap.pokescript.stage2.CTRAssembler.processTimesUsed;
 import ctrmap.scriptformats.gen5.VScriptFile;
+import ctrmap.scriptformats.gen5.optimizer.VAsmOptimizer;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -96,6 +97,8 @@ public class VAssembler {
 			}
 		}
 		
-		scr.updateLinks();
+		scr.setUpLinks();
+		
+		VAsmOptimizer.optimize(scr, 5);
 	}
 }
