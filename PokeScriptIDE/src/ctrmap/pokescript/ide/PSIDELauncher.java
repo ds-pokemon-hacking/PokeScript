@@ -3,7 +3,12 @@ package ctrmap.pokescript.ide;
 import ctrmap.pokescript.LangCompiler;
 import ctrmap.pokescript.LangPlatform;
 import ctrmap.stdlib.fs.accessors.DiskFile;
+import ctrmap.stdlib.io.base.LittleEndianIO;
+import java.io.File;
+import java.io.IOException;
 import java.util.Enumeration;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 import java.util.prefs.Preferences;
 import javax.swing.AbstractButton;
 import javax.swing.ButtonModel;
@@ -13,20 +18,20 @@ public class PSIDELauncher extends javax.swing.JFrame {
 
 	private Preferences lastOptPrefs = Preferences.userRoot().node("CTRMapActionSelector");
 	private static final String PLAF_PREF_KEY = "PSIDE_PLATFORM";
-	
+
 	public PSIDELauncher() {
 		initComponents();
-		
+
 		setLocationRelativeTo(null);
-		
+
 		int lastPlaf = lastOptPrefs.getInt(PLAF_PREF_KEY, 0);
-		
+
 		Enumeration<AbstractButton> btns = plafBtnGrp.getElements();
-		
+
 		int idx = 0;
-		while (btns.hasMoreElements()){
+		while (btns.hasMoreElements()) {
 			AbstractButton btn = btns.nextElement();
-			if (idx == lastPlaf){
+			if (idx == lastPlaf) {
 				plafBtnGrp.setSelected(btn.getModel(), true);
 				break;
 			}
@@ -125,38 +130,37 @@ public class PSIDELauncher extends javax.swing.JFrame {
 
     private void btnLaunchIDEActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_btnLaunchIDEActionPerformed
 		Enumeration<AbstractButton> btns = plafBtnGrp.getElements();
-		
+
 		ButtonModel selected = plafBtnGrp.getSelection();
-		
+
 		int idx = 0;
-		while (btns.hasMoreElements()){
+		while (btns.hasMoreElements()) {
 			AbstractButton btn = btns.nextElement();
-			if (btn.getModel() == selected){
+			if (btn.getModel() == selected) {
 				lastOptPrefs.putInt(PLAF_PREF_KEY, idx);
 				break;
 			}
 			idx++;
 		}
-		
+
 		LangCompiler.CompilerArguments args = new LangCompiler.CompilerArguments();
 		DiskFile include = new DiskFile("include");
-		if (include.exists()){
+		if (include.exists()) {
 			args.includeRoots.add(include);
 		}
-		
-		if (selected == btnGenVI.getModel()){
+
+		if (selected == btnGenVI.getModel()) {
 			args.optimizationPassCount = 2;
 			args.setPlatform(LangPlatform.AMX_CTR);
-		}
-		else if (selected == btnGenV.getModel()){
+		} else if (selected == btnGenV.getModel()) {
 			args.setPlatform(LangPlatform.EV_SWAN);
 		}
-		
+
 		PSIDE ide = new PSIDE(args);
 		ide.setLocationRelativeTo(this);
 		ide.setVisible(true);
 		ide.setDefaultCloseOperation(EXIT_ON_CLOSE);
-		
+
 		dispose();
     }//GEN-LAST:event_btnLaunchIDEActionPerformed
 
@@ -164,6 +168,34 @@ public class PSIDELauncher extends javax.swing.JFrame {
 	 * @param args the command line arguments
 	 */
 	public static void main(String args[]) {
+		/*File[] files = new File("D:\\_REWorkspace\\pokescript_genv\\6").listFiles();
+		for (File sub : files) {
+			try {
+				LittleEndianIO io = new DiskFile(sub).getIO();
+
+				int val = 0;
+				while (io.getPosition() < io.length() - 6) {
+					val = io.read();
+					if (val == 4 || val == 0x1E || val == 0x1F || val == 0x20) {
+						int chk = io.read();
+						if (chk == 0) {
+							if (val >= 0x1F){
+								io.skip(1);
+							}
+							int funcOffs = io.readInt();
+							if (funcOffs % 4 != 0) {
+								System.out.println("BAD FUNCOFFS AT " + sub.getName() + ": " + Integer.toHexString(funcOffs));
+							}
+						}
+					}
+				}
+
+				io.close();
+			} catch (IOException ex) {
+				Logger.getLogger(PSIDELauncher.class.getName()).log(Level.SEVERE, null, ex);
+			}
+		}*/
+
 		try {
 			UIManager.setLookAndFeel(UIManager.getSystemLookAndFeelClassName());
 		} catch (ClassNotFoundException | InstantiationException | IllegalAccessException | javax.swing.UnsupportedLookAndFeelException ex) {
