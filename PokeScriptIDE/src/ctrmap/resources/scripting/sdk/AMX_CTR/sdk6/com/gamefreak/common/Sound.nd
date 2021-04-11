@@ -1,0 +1,131 @@
+//--------------------------------SE DEFINITIONS--------------------------------
+
+/**
+*	Plays a sound effect on the SE channel.
+*
+*	@param SEid Numeric ID of the sound effect track.
+*/
+native void SEPlay(int SEid);
+
+/**
+*	Check if the specified sound effect is currently being played on the SE channel.
+*
+*	@param SEid Numeric ID of the sound effect track.
+*/
+native boolean SEIsPlaying(int SEid);
+
+/**
+*	Stops a given sound effect of the SE channel.
+*
+*	@param SEid Numeric ID of the sound effect track.
+*/
+native void SEStop(int SEid);
+
+//--------------------------------ME DEFINITIONS--------------------------------
+
+/**
+*	Plays a music effect on the ME channel.
+*
+*	@param MEid Numeric ID of the music effect track.
+*/
+native void MEPlay(int MEid);
+
+/**
+*	Check if the specified music effect is has finished playback on the ME channel.
+*
+*	@param MEid Numeric ID of the music effect track.
+*/
+native boolean MEIsFinished(int MEid);
+
+/**
+*	Returns from a music effect playback to the previous BGM.
+*	Should be called after checking for playback completion with ref:/com.gamefreak.common.Sound.MEIsPlaying(int MEid).
+*/
+native void MEReturnBGM();
+
+//--------------------------------BGM DEFINITIONS--------------------------------
+
+/**
+*	Discards the current BGM and changes it to the Zone's default track.
+*	This method is used when the Zone's BGM has changed externally (usually with an Event flag) and as such needs to be retrieved again.
+*
+*	@param fadeTime Length of current BGM fade-out.
+*/
+native void BGMChangeNowMap(int BGMid, int arg2);
+
+/**
+*	Transitions to a Battle Event BGM.
+*
+*	@param BGMid Numeric ID of the background music track.
+*	@param fadeTime Length of current BGM fade-out.
+*
+*	@throws MethodNotFoundException if called in Pokémon X/Y.
+*/
+native void BGMStartBattleEvent(int BGMid, int fadeTime);
+
+/**
+*	Transitions to a Battle Event BGM.
+*
+*	@param BGMid Numeric ID of the background music track.
+*	@param fadeTime Length of current BGM fade-out.
+*
+*	@throws MethodNotFoundException if called in Pokémon Omega Ruby/Alpha Sapphire.
+*/
+native void BattleEventBGMStart(int BGMid, int fadeTime);
+
+/**
+*	Transitions to an Event BGM.
+*
+*	@param BGMid Numeric ID of the background music track.
+*	@param fadeTime Length of current BGM fade-out.
+*/
+native void BGMStartEvent(int BGMid, int fadeTime);
+
+/**
+*	Transitions the current Event BGM to another.
+*
+*	@param BGMid Numeric ID of the background music track.
+*	@param fadeTime Length of current BGM fade-out.
+*/
+native void BGMChangeEvent(int BGMid, int fadeTime, int arg3);
+
+/**
+*	Transitions back from an Event BGM.
+*
+*	@param fadeTime Length of the event BGM fade-out.
+*/
+native void BGMEndEvent(int fadeTime, int arg2);
+
+/**
+*	Performs a linear volume shift on the BGM channel.
+*
+*	@param targetVol The volume to change to (in percent).
+*	@param sourceVol The volume to fade to the target volume from.
+*/
+native void BGMVolumeChange(int targetVol, int sourceVol);
+
+/**
+*	Check if the specified BGM is currently being played on the BGM channel.
+*
+*	@param BGMid Numeric ID of the background music track.
+*/
+native boolean BGMIsPlaying(int BGMid);
+
+/**
+*	Play the eye clash BGM of a given trainer class.
+*
+*	@param trId Numeric ID of the trainer class.
+*/
+native void _TrainerBGMPlay(int trId);
+
+/**
+*	Plays a Pokémon's cry.
+*
+*	@param pokeId The numeric ID of the Pokémon. (Dex No. in most cases)
+*/
+native void VoicePlay(int pokeId, int unknown);
+
+/*
+*	Checks if playback of all Pokémon cries has finished.
+*/
+native void VoiceIsEnd();

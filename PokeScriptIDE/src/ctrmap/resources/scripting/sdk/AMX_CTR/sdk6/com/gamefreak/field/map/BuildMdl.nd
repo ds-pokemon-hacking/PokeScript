@@ -1,0 +1,16 @@
+/**
+*	Finds an object handle to be used for subsequent BuildMdl operations by a BuildMdl's grid location.
+*
+*	@param gridX X location of the BuildMdl on grid.
+*	@param gridZ Z location of the BuildMdl on grid.
+*/
+native int BuildMdlGetHandleByGPos(int gridX, int gridZ);
+
+/**
+*	Plays a BuildMdl's animation as defined in its prop registry entry.
+*
+*	@param handle A BuildMdl object handle obtained from a BuildMdlGetHandle function.
+*	@param animeNum Index of the event anime in the prop registry entry.
+*	@param unknown Unknown parameter.
+*/
+native void BuildMdlEventAnimeStart(int handle, int animeNum, float unknown);

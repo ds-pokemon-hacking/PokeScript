@@ -1,7 +1,10 @@
 package ctrmap.pokescript.ide.settings;
 
 import ctrmap.pokescript.ide.PSIDE;
-import javax.swing.tree.DefaultTreeCellRenderer;
+import ctrmap.stdlib.gui.components.tree.CustomJTreeNode;
+import ctrmap.stdlib.gui.components.tree.CustomJTreeRootNode;
+import ctrmap.stdlib.gui.components.tree.CustomJTreeSelectionListener;
+import javax.swing.tree.DefaultTreeModel;
 
 public class IDESettings extends javax.swing.JFrame {
 
@@ -10,11 +13,41 @@ public class IDESettings extends javax.swing.JFrame {
 	public IDESettings(PSIDE ide) {
 		initComponents();
 		this.ide = ide;
+		
+		initTreeMenu();
 
-		DefaultTreeCellRenderer renderer = (DefaultTreeCellRenderer) settingsTree.getCellRenderer();
-		renderer.setLeafIcon(null);
-		renderer.setClosedIcon(null);
-		renderer.setOpenIcon(null);
+		settingsMenuTree.addListener(new CustomJTreeSelectionListener() {
+			@Override
+			public void onNodeSelected(CustomJTreeNode node) {
+				if (node != null){
+					IDESettingsNode n = (IDESettingsNode)node;
+					settingsSubPanel.setViewportView(n.pane);
+				}
+			}
+		});
+	}
+	
+	private void initTreeMenu(){
+		CustomJTreeRootNode root = settingsMenuTree.getRootNode();
+		
+		CustomJTreeNode compilerNode = addSettingsPane(root, "Compiler");
+		//todo rest of the panes
+		
+		((DefaultTreeModel)settingsMenuTree.getModel()).reload();
+	}
+	
+	private IDESettingsNode addSettingsPane(CustomJTreeRootNode parent, IDESettingsPane pane){
+		return addSettingsPane(parent, null, pane);
+	}
+	
+	private IDESettingsNode addSettingsPane(CustomJTreeRootNode parent, String name){
+		return addSettingsPane(parent, name, null);
+	}
+	
+	private IDESettingsNode addSettingsPane(CustomJTreeRootNode parent, String overrideName, IDESettingsPane pane){
+		IDESettingsNode node = new IDESettingsNode(overrideName, pane);
+		parent.add(node);
+		return node;
 	}
 
 	/**
@@ -26,25 +59,14 @@ public class IDESettings extends javax.swing.JFrame {
     // <editor-fold defaultstate="collapsed" desc="Generated Code">//GEN-BEGIN:initComponents
     private void initComponents() {
 
-        jScrollPane1 = new javax.swing.JScrollPane();
-        settingsTree = new javax.swing.JTree();
         settingsSubPanel = new javax.swing.JScrollPane();
+        treeSP = new javax.swing.JScrollPane();
+        settingsMenuTree = new ctrmap.stdlib.gui.components.tree.CustomJTree();
 
         setDefaultCloseOperation(javax.swing.WindowConstants.DISPOSE_ON_CLOSE);
         setTitle("PokéScript IDE Configuration");
 
-        settingsTree.setBorder(javax.swing.BorderFactory.createEmptyBorder(1, 4, 1, 0));
-        javax.swing.tree.DefaultMutableTreeNode treeNode1 = new javax.swing.tree.DefaultMutableTreeNode("Settings");
-        javax.swing.tree.DefaultMutableTreeNode treeNode2 = new javax.swing.tree.DefaultMutableTreeNode("Compiler");
-        javax.swing.tree.DefaultMutableTreeNode treeNode3 = new javax.swing.tree.DefaultMutableTreeNode("Includes");
-        treeNode2.add(treeNode3);
-        treeNode3 = new javax.swing.tree.DefaultMutableTreeNode("Definitions");
-        treeNode2.add(treeNode3);
-        treeNode3 = new javax.swing.tree.DefaultMutableTreeNode("Pragmata");
-        treeNode2.add(treeNode3);
-        treeNode1.add(treeNode2);
-        settingsTree.setModel(new javax.swing.tree.DefaultTreeModel(treeNode1));
-        jScrollPane1.setViewportView(settingsTree);
+        treeSP.setViewportView(settingsMenuTree);
 
         javax.swing.GroupLayout layout = new javax.swing.GroupLayout(getContentPane());
         getContentPane().setLayout(layout);
@@ -52,7 +74,7 @@ public class IDESettings extends javax.swing.JFrame {
             layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
             .addGroup(layout.createSequentialGroup()
                 .addContainerGap()
-                .addComponent(jScrollPane1, javax.swing.GroupLayout.PREFERRED_SIZE, 181, javax.swing.GroupLayout.PREFERRED_SIZE)
+                .addComponent(treeSP, javax.swing.GroupLayout.PREFERRED_SIZE, 181, javax.swing.GroupLayout.PREFERRED_SIZE)
                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
                 .addComponent(settingsSubPanel, javax.swing.GroupLayout.DEFAULT_SIZE, 374, Short.MAX_VALUE)
                 .addContainerGap())
@@ -62,8 +84,10 @@ public class IDESettings extends javax.swing.JFrame {
             .addGroup(layout.createSequentialGroup()
                 .addContainerGap()
                 .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-                    .addComponent(jScrollPane1, javax.swing.GroupLayout.DEFAULT_SIZE, 278, Short.MAX_VALUE)
-                    .addComponent(settingsSubPanel))
+                    .addGroup(layout.createSequentialGroup()
+                        .addComponent(treeSP, javax.swing.GroupLayout.PREFERRED_SIZE, 275, javax.swing.GroupLayout.PREFERRED_SIZE)
+                        .addGap(0, 0, Short.MAX_VALUE))
+                    .addComponent(settingsSubPanel, javax.swing.GroupLayout.DEFAULT_SIZE, 278, Short.MAX_VALUE))
                 .addContainerGap())
         );
 
@@ -71,8 +95,8 @@ public class IDESettings extends javax.swing.JFrame {
     }// </editor-fold>//GEN-END:initComponents
 
     // Variables declaration - do not modify//GEN-BEGIN:variables
-    private javax.swing.JScrollPane jScrollPane1;
+    private ctrmap.stdlib.gui.components.tree.CustomJTree settingsMenuTree;
     private javax.swing.JScrollPane settingsSubPanel;
-    private javax.swing.JTree settingsTree;
+    private javax.swing.JScrollPane treeSP;
     // End of variables declaration//GEN-END:variables
 }

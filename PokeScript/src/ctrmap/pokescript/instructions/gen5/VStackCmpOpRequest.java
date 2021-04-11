@@ -14,6 +14,28 @@ public class VStackCmpOpRequest {
 	public static final int BOOL_AND = 6;
 	public static final int BOOL_OR = 7;
 	
+	public static String getStrOperator(int stkCmpReq){
+		switch (stkCmpReq){
+			case GEQUAL:
+				return ">=";
+			case NEQUAL:
+				return "!=";
+			case LESS:
+				return "<";
+			case LEQUAL:
+				return "<=";
+			case GREATER:
+				return ">";
+			case EQUAL:
+				return "==";
+			case BOOL_AND:
+				return "&&";
+			case BOOL_OR:
+				return "||";
+		}
+		return "[ERR]";
+	}
+	
 	public static int getVmCmpReqForStkCmpReq(int stkCmpReq){
 		switch (stkCmpReq){
 			case GEQUAL:

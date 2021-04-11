@@ -16,6 +16,10 @@ import ctrmap.pokescript.ide.autocomplete.nodes.MemberNode;
 import ctrmap.pokescript.ide.autocomplete.nodes.NodeResult;
 import ctrmap.pokescript.ide.autocomplete.nodes.NodeResultFactory;
 import ctrmap.pokescript.ide.autocomplete.nodes.PackageNode;
+import ctrmap.pokescript.ide.system.project.IDEContext;
+import ctrmap.pokescript.ide.system.project.IDEProject;
+import ctrmap.pokescript.ide.system.project.include.IInclude;
+import ctrmap.pokescript.stage0.Statement;
 import java.awt.Point;
 import java.awt.Rectangle;
 import java.util.ArrayList;
@@ -42,18 +46,12 @@ public class AutoComplete {
 
 	private CustomRSTA area;
 	private TextAreaMarkManager marks;
-	private LangCompiler.CompilerArguments cfg;
 
-	public AutoComplete(CustomRSTA area, TextAreaMarkManager marks, LangCompiler.CompilerArguments compilerConfig) {
+	public AutoComplete(CustomRSTA area, TextAreaMarkManager marks) {
 		this.area = area;
 		this.marks = marks;
-		cfg = compilerConfig;
 		acMainWindow = new ACMainWindow(acDocWindow);
 		acMainWindow.addAcHintListListener(new SelectionListener());
-		
-		for (FSFile inc : cfg.includeRoots){
-			addInclude(inc);
-		}
 	}
 
 	public ACMainWindow getMainWindow() {
@@ -124,7 +122,7 @@ public class AutoComplete {
 
 			String line = getCurrentLineToPos(cp).trim();
 			boolean allowSemicolon = false;
-			if (line.startsWith(LangConstants.KW_L_IMPORT)) {
+			if (line.startsWith(Statement.IMPORT.getDeclarationStr())) {
 				allowSemicolon = true;
 				for (AbstractNode ch : n.children) {
 					if (!(ch instanceof MemberNode)) {
@@ -203,8 +201,16 @@ public class AutoComplete {
 		area.setSelectionStart(pos);
 		area.setSelectionEnd(pos);
 	}
+	
+	public void loadProject(IDEProject project){
+		acRoot.children.clear();
+		for (FSFile fsf : project.getAllIncludeFiles()){
+			addInclude(fsf, project);
+		}
+	}
 
-	public void addInclude(FSFile f) {
+	public void addInclude(FSFile f, IDEProject proj) {
+		LangCompiler.CompilerArguments cfg = proj.getCompilerArguments();
 		if (f.isDirectory()) {
 			for (FSFile c : f.listFiles()) {
 				if (c.isDirectory()) {
@@ -249,7 +255,6 @@ public class AutoComplete {
 		for (AbstractNode n : toRelocate) {
 			String alias = n.name;	//this is really all that's needed for our imports
 			n.addAlias(alias);
-			System.out.println("imported alias " + alias);
 			localAliases.put(n, alias);
 		}
 	}
@@ -283,7 +288,7 @@ public class AutoComplete {
 		//We now have a query that is only the name, nothing else
 		List<AbstractNode> hints = acRoot.getRecommendations(query);
 
-		if (line.trim().startsWith(LangConstants.KW_L_IMPORT)) {
+		if (line.trim().startsWith(Statement.IMPORT.getDeclarationStr())) {
 			//Import - remove members, which Pokescript can't import
 			for (int i = 0; i < hints.size(); i++) {
 				if (hints.get(i) instanceof MemberNode) {

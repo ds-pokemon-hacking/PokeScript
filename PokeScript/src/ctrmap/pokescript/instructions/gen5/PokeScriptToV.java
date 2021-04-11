@@ -130,8 +130,8 @@ public class PokeScriptToV {
 	
 	private static void createCommonCmpCall(PlainNTRInstruction ins, int cmpCond) {
 		mergeInstructions(ins,
-				PushVar.createCall(GP_REG_ALT),
 				PushVar.createCall(GP_REG_PRI),
+				PushVar.createCall(GP_REG_ALT),
 				//We need to store the result to PRI as well though as per convention. Can and SHOULD be optimized out.
 				CmpPriAlt.createCall(cmpCond),
 				PopToVar.createCall(GP_REG_PRI)

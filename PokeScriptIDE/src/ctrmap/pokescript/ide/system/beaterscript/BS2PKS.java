@@ -4,9 +4,9 @@ import ctrmap.pokescript.LangConstants;
 import ctrmap.pokescript.instructions.ntr.NTRArgument;
 import ctrmap.pokescript.instructions.ntr.NTRDataType;
 import ctrmap.pokescript.types.DataType;
-import ctrmap.stdlib.yaml.Key;
-import ctrmap.stdlib.yaml.Yaml;
-import ctrmap.stdlib.yaml.YamlNode;
+import ctrmap.stdlib.formats.yaml.Key;
+import ctrmap.stdlib.formats.yaml.Yaml;
+import ctrmap.stdlib.formats.yaml.YamlNode;
 import ctrmap.stdlib.cli.ArgumentBuilder;
 import ctrmap.stdlib.cli.ArgumentPattern;
 import ctrmap.stdlib.cli.ArgumentType;
@@ -30,7 +30,7 @@ import java.util.logging.Logger;
  *
  */
 public class BS2PKS {
-	
+
 	public static final String BSYML_URL_FORMAT = "https://raw.githubusercontent.com/PlatinumMaster/BeaterScript/master/%s.yml";
 
 	private static final ArgumentPattern[] BS2PKS_ARGS = new ArgumentPattern[]{
@@ -41,25 +41,20 @@ public class BS2PKS {
 	public static void main(String[] args) {
 		ArgumentBuilder bld = new ArgumentBuilder(BS2PKS_ARGS);
 		bld.parse(args);
-		
+
 		File incRoot = new File(bld.getContent("root").stringValue());
 		String input = bld.getContent("input").stringValue();
-		
+
 		Yaml yaml = null;
 		File inFile = new File(input);
-		if (!inFile.exists()){
+		if (!inFile.exists()) {
 			String url = String.format(BSYML_URL_FORMAT, input);
-			
+
 			yaml = new Yaml(FileDownloader.getNetworkStream(url), FSUtil.getFileName(url));
+		} else {
+			yaml = new Yaml(new DiskFile(inFile));
 		}
-		else {
-			try {
-				yaml = new Yaml(inFile);
-			} catch (FileNotFoundException ex) {
-				Logger.getLogger(BS2PKS.class.getName()).log(Level.SEVERE, null, ex);
-			}
-		}
-		
+
 		makePKSIncludes(yaml, incRoot);
 	}
 
@@ -104,13 +99,13 @@ public class BS2PKS {
 			List<NTRDataType> pksReturnTypes = new ArrayList<>();
 			YamlNode returnParams = funcNode.getChildByName("ReturnParams");
 			if (returnParams != null) {
-				for (YamlNode ch : returnParams.children){
+				for (YamlNode ch : returnParams.children) {
 					returnParamNames.add(ch.getValue());
 				}
 			}
 			YamlNode returnParamTypes = funcNode.getChildByName("ReturnTypes");
 			if (returnParamTypes != null) {
-				for (YamlNode ch : returnParamTypes.children){
+				for (YamlNode ch : returnParamTypes.children) {
 					pksReturnTypes.add(parseNTRDT(ch.getValue()));
 				}
 			}
@@ -127,7 +122,7 @@ public class BS2PKS {
 
 			BSFunc f = new BSFunc();
 			f.opCode = op;
-			if (name == null){
+			if (name == null) {
 				name = "CMD_" + Integer.toHexString(op).toUpperCase();
 			}
 			f.names = name.split("/");
@@ -145,7 +140,7 @@ public class BS2PKS {
 				NTRArgument arg = new NTRArgument(parseNTRDT(paramTypes.get(i)), returnParamNames.contains(f.argNames[i]) ? 0 : -1);
 				f.args[i] = arg;
 			}
-			if (f.returnTypes.isEmpty()){
+			if (f.returnTypes.isEmpty()) {
 				f.returnTypes.add(NTRDataType.VOID);
 			}
 			funcs.add(f);
@@ -197,7 +192,7 @@ public class BS2PKS {
 			}
 
 			out.println("}");
-			
+
 			out.close();
 		}
 	}
@@ -222,6 +217,12 @@ public class BS2PKS {
 				break;
 			case "ref ushort":
 				type = NTRDataType.VAR;
+				break;
+			case "fx16":
+				type = NTRDataType.FX16;
+				break;
+			case "fx32":
+				type = NTRDataType.FX32;
 				break;
 		}
 		return type;

@@ -165,6 +165,9 @@ public class BSFunc {
 				return DataType.VOID;
 			case BOOL:
 				return DataType.BOOLEAN;
+			case FX16:
+			case FX32:
+				return DataType.FLOAT;
 		}
 		return null;
 	}

@@ -1,0 +1,25 @@
+/**
+*	Initializes the Event camera with the current camera's location as the SrcParam.
+*/
+native void EVCameraSetInitParam();
+
+native void EVCameraSetSrcParam(int unknown, float camX, float camY, float camZ, float tgtX, float tgtY, float tgtZ, float fov, float roll);
+
+/**
+*	Sets the destination frame of the Event camera to the given coordinates.
+*/
+native void EVCameraSetDstParam(int unknown, float camX, float camY, float camZ, float tgtX, float tgtY, float tgtZ, float fov, float roll);
+
+native void EVCameraSetFrameParam(int startLength, int runLength, boolean isSmooth, int unknown);
+
+
+/**
+*	Starts the current event camera.
+*/
+native void EVCameraBegin();
+
+native void EVCameraEnd(int runLength);
+
+native void EVCameraSetSlideParam(int unknown, float camX, float camY, float camZ, float tgtX, float tgtY, float tgtZ, float fov, float roll);
+
+native void EVCameraSetGameCameraParam();

@@ -1,0 +1,11 @@
+SDKBundles:
+  - Name: "Pokémon OR/AS SDK"
+    ResourceType: INTERNAL
+    ResourcePath: "sdk6"
+    Definitions:
+      - "SANGO"
+  - Name: "Pokémon X/Y SDK"
+    ResourceType: INTERNAL
+    ResourcePath: "sdk6"
+    Definitions:
+      - "XY"

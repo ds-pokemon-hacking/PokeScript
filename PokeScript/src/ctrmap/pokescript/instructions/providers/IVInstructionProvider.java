@@ -10,6 +10,7 @@ import ctrmap.pokescript.instructions.abstractcommands.ALocalCall;
 import ctrmap.pokescript.instructions.abstractcommands.ANativeCall;
 import ctrmap.pokescript.instructions.abstractcommands.APlainInstruction;
 import ctrmap.pokescript.instructions.abstractcommands.APlainOpCode;
+import ctrmap.pokescript.instructions.providers.floatlib.IFloatHandler;
 
 /**
  *
@@ -86,6 +87,11 @@ public class IVInstructionProvider implements AInstructionProvider {
 	@Override
 	public MetaFunctionHandler getMetaFuncHandler(String handlerName) {
 		return null;
+	}
+
+	@Override
+	public IFloatHandler getFloatingPointHandler() {
+		throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
 	}
 
 }

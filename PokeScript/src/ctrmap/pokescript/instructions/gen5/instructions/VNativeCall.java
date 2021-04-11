@@ -1,24 +1,18 @@
 package ctrmap.pokescript.instructions.gen5.instructions;
 
-import ctrmap.pokescript.InboundDefinition;
 import ctrmap.pokescript.OutboundDefinition;
 import ctrmap.pokescript.data.LocalDataGraph;
 import ctrmap.pokescript.data.Variable;
 import ctrmap.pokescript.instructions.abstractcommands.ACompiledInstruction;
-import ctrmap.pokescript.instructions.abstractcommands.AInstruction;
-import ctrmap.pokescript.instructions.abstractcommands.ALocalCall;
 import ctrmap.pokescript.instructions.abstractcommands.ANativeCall;
 import ctrmap.pokescript.instructions.gen5.VConstants;
 import ctrmap.pokescript.instructions.gen5.VOpCode;
-import ctrmap.pokescript.instructions.ntr.NTRArgument;
 import ctrmap.pokescript.instructions.ntr.NTRInstructionCall;
 import ctrmap.pokescript.instructions.ntr.NTRInstructionConstructor;
-import ctrmap.pokescript.instructions.ntr.NTRInstructionPrototype;
 import ctrmap.pokescript.stage0.Modifier;
 import ctrmap.pokescript.stage1.NCompilableMethod;
 import ctrmap.pokescript.stage1.NCompileGraph;
 import ctrmap.pokescript.types.DataType;
-import ctrmap.stdlib.util.ArraysEx;
 import java.util.ArrayList;
 import java.util.List;
 

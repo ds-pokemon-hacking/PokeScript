@@ -3,7 +3,7 @@ package ctrmap.pokescript.instructions.ntr;
 
 public class NTRInstructionLink {
 	private NTRInstructionCall source;
-	private int argIdx;
+	public int argIdx;
 	public NTRInstructionCall target;
 	
 	public NTRInstructionLink(NTRInstructionCall ins, NTRInstructionCall target, int argIdx){

@@ -1,0 +1,52 @@
+/**
+*	Check if all layout windows are finalized.
+*/
+native boolean CheckWinAllSuspend();
+
+/**
+*	Closes a message window by its numeric ID set in a window-base request.
+*
+*	@param windowId The ID of the Window to close.
+*/
+native void MsgWinCloseNo(int windowId);
+
+/**
+*	Closes all message windows.
+*/
+native void MsgWinAllClose();
+
+/**
+*	Checks if a requested fade effect has finished (i.e. the screen has faded completely in or out).
+*
+*	@returns True if the fade effect has reached its end frame, false if otherwise.
+*/
+native boolean FadeIsEnd();
+
+/**
+*	Requests a fade transition effects.
+*
+*	@param type An Integer UID of the transition effect type.
+*	@param buffer The buffer/Fade object reference to target.
+*	@param duration Length of the fade-out (in frames).
+*/
+native void FadeRequestOut(int type, int buffer, int duration);
+
+#ifdef XY
+/**
+*	Fades back from a Fade effect called with FadeRequestOut.
+*	
+*	@param buffer The buffer/Fade object reference to target.
+*	@param duration Length of the fade-in (in frames).
+*/
+native void FadeRequestIn(int buffer, int duration);
+#endif
+
+#ifdef SANGO
+/**
+*	Fades back from a Fade effect called with FadeRequestOut.
+*	
+*	@param buffer The buffer/Fade object reference to target.
+*	@param duration Length of the fade-in (in frames).
+*/
+native void _FadeRequestIn(int buffer, int duration);
+#endif

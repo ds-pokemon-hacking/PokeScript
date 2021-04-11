@@ -3,7 +3,6 @@ package ctrmap.pokescript;
 import ctrmap.scriptformats.gen6.GFLPawnScript;
 import ctrmap.pokescript.instructions.providers.CTRInstructionProvider;
 import ctrmap.pokescript.instructions.providers.AInstructionProvider;
-import ctrmap.pokescript.instructions.providers.IVInstructionProvider;
 import ctrmap.pokescript.instructions.providers.VInstructionProvider;
 import ctrmap.pokescript.stage0.CompilerPragma;
 import ctrmap.pokescript.stage0.Preprocessor;
@@ -11,6 +10,7 @@ import ctrmap.pokescript.stage1.NCompileGraph;
 import ctrmap.pokescript.stage2.CTRAssembler;
 import ctrmap.pokescript.stage2.VAssembler;
 import ctrmap.scriptformats.gen5.VScriptFile;
+import ctrmap.scriptformats.pkslib.LibraryFile;
 import ctrmap.stdlib.cli.ArgumentBuilder;
 import ctrmap.stdlib.cli.ArgumentContent;
 import ctrmap.stdlib.cli.ArgumentPattern;
@@ -29,7 +29,7 @@ import java.util.Map;
  */
 public class LangCompiler {
 
-	public static final String COMPILER_VERSION = "0.3.1@2021/03/01";
+	public static final String COMPILER_VERSION = "0.4.2@2021/04/11";
 
 	public static final ArgumentPattern[] langCompilerArgConfig = new ArgumentPattern[]{
 		new ArgumentPattern("target", "Target platform (ntrv/ntriv/ctr)", ArgumentType.STRING, LangPlatform.AMX_CTR.name, true, "-t", "--target"),
@@ -76,7 +76,8 @@ public class LangCompiler {
 			LangPlatform plaf = LangPlatform.fromName(target);
 
 			binaryExtension = plaf.extensionFilter.getPrimaryExtension();
-			
+			ca.platform = plaf;
+
 			if (target == null) {
 				throw new IllegalArgumentException("Invalid target platform: " + target);
 			}
@@ -107,7 +108,11 @@ public class LangCompiler {
 			commonIncludes.add(new DiskFile("."));
 
 			for (int i = 0; i < incArg.contents.size(); i++) {
-				commonIncludes.add(new DiskFile(incArg.stringValue(i)));
+				FSFile df = new DiskFile(incArg.stringValue(i));
+				if (LangConstants.isLangLib(df.getName())) {
+					df = new LibraryFile(df);
+				}
+				commonIncludes.add(df);
 			}
 
 			//BUILD DEFINES
@@ -124,15 +129,15 @@ public class LangCompiler {
 				CompilerArguments a2 = new CompilerArguments(ca);
 				a2.includeRoots.add(in.getParent());
 				System.out.println("Compiling file " + in + "...");
-				GFLPawnScript compiled = compileFileCTR(in, a2);
 				FSFile out;
 				if (outputFile != null) {
 					out = outputFile;
 				} else {
 					out = in.getParent().getChild(FSUtil.getFileNameWithoutExtension(in.getName()) + binaryExtension);
 				}
-				if (compiled != null) {
-					FSUtil.writeBytesToFile(out, compiled.getScriptBytes());
+				byte[] exe = compileFileToBinary(in, a2);
+				if (exe != null) {
+					FSUtil.writeBytesToFile(out, exe);
 				}
 			}
 
@@ -150,14 +155,13 @@ public class LangCompiler {
 				return new VInstructionProvider();
 			case AMX_NX:
 			case EV_PL:
-			case EV_WB:
 				throw new UnsupportedOperationException("Platform " + platform + " not yet supported!");
 		}
 		return null;
 	}
-	
-	public static byte[] compileFileToBinary(FSFile fsf, CompilerArguments args){
-		switch (args.platform){
+
+	public static byte[] compileFileToBinary(FSFile fsf, CompilerArguments args) {
+		switch (args.platform) {
 			case AMX_CTR:
 				return compileFileCTR(fsf, args).getScriptBytes();
 			case EV_SWAN:
@@ -165,9 +169,9 @@ public class LangCompiler {
 		}
 		return null;
 	}
-	
-	public static byte[] compileStreamToBinary(InputStream strm, CompilerArguments args){
-		switch (args.platform){
+
+	public static byte[] compileStreamToBinary(InputStream strm, CompilerArguments args) {
+		switch (args.platform) {
 			case AMX_CTR:
 				return compileStreamCTR(strm, args).getScriptBytes();
 			case EV_SWAN:
@@ -222,20 +226,20 @@ public class LangCompiler {
 		public List<String> preprocessorDefinitions = new ArrayList<>();
 		public Map<CompilerPragma, CompilerPragma.PragmaValue> pragmata = new HashMap<>();
 		public CompilerLogger logger = new CompilerLogger.ConsoleLogger();
-		
+
 		private LangPlatform platform;
 		public AInstructionProvider provider;
 
 		public CompilerArguments() {
 			setPlatform(LangPlatform.AMX_CTR);
 		}
-		
-		public void setPlatform(LangPlatform plaf){
+
+		public void setPlatform(LangPlatform plaf) {
 			this.platform = plaf;
 			provider = getInstructionProvider(plaf);
 		}
-		
-		public LangPlatform getPlatform(){
+
+		public LangPlatform getPlatform() {
 			return platform;
 		}
 

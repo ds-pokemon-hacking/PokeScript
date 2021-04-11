@@ -5,6 +5,7 @@ import ctrmap.pokescript.stage0.CompilerAnnotation;
 import ctrmap.pokescript.stage0.CompilerPragma;
 import ctrmap.pokescript.stage0.content.DeclarationContent;
 import ctrmap.pokescript.stage1.NCompileGraph;
+import ctrmap.pokescript.types.DataType;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -37,7 +38,7 @@ public class NTRInstructionConstructor {
 		
 		NTRDataType defaultArgType = NTRDataType.U16;
 		if (cg.hasPragma(CompilerPragma.FUNCARG_BYTES_DEFAULT)){
-			defaultArgType = getNTRDTForBytes(cg.getIntPragma(CompilerPragma.FUNCARG_BYTES_DEFAULT));
+			defaultArgType = getNTRDTForBytes(cg.getIntPragma(CompilerPragma.FUNCARG_BYTES_DEFAULT), null);
 		}
 
 		int argSrcReloc = 0;
@@ -55,8 +56,12 @@ public class NTRInstructionConstructor {
 				DeclarationContent.Argument arg = header.args[i + argSrcReloc];
 				
 				NTRDataType type = defaultArgType;
+				if (arg.typeDef.baseType == DataType.FLOAT){
+					type = NTRDataType.FX32; //FX32
+				}
 				if (argBytesOverride.containsKey(arg.name)){
-					type = getNTRDTForBytes(argBytesOverride.get(arg.name));
+					type = getNTRDTForBytes(argBytesOverride.get(arg.name), type);
+					//For FX16, override to 2 bytes
 				}
 				
 				args[i] = new NTRArgument(type);
@@ -92,14 +97,14 @@ public class NTRInstructionConstructor {
 		return proto;
 	}
 	
-	private static NTRDataType getNTRDTForBytes(int bytes){
+	private static NTRDataType getNTRDTForBytes(int bytes, NTRDataType baseType){
 		switch (bytes){
 			case 2:
-				return NTRDataType.U16;
+				return baseType == NTRDataType.FX32 ? NTRDataType.FX16 : NTRDataType.U16;
 			case 1:
 				return NTRDataType.U8;
 			case 4:
-				return NTRDataType.S32;
+				return baseType == NTRDataType.FX32 ? NTRDataType.FX32 : NTRDataType.S32;
 		}
 		return NTRDataType.VOID;
 	}

@@ -1,0 +1,85 @@
+/**
+*	Calls the game's capture demo battle sequence. (Rival/Wally in XY/OA)
+*/
+native void CallCaptureDemo();
+
+/**
+*	Call the game's HM action sequence.
+*
+*	@param sequenceId Index of the sequence binary in the Sequence GARC.
+*	@param pokeNumber Index of a party Pokémon to be shown in the sequence. Can be retrieved per-HM with a flagwork value.
+*/
+native void CallHidenDemo(int sequenceId, int pokeNumber);
+
+/**
+*	Plays a sequence over a capture of Field's framebuffer in Field's heap space.
+*	As a side effect of the capture, most 3D sequences will play behind it and won't be visible.
+*
+*	@param sequenceId Index of the sequence binary in the Sequence GARC.
+*/
+native void CallFieldCaptureDemo(int sequenceId);
+
+/**
+*	Plays a sequence in Field's heap space.
+*
+*	@param sequenceId Index of the sequence binary in the Sequence GARC.
+*	@param seqTextId Ranging from 0 to 6, this parameter describes an index into a lookup of text files to use for the sequence. Apart from the default value (0), this functionality is unused.
+*	@param allowCameraMotion If set, cutscene camera animations are applied to the Field camera. The behavior is undefined if the camera's view mode is anything other than LookAt.
+*/
+native void CallFieldNotCaptureDemo(int sequenceId, int seqTextId, boolean allowCameraMotion);
+
+/**
+*	Calls the game's single Pokémon showcase sequence.
+*
+*	@param sequenceId Index of the sequence binary in the Sequence GARC.
+*	@param pokeId Global identifier of the Pokémon in the resource tables (Dex No. in most cases).
+*	@param formId Global identifier of the Pokémon's forme. (0 = default)
+*	@param unknown4 Unknown parameter.
+*	@param isShiny If set, the displayed Pokémon is loaded in its shiny variant.
+*	@param isEgg If set, the Pokémon is loaded as an egg.
+*	@param unknown7 Unknown parameter.
+*/
+native void CallFieldCaptureDemoSimplePoke(int sequenceId, int pokeId, int formId, int unknown4, boolean isShiny, boolean isEgg, int unknown7);
+
+/**
+*	Calls the ending sequence (staff roll and other cutscenes).
+*
+*	@param isNotFirstClear Indicates whether the game has been cleared for the first time or repeatedly.
+*						   If set, the staff roll can be skipped and there are no story-related cutscenes.
+*						   If not set, the staff roll is an unskippable cutscene and is followed by the Route 103 battle and Delta Episode opening (in ORAS).
+*/
+native void CallGameClear(boolean isRepeated);
+
+#ifdef SANGO
+/**
+*	Calls the starter selection sequence.
+*
+*	@param flag Parameter to the sequence that decides which starters to choose from.
+*
+*	@throws MethodNotFoundException if called in Pokémon X/Y.	
+*/
+native int _CallPoke3Select(int flag);
+#endif
+
+#ifdef XY
+/**
+*	Calls the starter selection sequence.
+*
+*	@param flag Parameter to the sequence that decides which starters to choose from.
+*
+*	@throws MethodNotFoundException if called in Pokémon Omega Ruby/Alpha Sapphire.	
+*/
+native int CallPoke3Select(int flag);
+#endif
+
+/**
+*	Calls the Hall of Fame induction sequence.
+*/
+native void CallDendouDemo();
+
+#ifdef SANGO
+/**
+*	Calls the Soaring in the Sky sequence.
+*/
+native void CallOozorawotobu();
+#endif

@@ -1,0 +1,10 @@
+/**
+*	Requests a given parameter
+*
+*	@param partyPokeIdx Index of the requested Pokémon in the player's party.
+*	@param paramId The numeric unique ID of the parameter.
+*	@param paramSubId An additional parameter needed for certain paramId requests.
+*
+*	@returns The parameter's value for the given Pokémon.
+*/
+native int PokePartyGetParam(int partyPokeIdx, int paramId, int paramSubId);

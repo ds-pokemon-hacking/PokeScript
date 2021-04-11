@@ -13,7 +13,8 @@ public enum Statement {
 	ELSE_IF("else", "if", EffectiveLine.StatementFlags.NEEDS_ARGUMENTS, EffectiveLine.StatementFlags.HAS_ARGUMENTS_IN_BRACES),
 	FOR("for", EffectiveLine.StatementFlags.NEEDS_ARGUMENTS, EffectiveLine.StatementFlags.HAS_ARGUMENTS_IN_BRACES),
 	SWITCH("switch", EffectiveLine.StatementFlags.NEEDS_ARGUMENTS, EffectiveLine.StatementFlags.HAS_ARGUMENTS_IN_BRACES),
-	RETURN("return"), PAUSE("pause", EffectiveLine.StatementFlags.FORBIDS_ARGUMENTS),
+	RETURN("return"), 
+	PAUSE("pause", EffectiveLine.StatementFlags.FORBIDS_ARGUMENTS),
 	IMPORT("import", EffectiveLine.StatementFlags.NEEDS_ARGUMENTS, EffectiveLine.StatementFlags.ALLOWS_GLOBAL_EXPLICIT),
 	BREAK("break"),
 	CONTINUE("continue"),
@@ -80,4 +81,11 @@ public enum Statement {
 		return l;
 	}
 
+	public String getDeclarationStr(){
+		String r = word0;
+		if (word1 != null){
+			r += word1;
+		}
+		return r;
+	}
 }

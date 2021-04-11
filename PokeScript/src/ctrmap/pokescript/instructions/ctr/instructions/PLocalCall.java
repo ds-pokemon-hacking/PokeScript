@@ -1,7 +1,7 @@
 package ctrmap.pokescript.instructions.ctr.instructions;
 
 import ctrmap.scriptformats.gen6.PawnInstruction;
-import ctrmap.pokescript.FloatLib;
+import ctrmap.pokescript.instructions.providers.floatlib.PawnFloatLib;
 import ctrmap.pokescript.OutboundDefinition;
 import ctrmap.pokescript.instructions.abstractcommands.ACompiledInstruction;
 import ctrmap.pokescript.instructions.abstractcommands.AInstruction;
@@ -72,10 +72,10 @@ public class PLocalCall extends ALocalCall {
 
 	protected static List<PawnInstruction> getFloatConversionInstructions(NCompileGraph g) {
 		List<PawnInstruction> r = new ArrayList<>();
-		g.addNative(FloatLib._float);
-		g.addLibrary(FloatLib.LIBRARY_NAME);
+		g.addNative(PawnFloatLib._float);
+		g.addLibrary(PawnFloatLib.LIBRARY_NAME);
 		r.add(new PawnInstruction(PawnInstruction.Commands.PUSH_PRI)); //pushes the integer
-		r.add(new PawnInstruction(PawnInstruction.Commands.SYSREQ_N, g.getNativeIdx(FloatLib._float.name), 4)); //calls the sysreq with the argument pushed here vvv
+		r.add(new PawnInstruction(PawnInstruction.Commands.SYSREQ_N, g.getNativeIdx(PawnFloatLib._float.name), 4)); //calls the sysreq with the argument pushed here vvv
 		//the float itself gets pushed by the push_pri at the end of the method
 		return r;
 	}

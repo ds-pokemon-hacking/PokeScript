@@ -9,6 +9,7 @@ import ctrmap.pokescript.instructions.abstractcommands.ALocalCall;
 import ctrmap.pokescript.instructions.abstractcommands.ANativeCall;
 import ctrmap.pokescript.instructions.abstractcommands.APlainInstruction;
 import ctrmap.pokescript.instructions.abstractcommands.APlainOpCode;
+import ctrmap.pokescript.instructions.providers.floatlib.IFloatHandler;
 
 public interface AInstructionProvider {	
 	public abstract APlainInstruction getPlainInstruction(APlainOpCode opCode, int[] args);
@@ -23,4 +24,5 @@ public interface AInstructionProvider {
 	public abstract MemoryInfo getMemoryInfo();
 	
 	public abstract MetaFunctionHandler getMetaFuncHandler(String handlerName);
+	public abstract IFloatHandler getFloatingPointHandler();
 }

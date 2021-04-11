@@ -1,0 +1,50 @@
+/**
+*	Clears the action command queue.
+*/
+native void AcmdListClear();
+
+/**
+*	Retrieves a MoveModel's facing direction.
+*
+*	@param target The MoveModel to control.
+*/
+native int MdlGetDirMove(int target);
+
+/**
+*	Opens the Action Command queue for a given MoveModel.
+*
+*	@param target The MoveModel to control.
+*/
+native void MdlAcmdInit(int target);
+
+/**
+*	Sets the Action Command of a MoveModel.
+*
+*	@param acmd The Action Command ID.
+*	@param ori Common orientation argument for the Action.
+*	@param amount Length/repeat count of the Action.
+*	@param unknown4 Unknown argument.
+*/
+native void MdlAcmdSet(int acmd, int ori, int amount, int unknown4);
+
+/**
+*	Closes the currently active Action Command queue.
+*/
+native void MdlAcmdSetEnd();
+
+/**
+*	Check if the target has executed all Actions.
+*
+*	@param target The MoveModel to check.
+*/
+native boolean MdlAcmdUpdate(int target);
+
+/**
+*	Calculates a path to a given location and moves the NPC to it through an Action Command.
+*
+*	@param acmd The Action Command to walk with.
+*	@param destX X coordinate of the target tile.
+*	@param destY Y height of the target tile.
+*	@param destZ Z coordinate of the target tile.
+*/
+native void MdlAcmdMakeMoveEx(int acmd, int destX, int destY, int destZ, int unknown5, int unknown6, int unknown7);

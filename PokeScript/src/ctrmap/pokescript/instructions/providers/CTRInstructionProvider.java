@@ -15,6 +15,8 @@ import ctrmap.pokescript.instructions.abstractcommands.APlainInstruction;
 import ctrmap.pokescript.instructions.abstractcommands.APlainOpCode;
 import ctrmap.pokescript.instructions.ctr.PawnPlainInstruction;
 import ctrmap.pokescript.instructions.ctr.instructions.PCaseTable;
+import ctrmap.pokescript.instructions.providers.floatlib.IFloatHandler;
+import ctrmap.pokescript.instructions.providers.floatlib.PawnFloatHandler;
 
 /**
  *
@@ -91,6 +93,11 @@ public class CTRInstructionProvider implements AInstructionProvider {
 	@Override
 	public MetaFunctionHandler getMetaFuncHandler(String handlerName) {
 		return null;
+	}
+
+	@Override
+	public IFloatHandler getFloatingPointHandler() {
+		return PawnFloatHandler.INSTANCE;
 	}
 
 }

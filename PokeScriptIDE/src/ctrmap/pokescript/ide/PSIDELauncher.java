@@ -3,12 +3,7 @@ package ctrmap.pokescript.ide;
 import ctrmap.pokescript.LangCompiler;
 import ctrmap.pokescript.LangPlatform;
 import ctrmap.stdlib.fs.accessors.DiskFile;
-import ctrmap.stdlib.io.base.LittleEndianIO;
-import java.io.File;
-import java.io.IOException;
 import java.util.Enumeration;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 import java.util.prefs.Preferences;
 import javax.swing.AbstractButton;
 import javax.swing.ButtonModel;
@@ -156,10 +151,10 @@ public class PSIDELauncher extends javax.swing.JFrame {
 			args.setPlatform(LangPlatform.EV_SWAN);
 		}
 
-		PSIDE ide = new PSIDE(args);
+		/*PSIDE ide = new PSIDE(args);
 		ide.setLocationRelativeTo(this);
 		ide.setVisible(true);
-		ide.setDefaultCloseOperation(EXIT_ON_CLOSE);
+		ide.setDefaultCloseOperation(EXIT_ON_CLOSE);*/
 
 		dispose();
     }//GEN-LAST:event_btnLaunchIDEActionPerformed
@@ -168,34 +163,6 @@ public class PSIDELauncher extends javax.swing.JFrame {
 	 * @param args the command line arguments
 	 */
 	public static void main(String args[]) {
-		/*File[] files = new File("D:\\_REWorkspace\\pokescript_genv\\6").listFiles();
-		for (File sub : files) {
-			try {
-				LittleEndianIO io = new DiskFile(sub).getIO();
-
-				int val = 0;
-				while (io.getPosition() < io.length() - 6) {
-					val = io.read();
-					if (val == 4 || val == 0x1E || val == 0x1F || val == 0x20) {
-						int chk = io.read();
-						if (chk == 0) {
-							if (val >= 0x1F){
-								io.skip(1);
-							}
-							int funcOffs = io.readInt();
-							if (funcOffs % 4 != 0) {
-								System.out.println("BAD FUNCOFFS AT " + sub.getName() + ": " + Integer.toHexString(funcOffs));
-							}
-						}
-					}
-				}
-
-				io.close();
-			} catch (IOException ex) {
-				Logger.getLogger(PSIDELauncher.class.getName()).log(Level.SEVERE, null, ex);
-			}
-		}*/
-
 		try {
 			UIManager.setLookAndFeel(UIManager.getSystemLookAndFeelClassName());
 		} catch (ClassNotFoundException | InstantiationException | IllegalAccessException | javax.swing.UnsupportedLookAndFeelException ex) {

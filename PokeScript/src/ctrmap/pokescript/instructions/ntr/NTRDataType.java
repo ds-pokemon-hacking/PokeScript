@@ -8,6 +8,9 @@ public enum NTRDataType {
 	VAR(2),
 	FLEX(2),
 	
+	FX16(2),
+	FX32(4),
+	
 	//return types, virtual
 	VOID(0),
 	BOOL(2);

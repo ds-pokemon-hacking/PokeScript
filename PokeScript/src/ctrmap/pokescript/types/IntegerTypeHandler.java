@@ -2,7 +2,7 @@
 package ctrmap.pokescript.types;
 
 import ctrmap.scriptformats.gen6.PawnInstruction;
-import ctrmap.pokescript.FloatLib;
+import ctrmap.pokescript.instructions.providers.floatlib.PawnFloatLib;
 import ctrmap.pokescript.OutboundDefinition;
 import ctrmap.pokescript.expr.Throughput;
 import ctrmap.pokescript.instructions.ctr.instructions.PNativeCall;
@@ -48,9 +48,7 @@ public class IntegerTypeHandler implements AbstractTypeHandler{
 			case INT:
 				return r;
 			case FLOAT:
-				OutboundDefinition flt = FloatLib._float.createDummyOutbound();
-				flt.args[0] = new Throughput(castedType, ArraysEx.asList(cg.getPlain(APlainOpCode.PUSH_PRI)));
-				r.instructions.add(cg.provider.getNativeCall(flt));
+				cg.provider.getFloatingPointHandler().castIntToFloat(r, cg);
 				return r;
 		}
 		r.success = false;

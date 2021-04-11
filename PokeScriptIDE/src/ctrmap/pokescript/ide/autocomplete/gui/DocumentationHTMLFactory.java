@@ -1,6 +1,5 @@
 package ctrmap.pokescript.ide.autocomplete.gui;
 
-import ctrmap.pokescript.MemberDocumentation;
 import ctrmap.pokescript.stage0.Modifier;
 import ctrmap.pokescript.stage0.NMember;
 import java.util.List;

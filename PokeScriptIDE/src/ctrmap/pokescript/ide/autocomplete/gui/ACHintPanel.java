@@ -51,7 +51,7 @@ public class ACHintPanel extends javax.swing.JPanel {
 	}
 	
 	private static ImageIcon createScrUiImageIcon(String name){
-		return new ImageIcon(ResourceAccess.getByteArray("scripting/ui/" + name + ".png"));
+		return new ImageIcon(ResourceAccess.getByteArray("scripting/ui/ac/" + name + ".png"));
 	}
 
 	/**

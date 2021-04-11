@@ -10,10 +10,20 @@ import ctrmap.pokescript.ide.autocomplete.AutoCompleteKeyListener;
 import ctrmap.stdlib.fs.accessors.DiskFile;
 import ctrmap.stdlib.gui.file.CMFileDialog;
 import ctrmap.pokescript.LangPlatform;
+import ctrmap.pokescript.ide.forms.ProjectCreationDialog;
 import ctrmap.pokescript.ide.settings.IDESettings;
+import ctrmap.pokescript.ide.system.IDEResourceReference;
+import ctrmap.pokescript.ide.system.IDESetupFile;
+import ctrmap.pokescript.ide.system.ResourcePathType;
+import ctrmap.pokescript.ide.system.project.IDEContext;
+import ctrmap.pokescript.ide.system.project.IDEProject;
+import ctrmap.pokescript.ide.system.project.tree.nodes.ProjectNode;
+import ctrmap.pokescript.ide.system.savedata.IDEWorkspace;
 import ctrmap.pokescript.stage2.VScriptHeaderGen;
 import ctrmap.scriptformats.gen5.VScriptFile;
+import ctrmap.stdlib.fs.FSFile;
 import ctrmap.stdlib.fs.FSUtil;
+import ctrmap.stdlib.gui.DialogUtils;
 import ctrmap.stdlib.gui.components.CaretMotion;
 import ctrmap.stdlib.gui.file.ExtensionFilter;
 import ctrmap.stdlib.res.ResourceAccess;
@@ -47,11 +57,20 @@ import org.fife.ui.rsyntaxtextarea.parser.ParseResult;
 
 public class PSIDE extends javax.swing.JFrame {
 
+	public static final IDEResourceReference PSIDE_SETUP_RESOURCE
+			= new IDEResourceReference(ResourcePathType.INTERNAL, "scripting/IDE.yml");
+
+	public IDESetupFile setup;
+
+	public IDEContext context;
+	public IDEWorkspace ws;
+
 	private Preprocessor localDoc = null;
 
 	public LangCompiler.CompilerArguments compilerCfg;
-	private AutoComplete ac;
 	private TextAreaMarkManager marks = new TextAreaMarkManager();
+
+	private AutoComplete ac;
 
 	private IDESettings settingsFrame;
 
@@ -59,10 +78,16 @@ public class PSIDE extends javax.swing.JFrame {
 	public static final String PSIDE_ERR_COLUMN_ID_LINE = "Line";
 	public static final String PSIDE_ERR_COLUMN_ID_CAUSE = "Cause";
 
-	public PSIDE(LangCompiler.CompilerArguments args) {
+	public PSIDE(IDEWorkspace workspace) {
 		initComponents();
 
-		if (args.getPlatform() == LangPlatform.EV_SWAN) {
+		initContext();
+
+		loadSetup(PSIDE_SETUP_RESOURCE);
+
+		loadWorkspace(workspace);
+
+		/*if (args.getPlatform() == LangPlatform.EV_SWAN) {
 			JMenuItem makeHeader = new JMenuItem("Generate script header");
 			makeHeader.addActionListener(new ActionListener() {
 				@Override
@@ -76,15 +101,12 @@ public class PSIDE extends javax.swing.JFrame {
 			});
 
 			compileMenu.add(makeHeader);
-		}
-
-		compilerCfg = args;
-
+		}*/
 		errorTable.getColumn(PSIDE_ERR_COLUMN_ID_FILE).setMaxWidth(250);
 		errorTable.getColumn(PSIDE_ERR_COLUMN_ID_LINE).setMaxWidth(35);
 
 		//add basic namespaces
-		ac = new AutoComplete(textArea, marks, compilerCfg);
+		ac = new AutoComplete(textArea, marks);
 
 		textArea.setSyntaxEditingStyle(SYNTAX_STYLE_PP);
 		textArea.addParser(new PPParser());
@@ -122,6 +144,38 @@ public class PSIDE extends javax.swing.JFrame {
 		settingsFrame = new IDESettings(this);
 	}
 
+	public void initContext() {
+		context = new IDEContext();
+	}
+
+	public void loadSetup(IDEResourceReference setupPath) {
+		FSFile setupFile = setupPath.resolve(new DiskFile(System.getProperty("user.dir")), context);
+		if (setupFile == null) {
+			DialogUtils.showErrorMessage(this, "Internal error", "The setup file " + setupPath.path + " could not be found! Can not continue.");
+			System.exit(0);
+		}
+		setup = new IDESetupFile(setupFile);
+	}
+
+	public void loadWorkspace(IDEWorkspace ws) {
+		this.ws = ws;
+
+		projectTree.removeAllChildren();
+
+		for (int i = 0; i < ws.saveData.openedProjectPaths.size(); i++) {
+			String projectPath = ws.saveData.openedProjectPaths.get(i);
+			File projectFile = new File(projectPath);
+
+			if (IDEProject.isIDEProject(projectFile)) {
+				openProject(new IDEProject(new DiskFile(projectFile)), false);
+			} else {
+				ws.saveData.openedProjectPaths.remove(i);
+				i--;
+			}
+		}
+		makeTree();
+	}
+
 	public void openFile(File f) {
 		try {
 			source = f;
@@ -143,6 +197,37 @@ public class PSIDE extends javax.swing.JFrame {
 		}
 		textArea.setText(str);
 		textArea.setCaretPosition(0);
+	}
+	
+	public static byte[] getTemplateData(String templateName, PSIDETemplateVar... vars){
+		byte[] data = ResourceAccess.getByteArray("scripting/template/" + templateName);
+		String str = new String(data, StandardCharsets.UTF_8);
+		for (PSIDETemplateVar var : vars) {
+			str = str.replace("%" + var.name + "%", var.replValue);
+		}
+		return str.getBytes(StandardCharsets.UTF_8);
+	}
+
+	public void openProject(IDEProject prj) {
+		openProject(prj, true);
+	}
+	
+	public void openProject(IDEProject prj, boolean makeTree) {
+		if (context.setUpProjectToContext(prj)) {
+			if (makeTree){
+				makeTree();
+			}
+			String projectPath = prj.getProjectPath();
+			ws.saveData.putOpenedProjectPath(projectPath);
+		}
+	}
+
+	public void makeTree() {
+		projectTree.getRootNode().removeAllChildren();
+		for (IDEProject op : context.openedProjects) {
+			projectTree.addProject(op);
+		}
+		projectTree.reload();
 	}
 
 	public void buildErrorTable() {
@@ -222,11 +307,13 @@ public class PSIDE extends javax.swing.JFrame {
         errorTableScrollPane = new javax.swing.JScrollPane();
         errorTable = new javax.swing.JTable();
         topSplitPane = new javax.swing.JSplitPane();
-        projectTreeSP = new javax.swing.JScrollPane();
-        projectTree = new javax.swing.JTree();
         textAreaSP = new org.fife.ui.rtextarea.RTextScrollPane();
         textArea = new ctrmap.pokescript.ide.CustomRSTA();
+        projectTreeSP = new javax.swing.JScrollPane();
+        projectTree = new ctrmap.pokescript.ide.system.project.tree.IDEProjectTree();
         menuBar = new javax.swing.JMenuBar();
+        projectsMenu = new javax.swing.JMenu();
+        btnNewProject = new javax.swing.JMenuItem();
         fileMenu = new javax.swing.JMenu();
         btnOpen = new javax.swing.JMenuItem();
         btnSave = new javax.swing.JMenuItem();
@@ -275,13 +362,8 @@ public class PSIDE extends javax.swing.JFrame {
 
         ideSplitPane.setRightComponent(errorTableScrollPane);
 
-        topSplitPane.setResizeWeight(0.2);
-
-        javax.swing.tree.DefaultMutableTreeNode treeNode1 = new javax.swing.tree.DefaultMutableTreeNode("Projects");
-        projectTree.setModel(new javax.swing.tree.DefaultTreeModel(treeNode1));
-        projectTreeSP.setViewportView(projectTree);
-
-        topSplitPane.setLeftComponent(projectTreeSP);
+        topSplitPane.setDividerLocation(210);
+        topSplitPane.setResizeWeight(0.22);
 
         textArea.setColumns(20);
         textArea.setRows(5);
@@ -289,7 +371,24 @@ public class PSIDE extends javax.swing.JFrame {
 
         topSplitPane.setRightComponent(textAreaSP);
 
+        projectTree.setBorder(javax.swing.BorderFactory.createEmptyBorder(3, 3, 3, 1));
+        projectTreeSP.setViewportView(projectTree);
+
+        topSplitPane.setLeftComponent(projectTreeSP);
+
         ideSplitPane.setLeftComponent(topSplitPane);
+
+        projectsMenu.setText("Projects");
+
+        btnNewProject.setText("New Project");
+        btnNewProject.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent evt) {
+                btnNewProjectActionPerformed(evt);
+            }
+        });
+        projectsMenu.add(btnNewProject);
+
+        menuBar.add(projectsMenu);
 
         fileMenu.setText("File");
 
@@ -420,6 +519,16 @@ public class PSIDE extends javax.swing.JFrame {
 		settingsFrame.setVisible(true);
     }//GEN-LAST:event_btnOpenSettingsActionPerformed
 
+    private void btnNewProjectActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_btnNewProjectActionPerformed
+		ProjectCreationDialog makeProjDlg = new ProjectCreationDialog(this, true);
+		makeProjDlg.setVisible(true);
+
+		IDEProject prj = makeProjDlg.getResult();
+		if (prj != null) {
+			openProject(prj);
+		}
+    }//GEN-LAST:event_btnNewProjectActionPerformed
+
 	public String getCode() {
 		return textArea.getText();
 	}
@@ -428,6 +537,9 @@ public class PSIDE extends javax.swing.JFrame {
 
 		@Override
 		public ParseResult parse(RSyntaxDocument doc, String style) {
+			if (compilerCfg == null) {
+				return null;
+			}
 			try {
 				String ctxName = "PSIDEScr";
 				if (source != null) {
@@ -452,6 +564,7 @@ public class PSIDE extends javax.swing.JFrame {
 
     // Variables declaration - do not modify//GEN-BEGIN:variables
     private javax.swing.JMenuItem btnCompileToFile;
+    private javax.swing.JMenuItem btnNewProject;
     private javax.swing.JMenuItem btnOpen;
     private javax.swing.JMenuItem btnOpenSettings;
     private javax.swing.JMenuItem btnSave;
@@ -462,8 +575,9 @@ public class PSIDE extends javax.swing.JFrame {
     private javax.swing.JSplitPane ideSplitPane;
     private javax.swing.JMenuBar menuBar;
     private javax.swing.JMenu optionsMenu;
-    private javax.swing.JTree projectTree;
+    private ctrmap.pokescript.ide.system.project.tree.IDEProjectTree projectTree;
     private javax.swing.JScrollPane projectTreeSP;
+    private javax.swing.JMenu projectsMenu;
     private ctrmap.pokescript.ide.CustomRSTA textArea;
     private org.fife.ui.rtextarea.RTextScrollPane textAreaSP;
     private javax.swing.JSplitPane topSplitPane;

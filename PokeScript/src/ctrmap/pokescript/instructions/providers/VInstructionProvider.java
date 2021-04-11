@@ -16,10 +16,12 @@ import ctrmap.pokescript.instructions.gen5.instructions.VConditionJump;
 import ctrmap.pokescript.instructions.gen5.instructions.VLocalCall;
 import ctrmap.pokescript.instructions.gen5.instructions.VNativeCall;
 import ctrmap.pokescript.instructions.gen5.metahandlers.VMovementFuncHandler;
+import ctrmap.pokescript.instructions.providers.floatlib.FXFloatHandler;
+import ctrmap.pokescript.instructions.providers.floatlib.IFloatHandler;
 
 public class VInstructionProvider implements AInstructionProvider {
 
-	public MemoryInfo VMemoryInfo = new MemoryInfo() {
+	public static final MemoryInfo V_MEMORY_INFO = new MemoryInfo() {
 		@Override
 		public int getStackIndexingStep() {
 			return 1;
@@ -83,7 +85,7 @@ public class VInstructionProvider implements AInstructionProvider {
 
 	@Override
 	public MemoryInfo getMemoryInfo() {
-		return VMemoryInfo;
+		return V_MEMORY_INFO;
 	}
 
 	@Override
@@ -93,6 +95,11 @@ public class VInstructionProvider implements AInstructionProvider {
 				return new VMovementFuncHandler();
 		}
 		return null;
+	}
+
+	@Override
+	public IFloatHandler getFloatingPointHandler() {
+		return FXFloatHandler.INSTANCE;
 	}
 
 }

@@ -43,9 +43,9 @@ public class LocalDataGraph extends DataGraph {
 		int argCount = stk;
 		for (int i = 0; i < variables.size(); i++) {
 			//System.out.println("Checking variable " + variables.get(i).index);
-			int expectedIndex = i + stk;
+			int expectedIndex = i;
 			if (i < argCount) {
-				expectedIndex -= argOffset;
+				expectedIndex = -argOffset - stk;
 			}
 			if (expectedIndex != variables.get(i).index) {
 				throw new UnsupportedOperationException("Tried to remove variable " + variables.get(i).name + " from in between the stack. (" + variables.get(i).index + ").");

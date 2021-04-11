@@ -1,0 +1,183 @@
+/**
+*	The juggernaut function to display a message window with various parameters.
+*	This function holds the record for the highest number of arguments in Pokémon with a whopping 19.
+*
+*	@param msgId Index of the message line in the Zone's text file.
+*	@param windowNo The window unit to bind the message dialog to.
+*	@param target A MoveModel to associate the window with, -1 if none.
+*	@param frameId An integer representing the frame style to be used for the window.
+*	@param playerTalk If true, attaches the message bubble to the center of the screen (usually the player).
+*	@param NPCTalk If true, attaches the message bubble to an NPC specified with target.
+*	@param autoHideFrames If not set to -1, the window will close automatically after autoHideFrames frames,
+*	@param flags An integer composed of various bitmasks that further controls the window's behavior.
+*/
+native void TalkMdlMsg_Seq(int msgId, int windowNo, int target, int frameId, int a5, int a6, int a7, int a8, int a9, int a10, int a11, int a12, int a13, int a14, boolean playerTalk, boolean NPCTalk, int autoHideFrames, int a18, int flags);
+
+/**
+*	Shows the Yes/No dialog or checks its state if it's already displayed.
+*	The result is stored into a static Work value.
+*
+*	@param useCustomText If true, the dialog uses further specified dialogue options instead of generic "Yes/No" answers.
+*	@param customMsgIdYes MsgId line replacement of the generic "Yes" option if useCustomText is enabled.
+*	@param customMsgIdNo MsgId line replacement of the generic "No" option if useCustomText is enabled.
+*	@param isNoDefault Sets the cursor to the No option by default.
+*
+*	@returns False if the window query has not yet been answered, true if an option has been selected and confirmed.
+*/
+native boolean YesNoWin_Seq(boolean useCustomText, int customMsgIdYes, int customMsgIdNo, boolean isNoDefault);
+
+/**
+*	Prepares a ListMenu dialog or checks its state if it's already displayed.
+*	The result is stored into a static Work value.
+*
+*	@param x X location of the dialog on the screen. The origin point is at the center of the screen and the dialog is anchored with its right edge.
+*	@param y Y location of the dialog on the screen. The origin point is at the center of the screen and the dialog is anchored with its top edge.
+*	@param selectedIndex Index of the default selected option.
+*
+*	@returns False if the window query has not yet been answered, true if an option has been selected and confirmed.
+*/
+native boolean ListMenuInit_Seq(int x, int y, int selectedIndex, int a4, boolean alignRight, int a6);
+
+/**
+*	Adds a message to the specified index of a ListMenu.
+*
+*	@param msgId The Line number in the currently loaded text file.
+*	@param index The index of the ListMenu element.
+*/
+native void ListMenuAdd(int msgId, int index, int unknown);
+
+/**
+*	Displays a previously defined ListMenu window.
+*/
+native boolean ListMenuStart_Seq();
+
+/**
+*	Sets eye contact between the player and an NPC.
+*
+*	@param target The MoveModel to target or -1 for the current TalkMdl.
+*/
+native void TalkMdlSetEyeToEye(int target);
+
+/**
+*	Clears eye contact between the player and an NPC.
+*
+*	@param target The MoveModel to target or -1 for the current TalkMdl.
+*/
+native void TalkMdlClearEyeToEye(int target);
+
+/**
+*	Make an NPC look at another.
+*
+*	@param lookWho The MoveModel to target or -1 for the current TalkMdl.
+*	@param lookAt The NPC that lookWho should be looking at.
+*/
+native void TalkMdlSetEye(int lookWho, int lookAt);
+
+/**
+*	Reset an NPC that is currently looking at another to its default state.
+*
+*	@param lookWho The NPC to reset.
+*/
+native void TalkMdlClearEye(int lookWho);
+
+/**
+*	Plays the default interaction animation of an NPC.
+*
+*	@param target The MoveModel to target or -1 for the current TalkMdl.
+*/
+native void TalkMdlSetTalkMotion(int target);
+
+/**
+*	Resets a MoveModel's animation to the idle pose.
+*
+*	@param target The MoveModel to target.
+*/
+native void MdlSetWaitAnimeReq(int target);
+
+/**
+*	Checks if a MoveModel has to be crouched in front of to be interacted with.
+*
+*	@param target the MoveModel to check.
+*/
+native boolean MdlIsHalfSitSkelPreset(int target);
+
+/**
+*	Sets the location of a MoveModel to given grid coordinates.
+*
+*	@param gridX X location on the grid.
+*	@param y Y altitude (redundant)
+*	@param gridZ Z location on the grid
+*	@param target The MoveModel to control.
+*/
+native void MdlSetGPos(int gridX, int y, int gridZ, int target);
+
+/**
+*	Sets the Common orientation of a MoveModel.
+*
+*	@param oricmn The orientation to set the target to.
+*	@param target The MoveModel to target.
+*/
+native void TalkMdlSetDir(int oricmn, int target);
+
+/**
+*	Shows/hides a MoveModel.
+*
+*	@param target The MoveModel to target.
+*	@param value True if the model should be visible, false if otherwise.
+*/
+native void MdlSetVisible(int target, boolean value);
+
+/**
+*	Gets a MoveModel's horizontal grid position.
+*
+*	@param target The MoveModel to target.
+*
+*	@returns X grid position of target.
+*/
+native int MdlGetGPosX(int target);
+
+/**
+*	Gets a MoveModel's vertical grid position.
+*
+*	@param target The MoveModel to target.
+*
+*	@returns Z grid position of target.
+*/
+native int MdlGetGPosZ(int target);
+
+/**
+*	Gets the common orientation of a MoveModel target.
+*
+*	@param target The MoveModel to retrieve the orientation of.
+*
+*	@returns Orientation of target.
+*/
+native int MdlGetDirDisp(int target);
+
+/**
+*	Sets the common orientation of a MoveModel target.
+*
+*	@param target The MoveModel to set the orientation of.
+*	@param oricmn The orientation to set for target.
+*/
+native void MdlSetDirDisp(int target, int oricmn);
+
+/**
+*	Calculates the inverse value of a given direction.
+*
+*	@param oricmn The direction to invert.
+*
+*	@returns Inverse of oricmn.
+*/
+native int GetReturnDir(int oricmn);
+
+/**
+*	Gets the inverse of the player's current facing direction.
+*
+*	@returns A common orientation value that is the inverse of the player's.
+*/
+native int PlayerGetReturnDir();
+
+native void _TalkMdlStartInit(int target, int talkFlags, int returnDir, boolean isHalfSit); //flag 32785 = current talkmdl, 32790 = isTalkingToMdl
+
+native void _TalkMdlEndInit(int target, int a2); //flag 32786 = current talkFlags, 32787 = currentRetDir

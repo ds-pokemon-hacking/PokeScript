@@ -1,0 +1,4 @@
+/**
+*	Calculates the direction to which the player should reset after a TalkMdl event has finished.
+*/
+native int PlayerGetReturnDir();
