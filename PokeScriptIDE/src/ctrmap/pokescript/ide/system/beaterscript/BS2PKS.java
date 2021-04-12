@@ -67,14 +67,7 @@ public class BS2PKS {
 		Read the YAML into a function list
 		 */
 		for (YamlNode funcNode : beaterScriptYml.root.children) {
-			Key opCode = (Key) funcNode.content;
-
-			int op = -1;
-			if (opCode.key.startsWith("0x")) {
-				op = Integer.parseInt(opCode.key.substring(2), 16);
-			} else {
-				op = Integer.parseInt(opCode.key);
-			}
+			int op = funcNode.getKeyInt();
 
 			String name = funcNode.getChildByName("Name").getValue();
 			String className = FSUtil.getFileNameWithoutExtension(beaterScriptYml.documentName);

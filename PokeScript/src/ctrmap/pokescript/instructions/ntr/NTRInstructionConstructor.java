@@ -6,6 +6,7 @@ import ctrmap.pokescript.stage0.CompilerPragma;
 import ctrmap.pokescript.stage0.content.DeclarationContent;
 import ctrmap.pokescript.stage1.NCompileGraph;
 import ctrmap.pokescript.types.DataType;
+import ctrmap.stdlib.util.ParsingUtils;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -74,23 +75,8 @@ public class NTRInstructionConstructor {
 		if (header.extendsBase != null){
 			String eb = header.extendsBase;
 
-			int opCode = -1;
-			if (eb.startsWith("0x")){
-				try {
-					opCode = Integer.parseInt(eb.substring(2), 16);
-				}
-				catch (NumberFormatException ex){
-					
-				}
-			}
-			else {
-				try {
-					opCode = Integer.parseInt(eb);
-				}
-				catch (NumberFormatException ex){
-					
-				}
-			}
+			int opCode = ParsingUtils.parseBasedIntOrDefault(eb, -1);
+			
 			proto.opCode = opCode;
 		}
 		

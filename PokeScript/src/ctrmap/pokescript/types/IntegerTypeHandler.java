@@ -1,17 +1,9 @@
 
 package ctrmap.pokescript.types;
 
-import ctrmap.scriptformats.gen6.PawnInstruction;
-import ctrmap.pokescript.instructions.providers.floatlib.PawnFloatLib;
-import ctrmap.pokescript.OutboundDefinition;
 import ctrmap.pokescript.expr.Throughput;
-import ctrmap.pokescript.instructions.ctr.instructions.PNativeCall;
-import ctrmap.pokescript.instructions.abstractcommands.APlainOpCode;
-import ctrmap.pokescript.stage0.EffectiveLine;
 import ctrmap.pokescript.stage1.NCompileGraph;
-import ctrmap.stdlib.util.ArraysEx;
-import java.util.ArrayList;
-import java.util.List;
+import ctrmap.stdlib.util.ParsingUtils;
 
 /**
  *
@@ -21,18 +13,9 @@ public class IntegerTypeHandler implements AbstractTypeHandler{
 	@Override
 	public Throughput tryAssign(String source, NCompileGraph cg) {
 		int intValue = 0;
-		int radix = 10;
-		if (source.startsWith("0x")){
-			radix = 16;
-			source = source.substring(2);
-		}
-		else if (source.startsWith("0b")){
-			radix = 2;
-			source = source.substring(2);
-		}
-		
+
 		try {
-			intValue = Integer.parseInt(source, radix);
+			intValue = ParsingUtils.parseBasedInt(source);
 			return new Throughput(intValue, cg);
 		} catch (NumberFormatException ex) {
 

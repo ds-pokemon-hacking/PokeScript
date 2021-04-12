@@ -13,6 +13,7 @@ import ctrmap.scriptformats.gen5.disasm.StackCommands;
 import ctrmap.scriptformats.gen5.disasm.StackTracker;
 import ctrmap.scriptformats.gen5.disasm.VDisassembler;
 import ctrmap.stdlib.fs.FSFile;
+import ctrmap.stdlib.fs.FSUtil;
 import ctrmap.stdlib.fs.accessors.DiskFile;
 import ctrmap.stdlib.gui.FormattingUtils;
 import ctrmap.stdlib.io.util.IndentedPrintStream;
@@ -20,6 +21,7 @@ import java.io.ByteArrayOutputStream;
 import java.io.PrintStream;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 
 public class VDecompiler {
@@ -57,6 +59,35 @@ public class VDecompiler {
 		ByteArrayOutputStream baos = new ByteArrayOutputStream();
 		IndentedPrintStream out = new IndentedPrintStream(baos);
 
+		List<String> imports = new ArrayList<>();
+
+		for (DisassembledMethod m : disasm.methods) {
+			for (DisassembledCall c : m.instructions) {
+				if (c.command.isDecompPrintable()) {
+					String imp = c.command.classPath;
+					if (!imports.contains(imp)) {
+						imports.add(imp);
+					}
+				}
+			}
+		}
+
+		Collections.sort(imports);
+		for (String imp : imports) {
+			out.print("import ");
+			out.print(imp);
+			out.println(";");
+		}
+
+		if (!imports.isEmpty()) {
+			out.println();
+		}
+
+		out.print("public class ");
+		out.print(FormattingUtils.getStrWithoutSpaces(FSUtil.getFileNameWithoutExtension(scr.getSourceFile().getName())));
+		out.println(" {");
+		out.incrementIndentLevel();
+
 		for (DisassembledMethod m : disasm.methods) {
 			if (m.isPublic) {
 				dumpMethod(m, out);
@@ -74,6 +105,9 @@ public class VDecompiler {
 			dumpMovement(m, out);
 		}
 
+		out.decrementIndentLevel();
+		out.println("}");
+
 		out.close();
 		return new String(baos.toByteArray());
 	}
@@ -87,26 +121,30 @@ public class VDecompiler {
 		out.println("() {");
 		out.incrementIndentLevel();
 
-		int registerMax = 0;
+		List<Integer> usedRegisters = new ArrayList<>();
 		for (DisassembledCall call : m.instructions) {
 			for (int i = 0; i < call.args.length; i++) {
 				int av = call.args[i];
 				NTRArgument ad = call.definition.parameters[i];
 
 				if (ad.dataType == NTRDataType.VAR || ad.dataType == NTRDataType.FLEX) {
-					registerMax = Math.max(registerMax, av);
+					if (av >= 0x8000) {
+						if (!usedRegisters.contains(av)) {
+							usedRegisters.add(av);
+						}
+					}
 				}
 			}
 		}
+		Collections.sort(usedRegisters);
 
-		registerMax -= 0x8000;
-		for (int r = 0; r <= registerMax; r++) {
+		for (int r : usedRegisters) {
 			out.print("int v");
-			out.print(r);
+			out.print(r - 0x8000);
 			out.println(";");
 		}
 
-		if (registerMax > 0) {
+		if (!usedRegisters.isEmpty()) {
 			out.println();
 		}
 
@@ -121,10 +159,10 @@ public class VDecompiler {
 
 		out.println();
 	}
-	
-	private boolean isJumpLabelUsed(DisassembledCall call, DisassembledMethod method){
-		for (DisassembledCall c : method.instructions){
-			if (c.link != null && c.link.target == call && !call.ignoredLinks.contains(c.link)){
+
+	private boolean isJumpLabelUsed(DisassembledCall call, DisassembledMethod method) {
+		for (DisassembledCall c : method.instructions) {
+			if (c.link != null && c.link.target == call && !call.ignoredLinks.contains(c.link)) {
 				return true;
 			}
 		}
@@ -132,10 +170,10 @@ public class VDecompiler {
 	}
 
 	private void handleInstruction(DisassembledCall call, int insIndex, DisassembledMethod method, IndentedPrintStream out) {
-		if (call.doNotDisassemble){
+		if (call.doNotDisassemble) {
 			return;
 		}
-		
+
 		StackCommands stackResult = stack.handleInstruction(call);
 
 		if (call.label != null) {
@@ -161,12 +199,12 @@ public class VDecompiler {
 					break;
 			}
 		} else if (call.command.type == VCommandDataBase.CommandType.REGULAR) {
-			if (call.command.setsCmpFlag || call.definition.opCode == VOpCode.CmpPriAlt.ordinal() || stackResult != null) {
+			if (!call.command.isDecompPrintable() || stackResult != null) {
 				call.doNotDisassemble = true;
 				return;
 			}
 
-			out.print(call.command.name);
+			out.print(call.command.getPKSCallName());
 			out.print("(");
 
 			for (int i = 0; i < call.args.length; i++) {
@@ -214,8 +252,7 @@ public class VDecompiler {
 					DisassembledCall before = descendToJumpOrigin(method.instructions.get(idx));
 					if (before.command.isBranchEnd() || method.instructions.get(idx).command.isBranchEnd()) {
 						return true;
-					}
-					else {
+					} else {
 						//System.out.println("Can not tear out " + Integer.toHexString(target.pointer) + "(" + target.command.name +  ") not branch end " + before.command.name + "(" + Integer.toHexString(before.pointer) + ")");
 					}
 				}
@@ -234,13 +271,13 @@ public class VDecompiler {
 			DisassembledCall c = method.instructions.get(h);
 
 			boolean end;
-			
+
 			if (c.label != null) {
 				end = false;
-				
-				for (DisassembledCall caller : method.instructions){
-					if (caller != blockCaller && caller.link != null && caller.link.target == c){
-						if (caller.pointer > c.pointer || caller.pointer < target.pointer){
+
+				for (DisassembledCall caller : method.instructions) {
+					if (caller != blockCaller && caller.link != null && caller.link.target == c) {
+						if (caller.pointer > c.pointer || caller.pointer < target.pointer) {
 							end = true;
 							break;
 						}
@@ -249,15 +286,14 @@ public class VDecompiler {
 			} else {
 				end = false;
 			}
-			
-			if (end){
+
+			if (end) {
 				DisassembledCall jumpToNext = new DisassembledCall(-1, VOpCode.Jump.proto, 0);
 				jumpToNext.command = new VCommandDataBase.VCommand("jump-dummy", jumpToNext.definition, VCommandDataBase.CommandType.JUMP, false, false);
 				jumpToNext.link = new NTRInstructionLink(jumpToNext, c, 0);
 				instructions.add(jumpToNext);
 				break;
-			}
-			else {
+			} else {
 				instructions.add(c);
 			}
 		}
@@ -284,8 +320,11 @@ public class VDecompiler {
 					out.println("pause;");
 					break;
 				}
+			//fall through
 			case RETURN:
-				out.println("return;");
+				if (method.ptr == -1 || insIndex != method.instructions.size() - 1) {
+					out.println("return;");
+				}
 				break;
 			case CALL:
 			case JUMP:
@@ -350,28 +389,30 @@ public class VDecompiler {
 				} else {
 					DisassembledCall trueTarget = descendToJumpOrigin(call);
 
-					switch (trueTarget.command.type) {
-						case HALT:
-						case RETURN:
-							printIrregularCall((DisassembledCall) call.link.target, method, insIndex, out);
-							break;
-						default:
-							if (getCanBlockBeTornOut(call, method)) {
-								List<DisassembledCall> tornOut = tearOutBlock(call, method);
-								
-								DisassembledMethod dummyMethod = new DisassembledMethod(-1);
-								dummyMethod.instructions.addAll(tornOut);
-								dummyMethod.isPublic = method.isPublic;
-								
-								for (int h2 = 0; h2 < dummyMethod.instructions.size(); h2++){
-									handleInstruction(dummyMethod.instructions.get(h2), h2, dummyMethod, out);
+					if (!getIsPointlessToGoto(trueTarget, insIndex, method)) {
+						switch (trueTarget.command.type) {
+							case HALT:
+							case RETURN:
+								printIrregularCall((DisassembledCall) call.link.target, method, insIndex, out);
+								break;
+							default:
+								if (getCanBlockBeTornOut(call, method)) {
+									List<DisassembledCall> tornOut = tearOutBlock(call, method);
+
+									DisassembledMethod dummyMethod = new DisassembledMethod(-1);
+									dummyMethod.instructions.addAll(tornOut);
+									dummyMethod.isPublic = method.isPublic;
+
+									for (int h2 = 0; h2 < dummyMethod.instructions.size(); h2++) {
+										handleInstruction(dummyMethod.instructions.get(h2), h2, dummyMethod, out);
+									}
+								} else {
+									out.print("goto ");
+									out.print(targetLabel);
+									out.println(";");
 								}
-							} else if (!getIsPointlessToGoto(trueTarget, insIndex, method)) {
-								out.print("goto ");
-								out.print(targetLabel);
-								out.println(";");
-							}
-							break;
+								break;
+						}
 					}
 				}
 
@@ -382,16 +423,15 @@ public class VDecompiler {
 				break;
 		}
 	}
-	
-	private boolean getIsPointlessToGoto(DisassembledCall trueTarget, int insIndex, DisassembledMethod method){
-		for (insIndex++; insIndex < method.instructions.size(); insIndex++){
+
+	private boolean getIsPointlessToGoto(DisassembledCall trueTarget, int insIndex, DisassembledMethod method) {
+		for (insIndex++; insIndex < method.instructions.size(); insIndex++) {
 			DisassembledCall ins = method.instructions.get(insIndex);
-			
-			if (!ins.doNotDisassemble){
-				if (ins != trueTarget){
+
+			if (!ins.doNotDisassemble) {
+				if (ins != trueTarget) {
 					return false;
-				}
-				else {
+				} else {
 					return true;
 				}
 			}

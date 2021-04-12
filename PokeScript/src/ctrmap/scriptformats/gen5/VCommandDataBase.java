@@ -1,11 +1,13 @@
 package ctrmap.scriptformats.gen5;
 
+import ctrmap.pokescript.instructions.gen5.VOpCode;
 import ctrmap.pokescript.instructions.ntr.NTRArgument;
 import ctrmap.pokescript.instructions.ntr.NTRDataType;
 import ctrmap.pokescript.instructions.ntr.NTRInstructionPrototype;
 import ctrmap.stdlib.formats.yaml.Yaml;
 import ctrmap.stdlib.formats.yaml.YamlNode;
 import ctrmap.stdlib.fs.FSFile;
+import ctrmap.stdlib.fs.FSUtil;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -17,9 +19,11 @@ public class VCommandDataBase {
 
 	public VCommandDataBase(FSFile fsf) {
 		Yaml yml = new Yaml(fsf);
+		
+		String defPkg = FSUtil.getFileNameWithoutExtension(fsf.getName());
 
 		for (YamlNode func : yml.root.children) {
-			VCommand cmd = new VCommand(func);
+			VCommand cmd = new VCommand(func, defPkg);
 			commands.put(cmd.def.opCode, cmd);
 		}
 	}
@@ -37,6 +41,9 @@ public class VCommandDataBase {
 		public boolean isConditional;
 		public boolean setsCmpFlag;
 		
+		public String methodName;
+		public String classPath;
+		
 		public VCommand(String name, NTRInstructionPrototype def, CommandType type, boolean isConditional, boolean setsCmpFlag){
 			this.name = name;
 			this.def = def;
@@ -45,10 +52,15 @@ public class VCommandDataBase {
 			this.setsCmpFlag = setsCmpFlag;
 		}
 
-		public VCommand(YamlNode node) {
+		public VCommand(YamlNode node, String defaultPackage) {
 			int opCode = node.getKeyInt();
 			name = node.getChildByName("Name").getValue();
 			YamlNode paramsList = node.getChildByName("Parameters");
+			
+			YamlNode psNameNode = node.getChildByName("PSName");
+			YamlNode psPkgNode = node.getChildByName("PSPackage");
+			methodName = psNameNode != null ? psNameNode.getValue() : name;
+			classPath = psPkgNode != null ? psPkgNode.getValue() : defaultPackage;
 
 			List<NTRArgument> args = new ArrayList<>();
 			
@@ -78,6 +90,14 @@ public class VCommandDataBase {
 			else if (isFunc){
 				type = isJump ? CommandType.JUMP : CommandType.CALL;
 			}
+		}
+		
+		public boolean isDecompPrintable(){
+			return !(setsCmpFlag || def.opCode == VOpCode.CmpPriAlt.ordinal());
+		}
+		
+		public String getPKSCallName(){
+			return FSUtil.getFileName(classPath.replace('.', '/')) + "." + methodName;
 		}
 		
 		public boolean isBranchEnd(){
