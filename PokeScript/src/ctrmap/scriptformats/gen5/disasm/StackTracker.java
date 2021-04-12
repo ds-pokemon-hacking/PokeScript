@@ -3,6 +3,7 @@ package ctrmap.scriptformats.gen5.disasm;
 import ctrmap.pokescript.instructions.gen5.VConstants;
 import ctrmap.pokescript.instructions.gen5.VOpCode;
 import ctrmap.pokescript.instructions.gen5.VStackCmpOpRequest;
+import ctrmap.scriptformats.gen5.VDecompiler;
 import java.io.PrintStream;
 import java.util.Stack;
 
@@ -62,7 +63,7 @@ public class StackTracker {
 					break;
 				case PUSH_VAR:
 					int param = call.args[0];
-					StackElementType t = param < VConstants.GP_REG_PRI ? StackElementType.CONSTANT : StackElementType.VARIABLE;
+					StackElementType t = param < 0x4000 ? StackElementType.CONSTANT : StackElementType.VARIABLE;
 					push(new StackElement(t, param));
 					break;
 				case ADD:
@@ -101,8 +102,7 @@ public class StackTracker {
 					out.print(value);
 					break;
 				case VARIABLE:
-					out.print("v");
-					out.print(value - VConstants.GP_REG_PRI);
+					out.print(VDecompiler.flex2Str(value));
 					break;
 				case FLAG:
 					out.print("EventFlags.Get(");
@@ -120,10 +120,10 @@ public class StackTracker {
 		public int cmpType;
 
 		private StackElement getSideByType(StackElementType t) {
-			if (lhs.type == t) {
+			if (lhs != null && lhs.type == t) {
 				return lhs;
 			}
-			if (rhs.type == t) {
+			if (lhs != null && rhs.type == t) {
 				return rhs;
 			}
 			return null;
@@ -162,9 +162,19 @@ public class StackTracker {
 					flag.print(out);
 				}
 			} else {
-				lhs.print(out);
+				if (lhs != null){
+					lhs.print(out);
+				}
+				else {
+					out.print("[STACK ERROR]");
+				}
 				printOperator(out);
-				rhs.print(out);
+				if (rhs != null){
+					rhs.print(out);
+				}
+				else {
+					out.print("[STACK ERROR]");
+				}
 			}
 		}
 

@@ -30,6 +30,6 @@ public class VCmpResultRequest {
 			case GEQUAL:
 				return ">=";
 		}
-		return "[ERR]";
+		return "[ERR - " + cmpResReq + "]";
 	}
 }

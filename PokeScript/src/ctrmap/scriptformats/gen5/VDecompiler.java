@@ -38,7 +38,7 @@ public class VDecompiler {
 	}
 
 	public static void main(String[] args) {
-		FSFile scrFile = new DiskFile("D:\\_REWorkspace\\pokescript_genv\\BeaterScript\\BeaterScriptCLI\\bin\\Debug\\netcoreapp3.1\\6_0.bin");
+		FSFile scrFile = new DiskFile("D:\\_REWorkspace\\pokescript_genv\\BeaterScript\\BeaterScriptCLI\\bin\\Debug\\netcoreapp3.1\\6_854.bin");
 		FSFile cdbFile = new DiskFile("C:\\Users\\Čeněk\\eclipse-workspace\\BsYmlGen\\B2W2.yml");
 		FSFile outFile = new DiskFile("D:\\_REWorkspace\\pokescript_genv\\decomp\\out.pks");
 
@@ -67,6 +67,25 @@ public class VDecompiler {
 					String imp = c.command.classPath;
 					if (!imports.contains(imp)) {
 						imports.add(imp);
+					}
+				}
+				if (c.command.def.opCode == VOpCode.PushEventFlag.ordinal()) {
+					String imp = "system.EventFlags";
+					if (!imports.contains(imp)) {
+						imports.add(imp);
+					}
+				}
+				for (int i = 0; i < c.args.length; i++) {
+					int av = c.args[i];
+					NTRArgument ad = c.definition.parameters[i];
+
+					if (ad.dataType == NTRDataType.VAR || ad.dataType == NTRDataType.FLEX) {
+						if (av >= 0x4000 && av < 0x8000) {
+							String imp = "system.EventWorks";
+							if (!imports.contains(imp)) {
+								imports.add(imp);
+							}
+						}
 					}
 				}
 			}
@@ -199,7 +218,7 @@ public class VDecompiler {
 					break;
 			}
 		} else if (call.command.type == VCommandDataBase.CommandType.REGULAR) {
-			if (!call.command.isDecompPrintable() || stackResult != null) {
+			if (!call.command.isDecompPrintable()) {
 				call.doNotDisassemble = true;
 				return;
 			}
@@ -272,19 +291,25 @@ public class VDecompiler {
 
 			boolean end;
 
-			if (c.label != null) {
-				end = false;
+			if (c.command.type == VCommandDataBase.CommandType.JUMP && !c.command.isConditional) {
+				end = true;
+				instructions.add(c);
+				break;
+			} else {
+				if (c.label != null) {
+					end = false;
 
-				for (DisassembledCall caller : method.instructions) {
-					if (caller != blockCaller && caller.link != null && caller.link.target == c) {
-						if (caller.pointer > c.pointer || caller.pointer < target.pointer) {
-							end = true;
-							break;
+					for (DisassembledCall caller : method.instructions) {
+						if (caller != blockCaller && caller.link != null && caller.link.target == c) {
+							if (caller.pointer > c.pointer || caller.pointer < target.pointer) {
+								end = true;
+								break;
+							}
 						}
 					}
+				} else {
+					end = false;
 				}
-			} else {
-				end = false;
 			}
 
 			if (end) {
@@ -355,14 +380,14 @@ public class VDecompiler {
 								lhs = "g_" + condSrc.args[0];
 							}
 							if (opCode == VOpCode.CmpVMVarConst.ordinal() || opCode == VOpCode.CmpVarConst.ordinal()) {
-								rhs = String.valueOf(condSrc.args[0]);
+								rhs = String.valueOf(condSrc.args[1]);
 							} else {
 								rhs = isGlobal ? "g_" + condSrc.args[1] : flex2Str(condSrc.args[1]);
 							}
 
 							out.print(lhs);
 							out.print(" ");
-							out.print(VCmpResultRequest.getOpStr(condSrc.args[0]));
+							out.print(VCmpResultRequest.getOpStr(cmpReq));
 							out.print(" ");
 							out.print(rhs);
 						} else {
@@ -382,36 +407,41 @@ public class VDecompiler {
 					out.incrementIndentLevel();
 				}
 
-				String targetLabel = ((DisassembledCall) call.link.target).label;
-				if (call.command.type == VCommandDataBase.CommandType.CALL) {
-					out.print(targetLabel);
-					out.println("();");
+				if (call.link == null) {
+					System.err.println("Link error at " + call.command.name + "(" + Integer.toHexString(call.pointer) + ")");
+					out.print("goto [LINK ERROR];");
 				} else {
-					DisassembledCall trueTarget = descendToJumpOrigin(call);
+					String targetLabel = ((DisassembledCall) call.link.target).label;
+					if (call.command.type == VCommandDataBase.CommandType.CALL) {
+						out.print(targetLabel);
+						out.println("();");
+					} else {
+						DisassembledCall trueTarget = descendToJumpOrigin(call);
 
-					if (!getIsPointlessToGoto(trueTarget, insIndex, method)) {
-						switch (trueTarget.command.type) {
-							case HALT:
-							case RETURN:
-								printIrregularCall((DisassembledCall) call.link.target, method, insIndex, out);
-								break;
-							default:
-								if (getCanBlockBeTornOut(call, method)) {
-									List<DisassembledCall> tornOut = tearOutBlock(call, method);
+						if (!getIsPointlessToGoto(trueTarget, insIndex, method)) {
+							switch (trueTarget.command.type) {
+								case HALT:
+								case RETURN:
+									printIrregularCall((DisassembledCall) call.link.target, method, insIndex, out);
+									break;
+								default:
+									if (getCanBlockBeTornOut(call, method)) {
+										List<DisassembledCall> tornOut = tearOutBlock(call, method);
 
-									DisassembledMethod dummyMethod = new DisassembledMethod(-1);
-									dummyMethod.instructions.addAll(tornOut);
-									dummyMethod.isPublic = method.isPublic;
+										DisassembledMethod dummyMethod = new DisassembledMethod(-1);
+										dummyMethod.instructions.addAll(tornOut);
+										dummyMethod.isPublic = method.isPublic;
 
-									for (int h2 = 0; h2 < dummyMethod.instructions.size(); h2++) {
-										handleInstruction(dummyMethod.instructions.get(h2), h2, dummyMethod, out);
+										for (int h2 = 0; h2 < dummyMethod.instructions.size(); h2++) {
+											handleInstruction(dummyMethod.instructions.get(h2), h2, dummyMethod, out);
+										}
+									} else {
+										out.print("goto ");
+										out.print(targetLabel);
+										out.println(";");
 									}
-								} else {
-									out.print("goto ");
-									out.print(targetLabel);
-									out.println(";");
-								}
-								break;
+									break;
+							}
 						}
 					}
 				}
@@ -444,6 +474,9 @@ public class VDecompiler {
 			return jump;
 		}
 		DisassembledCall target = (DisassembledCall) jump.link.target;
+		if (target == null || target.command == null) {
+			return jump;
+		}
 
 		if (target.command.type == VCommandDataBase.CommandType.JUMP && !target.command.isConditional) {
 			target = descendToJumpOrigin(target);
@@ -456,8 +489,11 @@ public class VDecompiler {
 		out.print(flex2Str(av));
 	}
 
-	private String flex2Str(int av) {
+	public static String flex2Str(int av) {
 		if (av < 0x8000) {
+			if (av >= 0x4000) {
+				return "EventWorks.WorkGet(" + (av /*- 0x4000*/) + ")";
+			}
 			return String.valueOf(av);
 		} else {
 			return "v" + (av - 0x8000);

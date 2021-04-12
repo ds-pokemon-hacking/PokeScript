@@ -33,7 +33,7 @@ public class VStackCmpOpRequest {
 			case BOOL_OR:
 				return "||";
 		}
-		return "[ERR]";
+		return "[ERR - " + stkCmpReq + "]";
 	}
 	
 	public static int getVmCmpReqForStkCmpReq(int stkCmpReq){

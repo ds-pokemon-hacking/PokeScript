@@ -156,6 +156,7 @@ public class VDisassembler {
 	}
 
 	private DisassembledMethod readMethod(IOWrapper dis, LinkPrototype lp) throws IOException {
+		System.out.println("Reading method at " + Integer.toHexString(lp.targetOffset));
 		int methodPtr = lp.targetOffset;
 		dis.seek(methodPtr);
 		int max = dis.length() - 2;
@@ -170,7 +171,11 @@ public class VDisassembler {
 
 			VCommandDataBase.VCommand c = cdb.getCommandProto(opCode);
 			if (c == null) {
-				System.err.println("WARN: Could not detect command 0x" + Integer.toHexString(opCode));
+				System.err.println("WARN: Could not detect command 0x" + Integer.toHexString(opCode) + " at " + Integer.toHexString(insPtr));
+				if (!m.instructions.isEmpty()){
+					DisassembledCall lastCall = m.instructions.get(m.instructions.size() - 1);
+					System.err.println("Last command: " + (lastCall.command != null ? lastCall.command.name : "[UNDETECTED]") + " at " + Integer.toHexString(lastCall.pointer) + "(size " + Integer.toHexString(lastCall.getSize()) + ")");
+				}
 				if ((opCode & 0xF000) != 0) {
 					System.err.println("Suspicious command. Aligning stream.");
 					dis.seek(dis.getPosition() - 1);
@@ -226,14 +231,14 @@ public class VDisassembler {
 
 		methods.add(m);
 
-		System.out.println("Reading movement of func " + Integer.toHexString(m.ptr));
 		for (LinkPrototype movementCall : movementJumps) {
 			if (findMovementByPtr(movementCall.targetOffset) == null) {
 				readMovement(dis, movementCall);
 			}
 		}
 
-		for (LinkPrototype funcCall : functionCalls) {
+		List<LinkPrototype> currentFuncCalls = new ArrayList<>(functionCalls);
+		for (LinkPrototype funcCall : currentFuncCalls) {
 			if (findMethodByPtr(funcCall.targetOffset) == null) {
 				readMethod(dis, funcCall);
 			}
