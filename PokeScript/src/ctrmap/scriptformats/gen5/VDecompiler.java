@@ -2,13 +2,11 @@ package ctrmap.scriptformats.gen5;
 
 import ctrmap.pokescript.instructions.gen5.VCmpResultRequest;
 import ctrmap.pokescript.instructions.gen5.VOpCode;
-import ctrmap.pokescript.instructions.gen5.VStackCmpOpRequest;
 import ctrmap.pokescript.instructions.ntr.NTRArgument;
 import ctrmap.pokescript.instructions.ntr.NTRDataType;
 import ctrmap.pokescript.instructions.ntr.NTRInstructionLink;
 import ctrmap.scriptformats.gen5.disasm.DisassembledCall;
 import ctrmap.scriptformats.gen5.disasm.DisassembledMethod;
-import ctrmap.scriptformats.gen5.disasm.LinkPrototype;
 import ctrmap.scriptformats.gen5.disasm.StackCommands;
 import ctrmap.scriptformats.gen5.disasm.StackTracker;
 import ctrmap.scriptformats.gen5.disasm.VDisassembler;
@@ -37,8 +35,8 @@ public class VDecompiler {
 		disasm = new VDisassembler(scr, cdb);
 	}
 
-	public static void main(String[] args) {
-		FSFile scrFile = new DiskFile("D:\\_REWorkspace\\pokescript_genv\\BeaterScript\\BeaterScriptCLI\\bin\\Debug\\netcoreapp3.1\\6_854.bin");
+	public static void main(String[] args) {		
+		FSFile scrFile = new DiskFile("D:\\_REWorkspace\\CTRMapProjects\\BW2_CTRMap\\vfs\\data\\a\\0\\5\\6\\904");
 		FSFile cdbFile = new DiskFile("C:\\Users\\Čeněk\\eclipse-workspace\\BsYmlGen\\B2W2.yml");
 		FSFile outFile = new DiskFile("D:\\_REWorkspace\\pokescript_genv\\decomp\\out.pks");
 
@@ -181,8 +179,13 @@ public class VDecompiler {
 
 	private boolean isJumpLabelUsed(DisassembledCall call, DisassembledMethod method) {
 		for (DisassembledCall c : method.instructions) {
-			if (c.link != null && c.link.target == call && !call.ignoredLinks.contains(c.link)) {
-				return true;
+			if (c.link != null && c.link.target == call) {
+				if (!call.ignoredLinks.contains(c.link)) {
+					return true;
+				}
+				else {
+					System.out.println("Label " + call.label + " used, but ignored.");
+				}
 			}
 		}
 		return false;
@@ -204,6 +207,8 @@ public class VDecompiler {
 				} else {
 					System.out.println("Pointless to label: " + call.label);
 				}
+			} else {
+				System.out.println("Unused label: " + call.label);
 			}
 		}
 
@@ -265,6 +270,16 @@ public class VDecompiler {
 	private boolean getCanBlockBeTornOut(DisassembledCall blockCaller, DisassembledMethod method) {
 		DisassembledCall target = descendToJumpOrigin(blockCaller);
 		if (target != null) {
+			int linkCount = 0;
+			for (DisassembledCall c : method.instructions){
+				if (c.link != null && c.link.target != null && c.link.target == target){
+					linkCount++;
+					if (linkCount > 1){
+						return false;
+					}
+				}
+			}
+			
 			if (target.pointer > blockCaller.pointer) {
 				int idx = method.instructions.indexOf(target) - 1;
 				if (idx >= 0) {
@@ -285,7 +300,6 @@ public class VDecompiler {
 
 		DisassembledCall target = descendToJumpOrigin(blockCaller);
 
-		target.ignoredLinks.add(blockCaller.link);
 		for (int h = method.instructions.indexOf(target); h < method.instructions.size(); h++) {
 			DisassembledCall c = method.instructions.get(h);
 
@@ -322,6 +336,7 @@ public class VDecompiler {
 				instructions.add(c);
 			}
 		}
+		target.ignoredLinks.add(blockCaller.link);
 
 		return instructions;
 	}
@@ -409,7 +424,7 @@ public class VDecompiler {
 
 				if (call.link == null) {
 					System.err.println("Link error at " + call.command.name + "(" + Integer.toHexString(call.pointer) + ")");
-					out.print("goto [LINK ERROR];");
+					out.println("goto [LINK ERROR];");
 				} else {
 					String targetLabel = ((DisassembledCall) call.link.target).label;
 					if (call.command.type == VCommandDataBase.CommandType.CALL) {

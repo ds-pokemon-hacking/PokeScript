@@ -41,7 +41,7 @@ public class VCommandDataBase {
 		public boolean isConditional;
 		public boolean setsCmpFlag;
 		
-		public String methodName;
+		public String[] methodNames;
 		public String classPath;
 		
 		public VCommand(String name, NTRInstructionPrototype def, CommandType type, boolean isConditional, boolean setsCmpFlag){
@@ -59,7 +59,7 @@ public class VCommandDataBase {
 			
 			YamlNode psNameNode = node.getChildByName("PSName");
 			YamlNode psPkgNode = node.getChildByName("PSPackage");
-			methodName = psNameNode != null ? psNameNode.getValue() : name;
+			methodNames = (psNameNode != null ? psNameNode.getValue() : name).split("/");
 			classPath = psPkgNode != null ? psPkgNode.getValue() : defaultPackage;
 
 			List<NTRArgument> args = new ArrayList<>();
@@ -97,7 +97,7 @@ public class VCommandDataBase {
 		}
 		
 		public String getPKSCallName(){
-			return FSUtil.getFileName(classPath.replace('.', '/')) + "." + methodName;
+			return FSUtil.getFileName(classPath.replace('.', '/')) + "." + methodNames[0];
 		}
 		
 		public boolean isBranchEnd(){
