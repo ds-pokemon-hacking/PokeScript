@@ -1,13 +1,13 @@
 package ctrmap.pokescript.ide.autocomplete.gui;
 
-import ctrmap.pokescript.ide.CustomRSTA;
+import ctrmap.pokescript.ide.FileEditorRSTA;
 import ctrmap.pokescript.ide.autocomplete.AutoComplete;
 
 public class ACMethodArgWindow extends javax.swing.JWindow {
 
-	private CustomRSTA area;
+	private FileEditorRSTA area;
 
-	public ACMethodArgWindow(CustomRSTA area) {
+	public ACMethodArgWindow(FileEditorRSTA area) {
 		this.area = area;
 		initComponents();
 	}

@@ -5,7 +5,7 @@ import ctrmap.pokescript.InboundDefinition;
 import ctrmap.pokescript.stage0.Modifier;
 import ctrmap.pokescript.stage0.Preprocessor;
 import ctrmap.stdlib.fs.FSUtil;
-import ctrmap.stdlib.gui.FormattingUtils;
+import ctrmap.stdlib.text.FormattingUtils;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.PrintStream;

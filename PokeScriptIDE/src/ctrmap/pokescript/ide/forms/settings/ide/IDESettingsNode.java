@@ -4,7 +4,7 @@
  * and open the template in the editor.
  */
 
-package ctrmap.pokescript.ide.settings;
+package ctrmap.pokescript.ide.forms.settings.ide;
 
 import ctrmap.stdlib.gui.components.tree.CustomJTreeNode;
 

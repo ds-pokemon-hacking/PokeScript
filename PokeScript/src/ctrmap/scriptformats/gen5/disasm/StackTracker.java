@@ -1,6 +1,5 @@
 package ctrmap.scriptformats.gen5.disasm;
 
-import ctrmap.pokescript.instructions.gen5.VConstants;
 import ctrmap.pokescript.instructions.gen5.VOpCode;
 import ctrmap.pokescript.instructions.gen5.VStackCmpOpRequest;
 import ctrmap.scriptformats.gen5.VDecompiler;

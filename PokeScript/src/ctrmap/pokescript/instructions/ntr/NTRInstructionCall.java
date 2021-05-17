@@ -38,6 +38,10 @@ public class NTRInstructionCall extends ACompiledInstruction {
 		}
 	}
 	
+	protected NTRInstructionCall(){
+		
+	}
+	
 	public void setupLink(VScriptFile scr, NTRInstructionLinkSetup... linkableOpCodes){
 		for (int i = 0; i < linkableOpCodes.length; i++){
 			if (linkableOpCodes[i].opCode == definition.opCode){

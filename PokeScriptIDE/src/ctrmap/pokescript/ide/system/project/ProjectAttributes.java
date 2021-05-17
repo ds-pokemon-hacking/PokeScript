@@ -1,7 +1,5 @@
 package ctrmap.pokescript.ide.system.project;
 
-import ctrmap.stdlib.gui.FormattingUtils;
-
 public class ProjectAttributes {
 
 	/**

@@ -4,7 +4,7 @@
  * and open the template in the editor.
  */
 
-package ctrmap.pokescript.ide.settings;
+package ctrmap.pokescript.ide.forms.settings.ide;
 
 import ctrmap.pokescript.ide.PSIDE;
 import javax.swing.JPanel;

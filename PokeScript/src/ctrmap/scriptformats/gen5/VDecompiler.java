@@ -7,13 +7,15 @@ import ctrmap.pokescript.instructions.ntr.NTRDataType;
 import ctrmap.pokescript.instructions.ntr.NTRInstructionLink;
 import ctrmap.scriptformats.gen5.disasm.DisassembledCall;
 import ctrmap.scriptformats.gen5.disasm.DisassembledMethod;
+import ctrmap.scriptformats.gen5.disasm.MathCommands;
+import ctrmap.scriptformats.gen5.disasm.MathMaker;
 import ctrmap.scriptformats.gen5.disasm.StackCommands;
 import ctrmap.scriptformats.gen5.disasm.StackTracker;
 import ctrmap.scriptformats.gen5.disasm.VDisassembler;
 import ctrmap.stdlib.fs.FSFile;
 import ctrmap.stdlib.fs.FSUtil;
 import ctrmap.stdlib.fs.accessors.DiskFile;
-import ctrmap.stdlib.gui.FormattingUtils;
+import ctrmap.stdlib.text.FormattingUtils;
 import ctrmap.stdlib.io.util.IndentedPrintStream;
 import java.io.ByteArrayOutputStream;
 import java.io.PrintStream;
@@ -35,8 +37,8 @@ public class VDecompiler {
 		disasm = new VDisassembler(scr, cdb);
 	}
 
-	public static void main(String[] args) {		
-		FSFile scrFile = new DiskFile("D:\\_REWorkspace\\CTRMapProjects\\BW2_CTRMap\\vfs\\data\\a\\0\\5\\6\\904");
+	public static void main(String[] args) {
+		FSFile scrFile = new DiskFile("D:\\_REWorkspace\\CTRMapProjects\\White2\\vfs\\data\\a\\0\\5\\6\\290");
 		FSFile cdbFile = new DiskFile("C:\\Users\\Čeněk\\eclipse-workspace\\BsYmlGen\\B2W2.yml");
 		FSFile outFile = new DiskFile("D:\\_REWorkspace\\pokescript_genv\\decomp\\out.pks");
 
@@ -182,8 +184,7 @@ public class VDecompiler {
 			if (c.link != null && c.link.target == call) {
 				if (!call.ignoredLinks.contains(c.link)) {
 					return true;
-				}
-				else {
+				} else {
 					System.out.println("Label " + call.label + " used, but ignored.");
 				}
 			}
@@ -197,6 +198,7 @@ public class VDecompiler {
 		}
 
 		StackCommands stackResult = stack.handleInstruction(call);
+		MathCommands mathResult = MathMaker.handleInstruction(call);
 
 		if (call.label != null) {
 			if (isJumpLabelUsed(call, method)) {
@@ -222,40 +224,73 @@ public class VDecompiler {
 					out.println(";");
 					break;
 			}
+		} else if (mathResult != null) {
+			int target = call.args[0];
+			int rhs = call.args[1];
+			if (target < 0x8000) {
+				out.print("EventWorks.WorkSet(");
+				out.print(target);
+				out.print(", ");
+				if (mathResult.operator != null) {
+					out.print(target);
+					out.print(" ");
+					out.print(mathResult.operator);
+					out.print(" ");
+					printByDataType(call.definition.parameters[1].dataType, rhs, out);
+				} else {
+					printFlex(rhs, out);
+				}
+				out.print(")");
+			} else {
+				printFlex(target, out);
+				out.print(" ");
+				if (mathResult.operator != null) {
+					out.print(mathResult.operator);
+				}
+				out.print("= ");
+				printByDataType(call.definition.parameters[1].dataType, rhs, out);
+			}
+			out.println(";");
 		} else if (call.command.type == VCommandDataBase.CommandType.REGULAR) {
 			if (!call.command.isDecompPrintable()) {
 				call.doNotDisassemble = true;
 				return;
 			}
-
+			
+			int rcbCount = 0;
+			for (int i = 0; i < call.command.def.parameters.length; i++){
+				if (call.command.def.parameters[i].isReturnCallback()){
+					rcbCount++;
+				}
+			}
+			boolean isRCB = rcbCount == 1;
+			int rcbIndex = call.command.def.getIndexOfFirstReturnArgument();
+						
+			if (isRCB){
+				printFlex(call.args[rcbIndex], out);
+				out.print(" = ");
+			}
+			
 			out.print(call.command.getPKSCallName());
 			out.print("(");
 
+			boolean started = false;
+			
 			for (int i = 0; i < call.args.length; i++) {
-				if (i != 0) {
+				if (i == rcbIndex){
+					continue;
+				}
+				if (started) {
 					out.print(", ");
 				}
+				started = true;
 				int av = call.args[i];
 				NTRArgument ad = call.definition.parameters[i];
 
 				if (call.link != null && i == call.link.argIdx) {
 					out.print(((DisassembledCall) (call.link.target)).label);
 				} else {
-					switch (ad.dataType) {
-						case VAR:
-						case FLEX:
-							printFlex(av, out);
-							break;
-						case U16:
-						case U8:
-						case S32:
-							out.print(av);
-							break;
-						case FX16:
-						case FX32:
-							out.print(av / 4096f);
-							break;
-					}
+					printByDataType(ad.dataType, av, out);
 				}
 			}
 
@@ -267,19 +302,39 @@ public class VDecompiler {
 		call.doNotDisassemble = true;
 	}
 
+	private static void printByDataType(NTRDataType dataType, int val, PrintStream out) {
+		switch (dataType) {
+			case VAR:
+				out.print(var2StrRef(val));
+				break;
+			case FLEX:
+				printFlex(val, out);
+				break;
+			case U16:
+			case U8:
+			case S32:
+				out.print(val);
+				break;
+			case FX16:
+			case FX32:
+				out.print(val / 4096f);
+				break;
+		}
+	}
+
 	private boolean getCanBlockBeTornOut(DisassembledCall blockCaller, DisassembledMethod method) {
 		DisassembledCall target = descendToJumpOrigin(blockCaller);
 		if (target != null) {
 			int linkCount = 0;
-			for (DisassembledCall c : method.instructions){
-				if (c.link != null && c.link.target != null && c.link.target == target){
+			for (DisassembledCall c : method.instructions) {
+				if (c.link != null && c.link.target != null && c.link.target == target) {
 					linkCount++;
-					if (linkCount > 1){
+					if (linkCount > 1) {
 						return false;
 					}
 				}
 			}
-			
+
 			if (target.pointer > blockCaller.pointer) {
 				int idx = method.instructions.indexOf(target) - 1;
 				if (idx >= 0) {
@@ -500,7 +555,7 @@ public class VDecompiler {
 		return target;
 	}
 
-	private void printFlex(int av, PrintStream out) {
+	private static void printFlex(int av, PrintStream out) {
 		out.print(flex2Str(av));
 	}
 
@@ -513,6 +568,13 @@ public class VDecompiler {
 		} else {
 			return "v" + (av - 0x8000);
 		}
+	}
+
+	public static String var2StrRef(int av) {
+		if (av < 0x8000) {
+			return String.valueOf(av);
+		}
+		return flex2Str(av);
 	}
 
 	private void dumpMovement(DisassembledMethod m, IndentedPrintStream out) {

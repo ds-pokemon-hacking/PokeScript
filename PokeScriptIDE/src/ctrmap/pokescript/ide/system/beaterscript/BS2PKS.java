@@ -13,7 +13,7 @@ import ctrmap.stdlib.cli.ArgumentType;
 import ctrmap.stdlib.fs.FSFile;
 import ctrmap.stdlib.fs.FSUtil;
 import ctrmap.stdlib.fs.accessors.DiskFile;
-import ctrmap.stdlib.gui.FormattingUtils;
+import ctrmap.stdlib.text.FormattingUtils;
 import ctrmap.stdlib.net.FileDownloader;
 import ctrmap.stdlib.util.ArraysEx;
 import java.io.File;

@@ -56,6 +56,16 @@ public class VCommandDataBase {
 			int opCode = node.getKeyInt();
 			name = node.getChildByName("Name").getValue();
 			YamlNode paramsList = node.getChildByName("Parameters");
+			YamlNode paramNamesNode = node.getChildByName("ParamNames");
+			List<String> paramNames = new ArrayList<>();
+			if (paramNamesNode != null) {
+				paramNames.addAll(paramNamesNode.getChildValuesAsListStr());
+			}
+			YamlNode returnTypesNode = node.getChildByName("ReturnParams");
+			List<String> returnables = new ArrayList<>();
+			if (returnTypesNode != null){
+				returnables.addAll(returnTypesNode.getChildValuesAsListStr());
+			}
 			
 			YamlNode psNameNode = node.getChildByName("PSName");
 			YamlNode psPkgNode = node.getChildByName("PSPackage");
@@ -65,8 +75,15 @@ public class VCommandDataBase {
 			List<NTRArgument> args = new ArrayList<>();
 			
 			if (paramsList != null) {
-				for (YamlNode pn : paramsList.children) {
-					args.add(new NTRArgument(parseNTRDT(pn.getValue())));
+				int rcb = 0;
+				for (int i = 0; i < paramsList.children.size(); i++) {
+					YamlNode pn = paramsList.children.get(i);
+					NTRArgument arg = new NTRArgument(parseNTRDT(pn.getValue()));
+					if (i < paramNames.size() && returnables.contains(paramNames.get(i))){
+						arg.returnCallBackIndex = rcb;
+						rcb++;
+					}
+					args.add(arg);
 				}
 			}
 			def = new NTRInstructionPrototype(opCode, args.toArray(new NTRArgument[args.size()]));
@@ -80,7 +97,7 @@ public class VCommandDataBase {
 			isConditional = node.getChildBoolValue("HasCondition");
 			setsCmpFlag = node.getChildBoolValue("WritesCondition");
 			boolean isJump = node.getChildBoolValue("IsJump");
-			
+						
 			if (isMove){
 				type = CommandType.MOVEMENT_JUMP;
 			}

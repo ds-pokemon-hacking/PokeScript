@@ -7,8 +7,6 @@ package ctrmap.pokescript.ide.system.project;
 
 import ctrmap.pokescript.ide.system.IDEResourceReference;
 import ctrmap.pokescript.ide.system.project.remoteext.IRemoteExtResolver;
-import ctrmap.pokescript.ide.system.project.tree.IDEProjectTree;
-import ctrmap.pokescript.ide.system.project.tree.nodes.ProjectNode;
 import ctrmap.stdlib.fs.FSFile;
 import ctrmap.stdlib.gui.DialogUtils;
 import java.util.ArrayList;
@@ -42,6 +40,21 @@ public class IDEContext {
 		IDEProject prj = new IDEProject(projectFile);
 		openedProjects.add(prj);
 		return prj;
+	}
+	
+	public IDEProject getProjectByProdId(String prodId){
+		for (IDEProject p : openedProjects){
+			if (p.getManifest().getProductId().equals(prodId)){
+				return p;
+			}
+		}
+		return null;
+	}
+	
+	public void saveCacheData(){
+		for (IDEProject proj : openedProjects){
+			proj.saveCacheData();
+		}
 	}
 
 	public void registerRemoteExtResolver(IRemoteExtResolver extResolver) {

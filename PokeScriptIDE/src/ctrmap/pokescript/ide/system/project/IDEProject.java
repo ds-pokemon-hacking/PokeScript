@@ -2,6 +2,7 @@ package ctrmap.pokescript.ide.system.project;
 
 import ctrmap.pokescript.LangCompiler;
 import ctrmap.pokescript.LangPlatform;
+import ctrmap.pokescript.ide.system.project.caches.ProjectFileCaretPosCache;
 import ctrmap.pokescript.ide.system.project.include.Dependency;
 import ctrmap.pokescript.ide.system.project.include.IInclude;
 import ctrmap.pokescript.ide.system.project.include.InvalidInclude;
@@ -24,26 +25,51 @@ public class IDEProject {
 	private FSFile projectRoot;
 	private IDEProjectManifest manifest;
 
+	private FSFile cacheDir;
+
 	public ListenableList<IInclude> includes = new ListenableList<>();
+	
+	public ProjectFileCaretPosCache caretPosCache;
 
 	public IDEProject(FSFile projectFile) {
 		projectRoot = projectFile.getParent();
 		manifest = new IDEProjectManifest(projectFile);
 
+		loadSetup();
+	}
+
+	public IDEProject(FSFile projectRoot, String projectName, String productId, LangPlatform plaf) {
+		this.projectRoot = projectRoot;
+
+		manifest = new IDEProjectManifest(projectRoot.getChild(projectName + IDE_PROJECT_EXTENSION_FILTER.getPrimaryExtension()), projectName, productId, plaf);
+
+		loadSetup();
+
+		getSourceDir().mkdirs();
+	}
+
+	private void loadSetup() {
+		cacheDir = projectRoot.getChild("cache");
+		cacheDir.mkdir();
+
 		if (manifest.isMultirelease()) {
 			throw new UnsupportedOperationException("Projects can not be multi-release!");
 		}
+		
+		caretPosCache = new ProjectFileCaretPosCache(this);
 	}
 	
-	public IDEProject(FSFile projectRoot, String projectName, String productId, LangPlatform plaf){
-		this.projectRoot = projectRoot;
-		
-		manifest = new IDEProjectManifest(projectRoot.getChild(projectName + IDE_PROJECT_EXTENSION_FILTER.getPrimaryExtension()), projectName, productId, plaf);
-		
-		getSourceDir().mkdirs();
+	public void saveCacheData(){
+		caretPosCache.write();
 	}
-	
-	public String getProjectPath(){
+
+	public IDEFile getFile(String path) {
+		FSFile fsf = getSourceDir().getChild(path);
+		IDEFile f = new IDEFile(this, fsf);
+		return f;
+	}
+
+	public String getProjectPath() {
 		return manifest.getManifestPath();
 	}
 
@@ -79,6 +105,10 @@ public class IDEProject {
 		return projectRoot;
 	}
 
+	public FSFile getCacheDir(){
+		return cacheDir;
+	}
+	
 	public List<FSFile> getAllIncludeFiles() {
 		List<FSFile> l = new ArrayList<>();
 		LangPlatform plaf = manifest.getSinglereleaseTargetPlatform();
@@ -102,16 +132,19 @@ public class IDEProject {
 		}
 		return null;
 	}
-	
-	public FSFile getSourceDir(){
+
+	public FSFile getSourceDir() {
 		return getSourceDirForPlatform(manifest.getSinglereleaseTargetPlatform());
 	}
-	
-	public List<FSFile> getSourceDirs(){
+
+	public List<FSFile> getSourceDirs() {
 		return ArraysEx.asList(projectRoot.getChild(IDEProjectManifest.DEFAULT_SOURCE_DIR));
 	}
 
 	public LangCompiler.CompilerArguments getCompilerArguments() {
-		return null;
+		LangCompiler.CompilerArguments args = new LangCompiler.CompilerArguments();
+		args.includeRoots = getAllIncludeFiles();
+		args.setPlatform(getManifest().getSinglereleaseTargetPlatform());
+		return args;
 	}
 }

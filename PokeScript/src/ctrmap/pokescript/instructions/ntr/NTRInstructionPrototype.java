@@ -12,6 +12,17 @@ public class NTRInstructionPrototype {
 		parameters = args;
 	}
 	
+	public int getIndexOfFirstReturnArgument(){
+		int i = 0;
+		for (NTRArgument a : parameters){
+			if (a.isReturnCallback()){
+				return i;
+			}
+			i++;
+		}
+		return -1;
+	}
+	
 	public int getSize(){
 		int size = 2;
 		for (NTRArgument arg : parameters){

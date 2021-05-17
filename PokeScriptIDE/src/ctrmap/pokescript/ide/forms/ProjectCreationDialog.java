@@ -13,7 +13,7 @@ import ctrmap.stdlib.fs.FSUtil;
 import ctrmap.stdlib.fs.accessors.DiskFile;
 import ctrmap.stdlib.gui.components.NoSpaceFirstDocument;
 import ctrmap.stdlib.gui.components.listeners.DocumentAdapterEx;
-import ctrmap.stdlib.util.StringEx;
+import ctrmap.stdlib.text.StringEx;
 import java.awt.Color;
 import java.io.File;
 import javax.swing.DefaultListModel;
@@ -196,6 +196,7 @@ public class ProjectCreationDialog extends javax.swing.JDialog {
 		SDKInfoFile.SDKInfo sdk = getSelectedSDK();
 		if (sdk.ref != null) {
 			result.getManifest().addDependency(sdk.resolveToDependency());
+			result.getManifest().setCompilerDefinitions(sdk.compilerDefinitions);
 		}
 
 		if (btnIsCreateMainClass.isSelected()) {
@@ -277,6 +278,9 @@ public class ProjectCreationDialog extends javax.swing.JDialog {
 				return false;
 			} else if (n.endsWith(".")) {
 				prodIdAlert.setText("Product ID can not end with a \".\"");
+				return false;
+			} else if (ide.findLoadedProjectByProdId(n) != null){
+				prodIdAlert.setText("There is already a project with this Product ID in the workspace.");
 				return false;
 			}
 

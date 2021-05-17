@@ -6,18 +6,20 @@
 
 package ctrmap.pokescript.ide.system.project.tree.nodes;
 
+import ctrmap.pokescript.ide.PSIDE;
 import ctrmap.stdlib.gui.components.tree.CustomJTreeNode;
 
 /**
  *
  */
-public class InvalidReferenceNode extends CustomJTreeNode {
+public class InvalidReferenceNode extends IDENodeBase {
 
 	public static final int RESID = -1;
 	
 	private String name;
 	
-	public InvalidReferenceNode(String name){
+	public InvalidReferenceNode(PSIDE ide, String name){
+		super(ide);
 		this.name = name;
 	}
 	

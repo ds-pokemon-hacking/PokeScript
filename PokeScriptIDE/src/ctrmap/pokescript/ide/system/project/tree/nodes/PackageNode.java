@@ -1,32 +1,34 @@
 package ctrmap.pokescript.ide.system.project.tree.nodes;
 
 import ctrmap.pokescript.LangConstants;
+import ctrmap.pokescript.ide.PSIDE;
+import ctrmap.pokescript.ide.system.project.IDEProject;
 import ctrmap.stdlib.fs.FSFile;
-import ctrmap.stdlib.gui.components.tree.CustomJTreeNode;
 
-public class PackageNode extends CustomJTreeNode {
+public class PackageNode extends IDENodeBase {
 
 	public static int RESID = 2;
 
 	private FSFile dir;
 
-	public PackageNode(FSFile dir) {
+	public PackageNode(PSIDE ide, FSFile dir) {
+		this(ide);
 		this.dir = dir;
 
 		addChildrenFromDir(dir);
 	}
 	
-	public PackageNode(){
-		
+	protected PackageNode(PSIDE ide){
+		super(ide);
 	}
 	
 	protected void addChildrenFromDir(FSFile directory){
 		for (FSFile child : directory.listFiles()) {
 			if (child.isDirectory()) {
-				add(new PackageNode(child));
+				add(new PackageNode(ide, child));
 			} else {
 				if (LangConstants.isLangFile(child.getName())) {
-					add(new ClassNode(child));
+					add(new ClassNode(ide, child));
 				}
 			}
 		}

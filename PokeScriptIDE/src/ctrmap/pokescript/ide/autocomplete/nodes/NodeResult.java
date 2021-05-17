@@ -1,6 +1,6 @@
 package ctrmap.pokescript.ide.autocomplete.nodes;
 
-import ctrmap.pokescript.ide.CustomRSTA;
+import ctrmap.pokescript.ide.FileEditorRSTA;
 import ctrmap.pokescript.ide.TextAreaMarkManager;
 import java.awt.Color;
 import java.util.ArrayList;
@@ -76,11 +76,11 @@ public class NodeResult {
 			return source;
 		}
 		
-		private CustomRSTA.CustomHighLight highLight = null;
+		private FileEditorRSTA.CustomHighLight highLight = null;
 		
-		public CustomRSTA.CustomHighLight getHighLight(){
+		public FileEditorRSTA.CustomHighLight getHighLight(){
 			if (highLight == null){
-				highLight = new CustomRSTA.CustomHighLight(offset, last, Color.RED);
+				highLight = new FileEditorRSTA.CustomHighLight(offset, last, Color.RED);
 			}
 			return highLight;
 		}
@@ -140,8 +140,8 @@ public class NodeResult {
 			return nr.links.get(currentLink);
 		}
 		
-		public List<CustomRSTA.CustomHighLight> getHighLights(){
-			List<CustomRSTA.CustomHighLight> l = new ArrayList<>();
+		public List<FileEditorRSTA.CustomHighLight> getHighLights(){
+			List<FileEditorRSTA.CustomHighLight> l = new ArrayList<>();
 			for (Link link : nr.links){
 				l.add(link.getHighLight());
 			}

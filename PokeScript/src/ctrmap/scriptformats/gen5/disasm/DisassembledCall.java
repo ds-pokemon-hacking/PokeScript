@@ -17,7 +17,8 @@ public class DisassembledCall extends NTRInstructionCall {
 	public List<NTRInstructionLink> ignoredLinks = new ArrayList<>();
 
 	public DisassembledCall(int ptr, NTRInstructionPrototype definition, int... arguments) {
-		super(definition, arguments);
+		this.definition = definition;
+		this.args = arguments;
 		pointer = ptr;
 	}
 	

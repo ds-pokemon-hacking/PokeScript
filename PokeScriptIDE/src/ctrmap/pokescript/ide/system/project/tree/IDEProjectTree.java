@@ -6,11 +6,12 @@
 
 package ctrmap.pokescript.ide.system.project.tree;
 
+import ctrmap.pokescript.ide.PSIDE;
 import ctrmap.pokescript.ide.system.project.IDEProject;
 import ctrmap.pokescript.ide.system.project.tree.nodes.ClassNode;
 import ctrmap.pokescript.ide.system.project.tree.nodes.ContainerNode;
 import ctrmap.pokescript.ide.system.project.tree.nodes.InvalidReferenceNode;
-import ctrmap.pokescript.ide.system.project.tree.nodes.LibraryNode;
+import ctrmap.pokescript.ide.system.project.tree.nodes.LibraryReferenceNode;
 import ctrmap.pokescript.ide.system.project.tree.nodes.PackageNode;
 import ctrmap.pokescript.ide.system.project.tree.nodes.ProjectNode;
 import ctrmap.pokescript.ide.system.project.tree.nodes.ProjectReferenceNode;
@@ -22,11 +23,13 @@ import ctrmap.stdlib.res.ResourceAccess;
  *
  */
 public class IDEProjectTree extends CustomJTree {
+	private PSIDE ide;
+	
 	public IDEProjectTree(){
 		super();
 		
 		registerIconResource(SourceDirNode.RESID, "sourcefolder");
-		registerIconResource(LibraryNode.RESID, "library");
+		registerIconResource(LibraryReferenceNode.RESID, "library");
 		registerIconResource(PackageNode.RESID, "package");
 		registerIconResource(ClassNode.RESID, "sourcefile");
 		registerIconResource(ContainerNode.Type.LIBRARIES.getResId(), "librarydir");
@@ -35,8 +38,12 @@ public class IDEProjectTree extends CustomJTree {
 		registerIconResource(InvalidReferenceNode.RESID, "invalid");
 	}
 	
+	public void attachIDE(PSIDE ide){
+		this.ide = ide;
+	}
+	
 	public void addProject(IDEProject project){
-		getRootNode().add(new ProjectNode(project));
+		getRootNode().add(new ProjectNode(ide, project));
 	}
 	
 	private void registerIconResource(int resID, String name){

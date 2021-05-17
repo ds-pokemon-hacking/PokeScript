@@ -32,7 +32,7 @@ public class Preprocessor {
 
 	private CompilerLogger log;
 	private LangCompiler.CompilerArguments args;
-	
+
 	public String contextName = "UnnamedContext";
 	public NCompileGraph parentGraph;
 	public NCompileGraph cg;
@@ -51,6 +51,14 @@ public class Preprocessor {
 		this.contextName = contextName;
 		include = args.includeRoots;
 		this.args = args;
+		read(stream);
+	}
+	
+	public void read(FSFile fsf){
+		read(fsf.getInputStream());
+	}
+
+	public void read(InputStream stream) {
 		try (BufferedReader reader = new BufferedReader(new InputStreamReader(stream, StandardCharsets.UTF_8))) {
 			int line = 1;
 
@@ -76,8 +84,8 @@ public class Preprocessor {
 					}
 				}
 			}
-			if (!ppState.ppStack.empty()){
-				if (!lines.isEmpty()){
+			if (!ppState.ppStack.empty()) {
+				if (!lines.isEmpty()) {
 					lines.get(lines.size() - 1).throwException("Unclosed preprocessor condition. (Count: " + ppState.ppStack.size() + ")");
 				}
 			}
@@ -393,25 +401,25 @@ public class Preprocessor {
 			}
 
 			unfiltered.append(c);
-			
-			if (c == ':'){
+
+			if (c == ':') {
 				//might be part of a method declaration - scan back for a bracket
 				boolean allowDDBreak = true;
-				for (int i = sb.length() - 2; i >= 0; i--){
+				for (int i = sb.length() - 2; i >= 0; i--) {
 					char c2 = sb.charAt(i);
-					if (!Character.isWhitespace(c2)){
-						if (c2 == ')'){
+					if (!Character.isWhitespace(c2)) {
+						if (c2 == ')') {
 							allowDDBreak = false;
 						}
 						break;
 					}
 				}
-				
-				if (!allowDDBreak){
+
+				if (!allowDDBreak) {
 					continue;
 				}
 			}
-			
+
 			if (!isInComment && blevel == 0 && termList.contains(c)) {
 				break;
 			}

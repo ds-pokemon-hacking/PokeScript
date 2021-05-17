@@ -10,7 +10,7 @@ import ctrmap.stdlib.formats.yaml.YamlNode;
 import ctrmap.stdlib.fs.FSFile;
 import ctrmap.stdlib.fs.accessors.DiskFile;
 import ctrmap.stdlib.gui.DialogUtils;
-import ctrmap.stdlib.gui.FormattingUtils;
+import ctrmap.stdlib.text.FormattingUtils;
 import ctrmap.stdlib.net.FileDownloader;
 import ctrmap.stdlib.res.ResourceAccess;
 

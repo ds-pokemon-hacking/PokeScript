@@ -5,8 +5,7 @@ import ctrmap.pokescript.LangConstants;
 import ctrmap.pokescript.stage0.NMember;
 import ctrmap.pokescript.stage0.Preprocessor;
 import ctrmap.stdlib.fs.FSFile;
-import ctrmap.pokescript.ide.CustomRSTA;
-import ctrmap.pokescript.ide.TextAreaMarkManager;
+import ctrmap.pokescript.ide.FileEditorRSTA;
 import ctrmap.pokescript.ide.autocomplete.gui.ACDocWindow;
 import ctrmap.pokescript.ide.autocomplete.gui.ACLayoutScout;
 import ctrmap.pokescript.ide.autocomplete.gui.ACMainWindow;
@@ -16,10 +15,9 @@ import ctrmap.pokescript.ide.autocomplete.nodes.MemberNode;
 import ctrmap.pokescript.ide.autocomplete.nodes.NodeResult;
 import ctrmap.pokescript.ide.autocomplete.nodes.NodeResultFactory;
 import ctrmap.pokescript.ide.autocomplete.nodes.PackageNode;
-import ctrmap.pokescript.ide.system.project.IDEContext;
 import ctrmap.pokescript.ide.system.project.IDEProject;
-import ctrmap.pokescript.ide.system.project.include.IInclude;
 import ctrmap.pokescript.stage0.Statement;
+import ctrmap.stdlib.gui.components.CaretMotion;
 import java.awt.Point;
 import java.awt.Rectangle;
 import java.util.ArrayList;
@@ -29,6 +27,8 @@ import java.util.Map;
 import java.util.Stack;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import javax.swing.event.DocumentEvent;
+import javax.swing.event.DocumentListener;
 import javax.swing.event.ListSelectionEvent;
 import javax.swing.event.ListSelectionListener;
 import javax.swing.text.BadLocationException;
@@ -44,18 +44,27 @@ public class AutoComplete {
 
 	public List<FSFile> includes = new ArrayList<>();
 
-	private CustomRSTA area;
-	private TextAreaMarkManager marks;
+	private FileEditorRSTA area;
+	
+	private AutoCompleteDocumentListener documentListener;
 
-	public AutoComplete(CustomRSTA area, TextAreaMarkManager marks) {
-		this.area = area;
-		this.marks = marks;
+	public AutoComplete() {
 		acMainWindow = new ACMainWindow(acDocWindow);
 		acMainWindow.addAcHintListListener(new SelectionListener());
+		documentListener = new AutoCompleteDocumentListener();
+	}
+	
+	public AutoCompleteDocumentListener getACDocListener(){
+		return documentListener;
 	}
 
 	public ACMainWindow getMainWindow() {
 		return acMainWindow;
+	}
+
+	public void attachTextArea(FileEditorRSTA area) {
+		closeAndInvalidate();
+		this.area = area;
 	}
 
 	private Stack<NodeResult.Handler> resultHandlers = new Stack<>();
@@ -64,15 +73,17 @@ public class AutoComplete {
 		return !resultHandlers.isEmpty();
 	}
 
-	private List<CustomRSTA.CustomHighLight> rslHandlerHighLights = new ArrayList<>();
+	private List<FileEditorRSTA.CustomHighLight> rslHandlerHighLights = new ArrayList<>();
 
 	public void setResultHandlerHighlightBoxesRender() {
-		area.removeAllCustomHighlights(rslHandlerHighLights);
-		rslHandlerHighLights.clear();
+		if (area != null) {
+			area.removeAllCustomHighlights(rslHandlerHighLights);
+			rslHandlerHighLights.clear();
 
-		if (getCurrentRslHandler() != null) {
-			rslHandlerHighLights.addAll(getCurrentRslHandler().getHighLights());
-			area.addAllCustomHighlights(rslHandlerHighLights);
+			if (getCurrentRslHandler() != null) {
+				rslHandlerHighLights.addAll(getCurrentRslHandler().getHighLights());
+				area.addAllCustomHighlights(rslHandlerHighLights);
+			}
 		}
 	}
 
@@ -97,50 +108,52 @@ public class AutoComplete {
 	}
 
 	public void commitAutocompleteFromList() {
-		AbstractNode n = acMainWindow.getSelectedNode();
+		if (area != null) {
+			AbstractNode n = acMainWindow.getSelectedNode();
 
-		if (n != null) {
-			NodeResult.Handler oldHandler = getCurrentRslHandler();
-			if (oldHandler != null) {
-				if (oldHandler.getCurrentLink() != null) {
-					//oldHandler.getCurrentLink().setFocused(false);
-				}
-			}
-
-			NodeResult rsl = NodeResultFactory.createNodeResult(n, marks);
-			NodeResult.Handler newHandler = rsl.createHandler();
-			resultHandlers.push(newHandler);
-
-			int cp = area.getCaretPosition();
-			newHandler.transpose(area.getText(), cp);
-			rsl.freezeLinks();
-			String insert = /*newHandler.getFullTextMinusCommonLength()*/rsl.getText();
-			int posAfter = cp + insert.length();
-			area.replaceRange(insert, cp - newHandler.tpCommonLength, cp); //WARNING:The method actually ignores the range. If it was ever to be fixed, the following line has to be uncommented.
-			//area.insert(newHandler.getFullTextMinusCommonLength(), cp);
-			area.setCaretPosition(cp + (insert.length() - newHandler.tpCommonLength)); //replaceRange in RSTA is broken...
-
-			String line = getCurrentLineToPos(cp).trim();
-			boolean allowSemicolon = false;
-			if (line.startsWith(Statement.IMPORT.getDeclarationStr())) {
-				allowSemicolon = true;
-				for (AbstractNode ch : n.children) {
-					if (!(ch instanceof MemberNode)) {
-						allowSemicolon = false;
-						break;
+			if (n != null) {
+				NodeResult.Handler oldHandler = getCurrentRslHandler();
+				if (oldHandler != null) {
+					if (oldHandler.getCurrentLink() != null) {
+						//oldHandler.getCurrentLink().setFocused(false);
 					}
 				}
-			}
 
-			if (allowSemicolon && (posAfter >= area.getDocument().getLength() || area.getText().charAt(posAfter) == '\n')) {
-				//If the node has no children (==no more autocomplete) and we are at the end of the line, insert a semicolon
-				area.insert(";", posAfter);
-			}
-			rsl.defrostLinks();
-			if (newHandler.hasLinks()) {
-				incrementLink();
-			} else {
-				popResultHandler();
+				NodeResult rsl = NodeResultFactory.createNodeResult(n, area.getMarkManager());
+				NodeResult.Handler newHandler = rsl.createHandler();
+				resultHandlers.push(newHandler);
+
+				int cp = area.getCaretPosition();
+				newHandler.transpose(area.getText(), cp);
+				rsl.freezeLinks();
+				String insert = /*newHandler.getFullTextMinusCommonLength()*/ rsl.getText();
+				int posAfter = cp + insert.length();
+				area.replaceRange(insert, cp - newHandler.tpCommonLength, cp); //WARNING:The method actually ignores the range. If it was ever to be fixed, the following line has to be uncommented.
+				//area.insert(newHandler.getFullTextMinusCommonLength(), cp);
+				area.setCaretPosition(cp + (insert.length() - newHandler.tpCommonLength)); //replaceRange in RSTA is broken...
+
+				String line = getCurrentLineToPos(cp).trim();
+				boolean allowSemicolon = false;
+				if (line.startsWith(Statement.IMPORT.getDeclarationStr())) {
+					allowSemicolon = true;
+					for (AbstractNode ch : n.children) {
+						if (!(ch instanceof MemberNode)) {
+							allowSemicolon = false;
+							break;
+						}
+					}
+				}
+
+				if (allowSemicolon && (posAfter >= area.getDocument().getLength() || area.getText().charAt(posAfter) == '\n')) {
+					//If the node has no children (==no more autocomplete) and we are at the end of the line, insert a semicolon
+					area.insert(";", posAfter);
+				}
+				rsl.defrostLinks();
+				if (newHandler.hasLinks()) {
+					incrementLink();
+				} else {
+					popResultHandler();
+				}
 			}
 		}
 	}
@@ -150,8 +163,10 @@ public class AutoComplete {
 		if (h != null) {
 			NodeResult.Link l = h.nextLink();
 			if (l != null) {
-				area.setSelectionStart(l.getOffset());
-				area.setSelectionEnd(l.getOffset() + l.getLength());
+				if (area != null) {
+					area.setSelectionStart(l.getOffset());
+					area.setSelectionEnd(l.getOffset() + l.getLength());
+				}
 			} else {
 				popResultHandler();
 				if (getCurrentRslHandler() != null) {
@@ -193,18 +208,20 @@ public class AutoComplete {
 	}
 
 	public void traverseToNextWhitespace() {
-		int pos = area.getCaretPosition();
-		String txt = area.getText();
-		while (pos < txt.length() && !Character.isWhitespace(txt.charAt(pos))) {
-			pos++;
+		if (area != null) {
+			int pos = area.getCaretPosition();
+			String txt = area.getText();
+			while (pos < txt.length() && !Character.isWhitespace(txt.charAt(pos))) {
+				pos++;
+			}
+			area.setSelectionStart(pos);
+			area.setSelectionEnd(pos);
 		}
-		area.setSelectionStart(pos);
-		area.setSelectionEnd(pos);
 	}
-	
-	public void loadProject(IDEProject project){
+
+	public void loadProject(IDEProject project) {
 		acRoot.children.clear();
-		for (FSFile fsf : project.getAllIncludeFiles()){
+		for (FSFile fsf : project.getAllIncludeFiles()) {
 			addInclude(fsf, project);
 		}
 	}
@@ -277,34 +294,60 @@ public class AutoComplete {
 		return lastQuery;
 	}
 
+	public void updateByArea() {
+		updateByArea(CaretMotion.NONE);
+	}
+	
+	public void updateByArea(CaretMotion motion) {
+		if (area != null) {
+			int caretPos = area.getCaretPosition();
+			if (motion == CaretMotion.FORWARD) {
+				caretPos++;
+			} else if (motion == CaretMotion.BACKWARD) {
+				caretPos -= 2;
+			}
+			if (caretPos < 0) {
+				return;
+			}
+
+			updateAutocomplete(caretPos);
+		}
+	}
+	
+	public boolean isBoundToArea(FileEditorRSTA area){
+		return this.area == area;
+	}
+
 	public void updateAutocomplete(int caretPosition) {
-		String line = getCurrentLineToPos(caretPosition);
-		String query = AbstractNode.lastNameToLowerCase(doBackwardsScanUntilNonName(line, line.length()));
-		lastQuery = query;
+		if (area != null) {
+			String line = getCurrentLineToPos(caretPosition);
+			String query = AbstractNode.lastNameToLowerCase(doBackwardsScanUntilNonName(line, line.length()));
+			lastQuery = query;
 
-		acAreaEnd = caretPosition;
-		acAreaStart = acAreaEnd - query.length();
+			acAreaEnd = caretPosition;
+			acAreaStart = acAreaEnd - query.length();
 
-		//We now have a query that is only the name, nothing else
-		List<AbstractNode> hints = acRoot.getRecommendations(query);
+			//We now have a query that is only the name, nothing else
+			List<AbstractNode> hints = acRoot.getRecommendations(query);
 
-		if (line.trim().startsWith(Statement.IMPORT.getDeclarationStr())) {
-			//Import - remove members, which Pokescript can't import
-			for (int i = 0; i < hints.size(); i++) {
-				if (hints.get(i) instanceof MemberNode) {
-					hints.remove(i);
-					i--;
+			if (line.trim().startsWith(Statement.IMPORT.getDeclarationStr())) {
+				//Import - remove members, which Pokescript can't import
+				for (int i = 0; i < hints.size(); i++) {
+					if (hints.get(i) instanceof MemberNode) {
+						hints.remove(i);
+						i--;
+					}
 				}
 			}
-		}
 
-		acMainWindow.buildList(hints);
+			acMainWindow.buildList(hints);
+		}
 	}
 
 	private String getCurrentLineToPos(int pos) {
 		try {
 			int lso = area.getLineStartOffset(area.getCaretLineNumber());
-			if (pos - lso <= 0){
+			if (pos - lso <= 0) {
 				return "";
 			}
 			String line = area.getText(lso, pos - lso);
@@ -365,8 +408,8 @@ public class AutoComplete {
 		acMainWindow.wClose();
 		acDocWindow.wClose();
 	}
-	
-	public void closeAndInvalidate(){
+
+	public void closeAndInvalidate() {
 		close();
 		cancelAllResultHandlers();
 	}
@@ -404,6 +447,40 @@ public class AutoComplete {
 					acDocWindow.wOpen();
 				}
 			}
+		}
+	}
+	
+	public class AutoCompleteDocumentListener implements DocumentListener {
+
+		@Override
+		public void insertUpdate(DocumentEvent e) {
+			try {
+				String text = e.getDocument().getText(e.getOffset(), e.getLength());
+				if (text.endsWith(".")) {
+					updateByArea(CaretMotion.FORWARD);
+					attachWindowLayoutToNameAndOpen();
+				}
+				if (isVisible()) {
+					updateByArea(CaretMotion.FORWARD);
+					if (isHintRoot() && getLastQuery().length() == 0) {
+						close();
+					}
+				}
+				if (getCurrentRslHandler() != null) {
+					cancelResultHandlerIfMarksInvalidated();
+				}
+			} catch (BadLocationException ex) {
+				Logger.getLogger(AutoCompleteDocumentListener.class.getName()).log(Level.SEVERE, null, ex);
+			}
+		}
+
+		@Override
+		public void removeUpdate(DocumentEvent e) {
+			close();
+		}
+
+		@Override
+		public void changedUpdate(DocumentEvent e) {
 		}
 	}
 }

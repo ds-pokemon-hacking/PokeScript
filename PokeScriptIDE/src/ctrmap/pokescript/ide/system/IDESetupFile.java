@@ -1,7 +1,6 @@
 package ctrmap.pokescript.ide.system;
 
 import ctrmap.stdlib.formats.yaml.Yaml;
-import ctrmap.stdlib.formats.yaml.YamlNode;
 import ctrmap.stdlib.fs.FSFile;
 import java.util.ArrayList;
 import java.util.List;

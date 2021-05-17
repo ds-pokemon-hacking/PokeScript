@@ -1,16 +1,17 @@
 package ctrmap.pokescript.ide.system.project.tree.nodes;
 
+import ctrmap.pokescript.ide.PSIDE;
 import ctrmap.pokescript.ide.system.project.IDEProject;
-import ctrmap.stdlib.gui.components.tree.CustomJTreeNode;
 
-public class ProjectReferenceNode extends CustomJTreeNode {
+public class ProjectReferenceNode extends IDENodeBase {
 
 	public static int RESID = 5;
 
 	//we don't need to construct the whole project, just the manifest
 	private IDEProject project;
 	
-	public ProjectReferenceNode(IDEProject proj) {
+	public ProjectReferenceNode(PSIDE ide, IDEProject proj) {
+		super(ide);
 		this.project = proj;
 	}
 

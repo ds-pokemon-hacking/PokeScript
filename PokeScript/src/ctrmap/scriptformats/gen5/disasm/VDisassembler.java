@@ -6,8 +6,8 @@ import ctrmap.pokescript.instructions.ntr.NTRInstructionCall;
 import ctrmap.pokescript.instructions.ntr.NTRInstructionPrototype;
 import ctrmap.scriptformats.gen5.VCommandDataBase;
 import ctrmap.scriptformats.gen5.VScriptFile;
-import ctrmap.stdlib.gui.FormattingUtils;
-import ctrmap.stdlib.io.base.IOWrapper;
+import ctrmap.stdlib.text.FormattingUtils;
+import ctrmap.stdlib.io.base.IOStream;
 import ctrmap.stdlib.io.base.LittleEndianIO;
 import ctrmap.stdlib.io.util.IndentedPrintStream;
 import java.io.ByteArrayOutputStream;
@@ -155,7 +155,7 @@ public class VDisassembler {
 		return null;
 	}
 
-	private DisassembledMethod readMethod(IOWrapper dis, LinkPrototype lp) throws IOException {
+	private DisassembledMethod readMethod(IOStream dis, LinkPrototype lp) throws IOException {
 		System.out.println("Reading method at " + Integer.toHexString(lp.targetOffset));
 		int methodPtr = lp.targetOffset;
 		dis.seek(methodPtr);
@@ -246,7 +246,7 @@ public class VDisassembler {
 		return m;
 	}
 
-	private void readMovement(IOWrapper dis, LinkPrototype lp) throws IOException {
+	private void readMovement(IOStream dis, LinkPrototype lp) throws IOException {
 		System.out.println("Reading movement at " + Integer.toHexString(lp.targetOffset) + "(from " + Integer.toHexString(lp.sourceOffset) + ")");
 		int methodPtr = lp.targetOffset;
 		dis.seek(methodPtr);
@@ -271,7 +271,7 @@ public class VDisassembler {
 		movements.add(m);
 	}
 
-	private void readScriptHeader(IOWrapper dis) throws IOException {
+	private void readScriptHeader(IOStream dis) throws IOException {
 		dis.seek(0);
 		int max = dis.length() - 4;
 

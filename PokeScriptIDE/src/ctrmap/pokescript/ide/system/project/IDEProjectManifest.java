@@ -48,6 +48,27 @@ public class IDEProjectManifest extends LibraryManifest {
 		saveProjectData();
 	}
 	
+	public List<String> getCompilerDefinitions(){
+		return getRootNodeKeyNode(ProjectAttributes.AK_COMPILE_DEFS).getChildValuesAsListStr();
+	}
+	
+	public void setCompilerDefinitions(List<String> defs){
+		YamlNode n = getEnsureRootNodeKeyNode(ProjectAttributes.AK_COMPILE_DEFS);
+		n.removeAllChildren();
+		for (String s : defs){
+			n.addChildValue(s);
+		}
+		saveProjectData();
+	}
+	
+	public void addCompilerDefinition(String def){
+		getEnsureRootNodeKeyNode(ProjectAttributes.AK_COMPILE_DEFS).addChildValue(def);
+	}
+	
+	public void removeCompilerDefinition(String def){
+		getEnsureRootNodeKeyNode(ProjectAttributes.AK_COMPILE_DEFS).removeChildByValue(def);
+	}
+	
 	public void saveProjectData(){
 		write();
 	}

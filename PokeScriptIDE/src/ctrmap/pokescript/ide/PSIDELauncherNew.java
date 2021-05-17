@@ -7,6 +7,7 @@ import ctrmap.stdlib.gui.components.ComponentUtils;
 import java.io.File;
 import java.util.prefs.Preferences;
 import javax.swing.JFrame;
+import javax.swing.SwingUtilities;
 
 public class PSIDELauncherNew {
 
@@ -45,10 +46,13 @@ public class PSIDELauncherNew {
 		}
 
 		if (ws != null) {
-			PSIDE_MAIN_PREFS.put(KEY_LAST_WORKSPACE, ws.getRoot().getAbsolutePath());
-			PSIDE ide = new PSIDE(ws);
-			ide.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-			ide.setVisible(true);
+			final IDEWorkspace fWS = ws;
+			SwingUtilities.invokeLater(() -> {
+				PSIDE_MAIN_PREFS.put(KEY_LAST_WORKSPACE, fWS.getRoot().getAbsolutePath());
+				PSIDE ide = new PSIDE(fWS);
+				ide.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+				ide.setVisible(true);
+			});
 		} else {
 			System.exit(0);
 		}
