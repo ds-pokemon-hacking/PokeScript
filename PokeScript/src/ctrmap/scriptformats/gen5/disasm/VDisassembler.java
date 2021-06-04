@@ -6,9 +6,8 @@ import ctrmap.pokescript.instructions.ntr.NTRInstructionCall;
 import ctrmap.pokescript.instructions.ntr.NTRInstructionPrototype;
 import ctrmap.scriptformats.gen5.VCommandDataBase;
 import ctrmap.scriptformats.gen5.VScriptFile;
+import ctrmap.stdlib.io.base.impl.ext.data.DataIOStream;
 import ctrmap.stdlib.text.FormattingUtils;
-import ctrmap.stdlib.io.base.IOStream;
-import ctrmap.stdlib.io.base.LittleEndianIO;
 import ctrmap.stdlib.io.util.IndentedPrintStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -39,7 +38,7 @@ public class VDisassembler {
 	public void disassemble() {
 		if (scr.getSourceFile() != null) {
 			try {
-				LittleEndianIO dis = scr.getSourceFile().getIO();
+				DataIOStream dis = scr.getSourceFile().getDataIOStream();
 
 				readScriptHeader(dis);
 
@@ -155,11 +154,11 @@ public class VDisassembler {
 		return null;
 	}
 
-	private DisassembledMethod readMethod(IOStream dis, LinkPrototype lp) throws IOException {
+	private DisassembledMethod readMethod(DataIOStream dis, LinkPrototype lp) throws IOException {
 		System.out.println("Reading method at " + Integer.toHexString(lp.targetOffset));
 		int methodPtr = lp.targetOffset;
 		dis.seek(methodPtr);
-		int max = dis.length() - 2;
+		int max = dis.getLength()- 2;
 
 		DisassembledMethod m = new DisassembledMethod(methodPtr);
 
@@ -246,11 +245,11 @@ public class VDisassembler {
 		return m;
 	}
 
-	private void readMovement(IOStream dis, LinkPrototype lp) throws IOException {
+	private void readMovement(DataIOStream dis, LinkPrototype lp) throws IOException {
 		System.out.println("Reading movement at " + Integer.toHexString(lp.targetOffset) + "(from " + Integer.toHexString(lp.sourceOffset) + ")");
 		int methodPtr = lp.targetOffset;
 		dis.seek(methodPtr);
-		int max = dis.length() - 4;
+		int max = dis.getLength()- 4;
 
 		DisassembledMethod m = new DisassembledMethod(methodPtr);
 
@@ -271,9 +270,9 @@ public class VDisassembler {
 		movements.add(m);
 	}
 
-	private void readScriptHeader(IOStream dis) throws IOException {
+	private void readScriptHeader(DataIOStream dis) throws IOException {
 		dis.seek(0);
-		int max = dis.length() - 4;
+		int max = dis.getLength() - 4;
 
 		while (dis.getPosition() < max) {
 			int offset = dis.readInt();

@@ -6,8 +6,7 @@ import ctrmap.pokescript.instructions.ntr.NTRInstructionLink;
 import ctrmap.pokescript.instructions.ntr.NTRInstructionLinkSetup;
 import ctrmap.scriptformats.gen5.disasm.VDisassembler;
 import ctrmap.stdlib.fs.FSFile;
-import ctrmap.stdlib.io.LittleEndianDataInputStream;
-import ctrmap.stdlib.io.LittleEndianDataOutputStream;
+import ctrmap.stdlib.io.base.impl.ext.data.DataIOStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.util.ArrayList;
@@ -108,8 +107,7 @@ public class VScriptFile {
 		try {
 			updateLinks();
 
-			ByteArrayOutputStream out = new ByteArrayOutputStream();
-			LittleEndianDataOutputStream dos = new LittleEndianDataOutputStream(out);
+			DataIOStream dos = new DataIOStream();
 
 			for (NTRInstructionLink publicMethod : publics) {
 				dos.writeInt(publicMethod.target.pointer - (dos.getPosition() + 4));
@@ -122,7 +120,7 @@ public class VScriptFile {
 			}
 
 			dos.close();
-			return out.toByteArray();
+			return dos.toByteArray();
 		} catch (IOException ex) {
 			Logger.getLogger(VScriptFile.class.getName()).log(Level.SEVERE, null, ex);
 		}

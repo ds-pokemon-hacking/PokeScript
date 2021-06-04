@@ -12,6 +12,7 @@ import ctrmap.pokescript.stage1.NCompilableMethod;
 import ctrmap.pokescript.stage1.NCompileGraph;
 import ctrmap.pokescript.types.classes.ClassDefinition;
 import ctrmap.stdlib.fs.FSFile;
+import ctrmap.stdlib.io.base.iface.ReadableStream;
 import ctrmap.stdlib.util.ArraysEx;
 import java.io.BufferedReader;
 import java.io.IOException;
@@ -46,7 +47,7 @@ public class Preprocessor {
 		this(file.getInputStream(), file.getName(), args);
 	}
 
-	public Preprocessor(InputStream stream, String contextName, LangCompiler.CompilerArguments args) {
+	public Preprocessor(ReadableStream stream, String contextName, LangCompiler.CompilerArguments args) {
 		log = args.logger;
 		this.contextName = contextName;
 		include = args.includeRoots;
@@ -58,8 +59,8 @@ public class Preprocessor {
 		read(fsf.getInputStream());
 	}
 
-	public void read(InputStream stream) {
-		try (BufferedReader reader = new BufferedReader(new InputStreamReader(stream, StandardCharsets.UTF_8))) {
+	public final void read(ReadableStream stream) {
+		try (BufferedReader reader = new BufferedReader(new InputStreamReader(stream.getInputStream(), StandardCharsets.UTF_8))) {
 			int line = 1;
 
 			EffectiveLine.AnalysisState state = new EffectiveLine.AnalysisState();

@@ -55,7 +55,7 @@ public abstract class CompilerLogger {
 		
 		public FileLogger(FSFile out){
 			file = out;
-			writer = new BufferedWriter(new OutputStreamWriter(out.getOutputStream()));
+			writer = new BufferedWriter(new OutputStreamWriter(out.getNativeOutputStream()));
 		}
 		
 		public void close(){

@@ -3,8 +3,6 @@ package ctrmap.pokescript.ide.system.beaterscript;
 import ctrmap.pokescript.LangConstants;
 import ctrmap.pokescript.instructions.ntr.NTRArgument;
 import ctrmap.pokescript.instructions.ntr.NTRDataType;
-import ctrmap.pokescript.types.DataType;
-import ctrmap.stdlib.formats.yaml.Key;
 import ctrmap.stdlib.formats.yaml.Yaml;
 import ctrmap.stdlib.formats.yaml.YamlNode;
 import ctrmap.stdlib.cli.ArgumentBuilder;
@@ -17,14 +15,11 @@ import ctrmap.stdlib.text.FormattingUtils;
 import ctrmap.stdlib.net.FileDownloader;
 import ctrmap.stdlib.util.ArraysEx;
 import java.io.File;
-import java.io.FileNotFoundException;
 import java.io.PrintStream;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 
 /**
  *
@@ -158,7 +153,7 @@ public class BS2PKS {
 
 			target.getParent().mkdirs();
 
-			PrintStream out = new PrintStream(target.getOutputStream());
+			PrintStream out = new PrintStream(target.getNativeOutputStream());
 
 			out.println("/**======================================================");
 			out.println("*");

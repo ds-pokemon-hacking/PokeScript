@@ -7,7 +7,7 @@ import ctrmap.stdlib.formats.yaml.YamlListElement;
 import ctrmap.stdlib.formats.yaml.YamlNode;
 import ctrmap.stdlib.fs.FSFile;
 import ctrmap.stdlib.fs.accessors.DiskFile;
-import ctrmap.stdlib.io.base.LittleEndianIO;
+import ctrmap.stdlib.io.base.impl.ext.data.DataIOStream;
 import java.io.DataInput;
 import java.io.IOException;
 import java.util.ArrayList;
@@ -80,7 +80,7 @@ public class ScriptCmdDump {
 
 	private static void dumpZonePluginTable() throws IOException {
 		DiskFile decompressedOverlayRoot = new DiskFile("D:\\_REWorkspace\\pokescript_genv\\overlays_dec");
-		LittleEndianIO io = getOverlay(decompressedOverlayRoot, 12).getIO();
+		DataIOStream io = getOverlay(decompressedOverlayRoot, 12).getDataIOStream();
 		
 		Yaml yml = new Yaml();
 
@@ -114,7 +114,7 @@ public class ScriptCmdDump {
 			dumpZonePluginTable();
 			List<OvlScrData> osd = new ArrayList<>();
 
-			LittleEndianIO io = getOverlay(decompressedOverlayRoot, 12).getIO();
+			DataIOStream io = getOverlay(decompressedOverlayRoot, 12).getDataIOStream();
 
 			io.setBase(OFFS_BASE_OVL12);
 			io.seek(SCR_PLUGIN_INFO_ADDRESSES);
@@ -207,7 +207,7 @@ public class ScriptCmdDump {
 
 	private static List<FuncData> readFuncData(FSFile bin, int binaryOffsetBase, int commandTableOffset, int commandTableTargetOffset, int commandCount, int ovlNo, int ovl2No) throws IOException {
 		System.out.println("Reading function data " + bin);
-		LittleEndianIO io = bin.getIO();
+		DataIOStream io = bin.getDataIOStream();
 
 		io.setBase(binaryOffsetBase);
 
@@ -237,7 +237,7 @@ public class ScriptCmdDump {
 		int cmdNumReloc = (commandTableTargetOffset - MAIN_CMD_TABLE_OFFS) / 4;
 		cmdNumReloc = cmdNumReloc > 0 ? 1000 : 0;
 
-		int len = io.length() - 2 + binaryOffsetBase;
+		int len = io.getLength() - 2 + binaryOffsetBase;
 		for (int i = 0; i < commandCount; i++) {
 			FuncData fd = new FuncData();
 			fd.ovl2No = ovl2No;

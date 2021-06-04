@@ -1,12 +1,17 @@
 package ctrmap.scriptformats.gen6;
 
 import ctrmap.stdlib.fs.FSFile;
-import ctrmap.stdlib.io.LittleEndianDataInputStream;
-import ctrmap.stdlib.io.LittleEndianDataOutputStream;
-import ctrmap.stdlib.io.util.StringUtils;
+import ctrmap.stdlib.io.base.iface.DataInputEx;
+import ctrmap.stdlib.io.base.iface.DataOutputEx;
+import ctrmap.stdlib.io.base.impl.ext.data.DataIOStream;
+import ctrmap.stdlib.io.base.impl.ext.data.DataInStream;
+import ctrmap.stdlib.io.util.StringIO;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
+import java.io.DataInput;
+import java.io.DataOutput;
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
@@ -83,19 +88,19 @@ public class GFLPawnScript {
 	}
 
 	public GFLPawnScript(byte[] b) {
-		this(new LittleEndianDataInputStream(new ByteArrayInputStream(b)));
+		this(new DataInStream(b));
 	}
 	
 	public GFLPawnScript(FSFile fsf) {
-		this(new LittleEndianDataInputStream(fsf.getInputStream()));
+		this(new DataInStream(fsf.getInputStream()));
 	}
 
-	public GFLPawnScript(LittleEndianDataInputStream in) {
+	public GFLPawnScript(DataInputEx in) {
 		try {
 			len = in.readInt();
 			magic = in.readShort(); //F1 E0 == 32-bit cell, 0x04
-			ver = in.read(); //0x06
-			minCompatVer = in.read(); //0x07
+			ver = in.readUnsignedByte(); //0x06
+			minCompatVer = in.readUnsignedByte(); //0x07
 			flags = in.readUnsignedShort(); //0x08
 			defsize = in.readUnsignedShort(); //0x0a
 			instructionStart = in.readInt(); //0x0c
@@ -135,11 +140,11 @@ public class GFLPawnScript {
 		}
 	}
 
-	public void readNameTable(LittleEndianDataInputStream dis) throws IOException {
+	public void readNameTable(DataInputEx dis) throws IOException {
 		sNAMEMAX = dis.readShort(); //the name table is completely unused in GFL pawn scripts, but still
 		while (dis.getPosition() < instructionStart) {
 			int offset = (int) dis.getPosition();
-			String value = StringUtils.readString(dis);
+			String value = StringIO.readString(dis);
 			if (value.length() > 0) { //the table is padded with zeros, so any strings there will be 0 in length, indicating the end of the table
 				//if there is no padding space, dis.position is equal to instructionStart and the loop ends anyway
 				nameTable.put(offset, value);
@@ -149,11 +154,10 @@ public class GFLPawnScript {
 		}
 	}
 
-	public void writeNameTable(LittleEndianDataOutputStream dos) throws IOException {
+	public void writeNameTable(DataOutputEx dos) throws IOException {
 		dos.writeShort(sNAMEMAX);
 		for (String s : nameTable.values()) {
-			dos.write(s.getBytes("ASCII"));
-			dos.write(0);
+			dos.writeString(s);
 		}
 	}
 
@@ -166,7 +170,7 @@ public class GFLPawnScript {
 		return len;
 	}
 
-	public void write(LittleEndianDataOutputStream dos) throws IOException {
+	public void write(DataOutputEx dos) throws IOException {
 		byte[] instructionsToWrite;
 		if (decompressed) {
 			publicsOffset = 0x3C; //header length
@@ -262,8 +266,8 @@ public class GFLPawnScript {
 
 	public byte[] getScriptBytes() {
 		try {
-			ByteArrayOutputStream baos = new ByteArrayOutputStream();
-			write(new LittleEndianDataOutputStream(baos));
+			DataIOStream baos = new DataIOStream();
+			write(baos);
 			return baos.toByteArray();
 		} catch (IOException ex) {
 			Logger.getLogger(GFLPawnScript.class.getName()).log(Level.SEVERE, null, ex);
@@ -294,13 +298,13 @@ public class GFLPawnScript {
 		}
 	}
 
-	private void readEntries(List<PawnPrefixEntry> target, PawnPrefixEntry.Type typeForAll, int defsize, LittleEndianDataInputStream in, int count) throws IOException {
+	private void readEntries(List<PawnPrefixEntry> target, PawnPrefixEntry.Type typeForAll, int defsize, DataInput in, int count) throws IOException {
 		for (int i = 0; i < count; i++) {
 			target.add(new PawnPrefixEntry(defsize, typeForAll, in));
 		}
 	}
 
-	private void writeEntries(List<PawnPrefixEntry> list, LittleEndianDataOutputStream target) throws IOException {
+	private void writeEntries(List<PawnPrefixEntry> list, DataOutput target) throws IOException {
 		for (int i = 0; i < list.size(); i++) {
 			list.get(i).write(target);
 		}

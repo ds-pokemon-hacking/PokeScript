@@ -1,7 +1,7 @@
 package ctrmap.scriptformats.gen6;
 
-import ctrmap.stdlib.io.LittleEndianDataInputStream;
-import ctrmap.stdlib.io.LittleEndianDataOutputStream;
+import java.io.DataInput;
+import java.io.DataOutput;
 import java.io.IOException;
 import java.util.Arrays;
 
@@ -9,7 +9,7 @@ public class PawnPrefixEntry {
 	public Type type;
 	public int[] data;
 	
-	public PawnPrefixEntry(int defsize, Type type, LittleEndianDataInputStream source) throws IOException{
+	public PawnPrefixEntry(int defsize, Type type, DataInput source) throws IOException{
 		this.type = type;
 		data = new int[defsize / 4];
 		for (int i = 0; i < data.length; i++){
@@ -27,7 +27,7 @@ public class PawnPrefixEntry {
 		}
 	}
 	
-	public void write(LittleEndianDataOutputStream out) throws IOException{
+	public void write(DataOutput out) throws IOException{
 		for (int i = 0; i < data.length; i++){
 			out.writeInt(data[i]);
 		}

@@ -18,6 +18,7 @@ import ctrmap.stdlib.cli.ArgumentType;
 import ctrmap.stdlib.fs.FSFile;
 import ctrmap.stdlib.fs.FSUtil;
 import ctrmap.stdlib.fs.accessors.DiskFile;
+import ctrmap.stdlib.io.base.iface.ReadableStream;
 import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -170,7 +171,7 @@ public class LangCompiler {
 		return null;
 	}
 
-	public static byte[] compileStreamToBinary(InputStream strm, CompilerArguments args) {
+	public static byte[] compileStreamToBinary(ReadableStream strm, CompilerArguments args) {
 		switch (args.platform) {
 			case AMX_CTR:
 				return compileStreamCTR(strm, args).getScriptBytes();
@@ -185,7 +186,7 @@ public class LangCompiler {
 		return compileImplCTR(preprocessor, args);
 	}
 
-	public static GFLPawnScript compileStreamCTR(InputStream strm, CompilerArguments args) {
+	public static GFLPawnScript compileStreamCTR(ReadableStream strm, CompilerArguments args) {
 		Preprocessor preprocessor = new Preprocessor(strm, "UnnamedContext", args);
 		return compileImplCTR(preprocessor, args);
 	}
@@ -195,7 +196,7 @@ public class LangCompiler {
 		return compileImplGenV(preprocessor, args);
 	}
 
-	public static VScriptFile compileStreamV(InputStream strm, CompilerArguments args) {
+	public static VScriptFile compileStreamV(ReadableStream strm, CompilerArguments args) {
 		Preprocessor preprocessor = new Preprocessor(strm, "UnnamedContext", args);
 		return compileImplGenV(preprocessor, args);
 	}
