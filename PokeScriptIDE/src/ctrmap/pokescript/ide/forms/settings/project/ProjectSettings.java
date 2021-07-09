@@ -1,6 +1,5 @@
 package ctrmap.pokescript.ide.forms.settings.project;
 
-import ctrmap.pokescript.ide.forms.settings.ide.*;
 import ctrmap.pokescript.ide.PSIDE;
 import ctrmap.pokescript.ide.forms.settings.project.panes.ProjectDefinitionsPane;
 import ctrmap.pokescript.ide.system.project.IDEProject;
@@ -18,6 +17,7 @@ public class ProjectSettings extends javax.swing.JFrame {
 	
 	public ProjectSettings(PSIDE ide, IDEProject project) {
 		initComponents();
+		setLocationRelativeTo(ide);
 		this.ide = ide;
 		this.project = project;
 		
@@ -76,7 +76,7 @@ public class ProjectSettings extends javax.swing.JFrame {
         btnSave = new javax.swing.JButton();
 
         setDefaultCloseOperation(javax.swing.WindowConstants.DISPOSE_ON_CLOSE);
-        setTitle("PokéScript IDE Configuration");
+        setTitle("Project Properties");
         addWindowListener(new java.awt.event.WindowAdapter() {
             public void windowClosing(java.awt.event.WindowEvent evt) {
                 formWindowClosing(evt);

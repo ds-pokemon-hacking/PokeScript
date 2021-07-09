@@ -33,4 +33,9 @@ public class InvalidReferenceNode extends IDENodeBase {
 		return name;
 	}
 
+	@Override
+	public String getUniqueName() {
+		return getNodeName();
+	}
+
 }

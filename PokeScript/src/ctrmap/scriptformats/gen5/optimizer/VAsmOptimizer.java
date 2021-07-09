@@ -1,5 +1,6 @@
 package ctrmap.scriptformats.gen5.optimizer;
 
+import ctrmap.pokescript.instructions.gen5.VConstants;
 import ctrmap.pokescript.instructions.gen5.VOpCode;
 import ctrmap.pokescript.instructions.gen5.VStackCmpOpRequest;
 import ctrmap.pokescript.instructions.ntr.NTRInstructionCall;
@@ -81,13 +82,13 @@ public class VAsmOptimizer {
 			)
 		},
 		new Pattern[]{
-			new Pattern("GetArg LHS 1 0; GetArg RHS 0 0; GetArg CmpType 2 0; ExecSpecial MakeSimpleCmp; SetArg 5 0 CmpType; SetArg 4 0 LHS; SetArg 4 1 RHS; Remap 0 4; Remap 1 4; Remap 2 4; Remap 3 4; Delete 0; Delete 1; Delete 2; Delete 3;",
-			new VInstructionMatch(VInstructionMatch.InstructionMatchType.FULL, "PushVar|PushConst(ANY)"),
-			new VInstructionMatch(VInstructionMatch.InstructionMatchType.FULL, "PushVar|PushConst(ANY)"),
-			new VInstructionMatch(VInstructionMatch.InstructionMatchType.FULL, "CmpPriAlt(ANY)"),
-			new VInstructionMatch(VInstructionMatch.InstructionMatchType.FULL, "PopToVar(ANY_GPR)"),
-			new VInstructionMatch(VInstructionMatch.InstructionMatchType.FULL, "CmpVarConst(ANY_GPR, ZERO)"),
-			new VInstructionMatch(VInstructionMatch.InstructionMatchType.FULL, "JumpOnCmp(ONE, ANY)")
+			new Pattern("GetArg LHS 1 0; GetArg RHS 0 0; GetArg CmpType 2 0; ExecSpecial MakeSimpleCmp; SetArg 5 0 CmpType; SetArg 4 0 LHS; SetArg 4 1 RHS; ExecSpecial SetCorrectCmpVar 4 RHS; Remap 0 4; Remap 1 4; Remap 2 4; Remap 3 4; Delete 0; Delete 1; Delete 2; Delete 3;",
+			new VInstructionMatch(VInstructionMatch.InstructionMatchType.FULL, "PushVar|PushConst(ANY)"), //0
+			new VInstructionMatch(VInstructionMatch.InstructionMatchType.FULL, "PushVar|PushConst(ANY)"), //1
+			new VInstructionMatch(VInstructionMatch.InstructionMatchType.FULL, "CmpPriAlt(ANY)"),         //2
+			new VInstructionMatch(VInstructionMatch.InstructionMatchType.FULL, "PopToVar(ANY_GPR)"),      //3
+			new VInstructionMatch(VInstructionMatch.InstructionMatchType.FULL, "CmpVarConst(ANY_GPR, ZERO)"), //4
+			new VInstructionMatch(VInstructionMatch.InstructionMatchType.FULL, "JumpOnCmp(ONE, ANY)")         //5
 			)
 		},
 	};
@@ -222,6 +223,18 @@ public class VAsmOptimizer {
 								}
 								else {
 									break Outer; //This is an AND or OR, thus can not be performed outside of the stack
+								}
+								
+								break;
+							case "SetCorrectCmpVar":
+								NTRInstructionCall ins = instructionBuffer.get(args[1]);
+								int rhs = numberBuffer.get(args[2]);
+								
+								if (rhs < VConstants.WKVAL_START){
+									ins.definition = VOpCode.CmpVarConst.proto;
+								}
+								else {
+									ins.definition = VOpCode.CmpVarVar.proto;
 								}
 								
 								break;

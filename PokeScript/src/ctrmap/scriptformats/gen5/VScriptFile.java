@@ -29,7 +29,9 @@ public class VScriptFile {
 	private FSFile source;
 
 	public List<NTRInstructionLink> publics = new ArrayList<>();
+	
 	public List<NTRInstructionCall> instructions = new ArrayList<>();
+	public List<NTRInstructionCall> movements = new ArrayList<>();
 
 	public VScriptFile() {
 
@@ -39,6 +41,7 @@ public class VScriptFile {
 		this.source = fsf;
 
 		if (source.exists()) {
+			//Force copy to OvFS
 			try {
 				source.getInputStream().close();
 			} catch (IOException ex) {
@@ -60,6 +63,14 @@ public class VScriptFile {
 	public void replaceFrom(VScriptFile scr) {
 		publics = new ArrayList<>(scr.publics);
 		instructions = new ArrayList<>(scr.instructions);
+		movements = new ArrayList<>(scr.movements);
+	}
+	
+	private List<NTRInstructionCall> getAllInstructions(){
+		List<NTRInstructionCall> l = new ArrayList<>();
+		l.addAll(instructions);
+		l.addAll(movements);
+		return l;
 	}
 
 	public void saveToFile() {
@@ -68,7 +79,7 @@ public class VScriptFile {
 
 	public void updatePtrs() {
 		int ptr = publics.size() * Integer.BYTES + Short.BYTES;
-		for (NTRInstructionCall call : instructions) {
+		for (NTRInstructionCall call : getAllInstructions()) {
 			call.pointer = ptr;
 			ptr += call.getSize();
 		}
@@ -95,12 +106,18 @@ public class VScriptFile {
 	}
 
 	public NTRInstructionCall getInstructionByPtr(int ptr) {
-		for (NTRInstructionCall ins : instructions) {
+		for (NTRInstructionCall ins : getAllInstructions()) {
 			if (ins.pointer == ptr) {
 				return ins;
 			}
 		}
 		return null;
+	}
+	
+	public void write(){
+		if (source != null){
+			source.setBytes(getBinaryData());
+		}
 	}
 
 	public byte[] getBinaryData() {
@@ -115,7 +132,7 @@ public class VScriptFile {
 
 			dos.writeShort(V_SCR_MAGIC);
 
-			for (NTRInstructionCall call : instructions) {
+			for (NTRInstructionCall call : getAllInstructions()) {
 				call.write(dos);
 			}
 

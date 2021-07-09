@@ -9,6 +9,7 @@ import ctrmap.pokescript.ide.system.PlatformInfoFile;
 import ctrmap.pokescript.ide.system.ResourcePathType;
 import ctrmap.pokescript.ide.system.SDKInfoFile;
 import ctrmap.pokescript.ide.system.project.IDEProject;
+import ctrmap.stdlib.fs.FSFile;
 import ctrmap.stdlib.fs.FSUtil;
 import ctrmap.stdlib.fs.accessors.DiskFile;
 import ctrmap.stdlib.gui.components.NoSpaceFirstDocument;
@@ -32,7 +33,7 @@ public class ProjectCreationDialog extends javax.swing.JDialog {
 	private DefaultListModel<PlatformInfoFile.PlatformInfo> archModel = new DefaultListModel<>();
 	private DefaultListModel<SDKInfoFile.SDKInfo> sdkModel = new DefaultListModel<>();
 
-	private static final SDKInfoFile.SDKInfo NO_SDK = new SDKInfoFile.SDKInfo("No SDK", new IDEResourceReference(ResourcePathType.INTERNAL, null), null);
+	private static final SDKInfoFile.SDKInfo NO_SDK = new SDKInfoFile.SDKInfo("No SDK", null, null);
 
 	private static final int TABIDX_ARCH = 0;
 	private static final int TABIDX_SDK = 1;
@@ -165,7 +166,7 @@ public class ProjectCreationDialog extends javax.swing.JDialog {
 		SDKInfoFile.SDKInfo sdk = getSelectedSDK();
 		if (sdk != null) {
 			sdkName.setText(sdk.toString());
-			sdkLocation.setText(sdk.ref.typeToString());
+			sdkLocation.setText(sdk.ref == null ? "-" : sdk.ref.typeToString());
 			compilerDefs.setText(String.join(", ", sdk.compilerDefinitions));
 		} else {
 			sdkName.setText("(No SDK selected)");
@@ -188,10 +189,10 @@ public class ProjectCreationDialog extends javax.swing.JDialog {
 	}
 
 	public void finishAndClose() {
-		File projectFile = ide.ws.getProjectDir(projectName.getText());
+		FSFile projectFile = ide.context.getWorkspace().getProjectDir(projectName.getText());
 		projectFile.mkdir();
 
-		result = new IDEProject(new DiskFile(projectFile), projectName.getText(), prodID.getText(), getSelectedArch().langPlatform);
+		result = new IDEProject(projectFile, projectName.getText(), prodID.getText(), getSelectedArch().langPlatform);
 
 		SDKInfoFile.SDKInfo sdk = getSelectedSDK();
 		if (sdk.ref != null) {
@@ -201,9 +202,10 @@ public class ProjectCreationDialog extends javax.swing.JDialog {
 
 		if (btnIsCreateMainClass.isSelected()) {
 			FSUtil.writeBytesToFile(
-					result.getSourceDir().getChild(mainClass.getText() + LangConstants.LANG_SOURCE_FILE_EXTENSION),
+					result.getClassFile(mainClass.getText()),
 					PSIDE.getTemplateData("MainClass.pks", new PSIDETemplateVar("CLASSNAME", mainClass.getText()))
 			);
+			result.getManifest().setMainClass(mainClass.getText());
 		}
 
 		dispose();
@@ -249,7 +251,7 @@ public class ProjectCreationDialog extends javax.swing.JDialog {
 				projectNameAlert.setText("Project name can not contain the character \"" + firstNonLetterOrDigit + "\"");
 				return false;
 			}
-			File pf = ide.ws.getProjectDir(n);
+			FSFile pf = ide.context.getWorkspace().getProjectDir(n);
 			if (pf.exists()) {
 				projectNameAlert.setText("Directory already exists in workspace.");
 				return false;

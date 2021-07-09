@@ -22,6 +22,7 @@ public interface AInstructionProvider {
 	public abstract AAccessGlobal getGlobalWrite(String globalName);
 	
 	public abstract MemoryInfo getMemoryInfo();
+	public abstract MachineInfo getMachineInfo();
 	
 	public abstract MetaFunctionHandler getMetaFuncHandler(String handlerName);
 	public abstract IFloatHandler getFloatingPointHandler();

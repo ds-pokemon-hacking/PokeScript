@@ -6,6 +6,7 @@
 package ctrmap.pokescript.ide.system.savedata;
 
 import ctrmap.pokescript.ide.system.project.IDEFile;
+import ctrmap.pokescript.ide.system.project.tree.IDEProjectTree;
 import ctrmap.stdlib.formats.yaml.Yaml;
 import ctrmap.stdlib.formats.yaml.YamlListElement;
 import ctrmap.stdlib.formats.yaml.YamlNode;
@@ -20,9 +21,13 @@ public class IDESaveData extends Yaml {
 	public static final String KEY_PROJECT_STATE = "IDEState";
 
 	public static final String PS_KEY_OPEN_FILES = "OpenFiles";
+	public static final String PS_KEY_OPEN_FILE = "LastOpenFile";
+	public static final String PS_KEY_TREE_STATE = "TreeExpansionState";
 
 	public List<String> openedProjectPaths = new ArrayList<>();
 
+	public IDEFileReference lastOpenedFile;
+	private ProjectTreeExpansionState treeExpansionState;
 	public List<IDEFileReference> openedFilePaths = new ArrayList<>();
 
 	public IDESaveData(FSFile f) {
@@ -30,6 +35,17 @@ public class IDESaveData extends Yaml {
 
 		if (f.exists()) {
 			readData();
+		}
+	}
+	
+	public void saveTreeExpansionState(IDEProjectTree tree){
+		treeExpansionState = new ProjectTreeExpansionState(tree);
+		write();
+	}
+	
+	public void loadTreeExpansionState(IDEProjectTree tree){
+		if (treeExpansionState != null){
+			treeExpansionState.loadTreeExpansionState(tree);
 		}
 	}
 
@@ -49,10 +65,32 @@ public class IDESaveData extends Yaml {
 					openedFilePaths.add(YamlReflectUtil.deserialize(child, IDEFileReference.class));
 				}
 			}
+
+			YamlNode openFile = projectState.getChildByName(PS_KEY_OPEN_FILE);
+			if (openFile != null) {
+				lastOpenedFile = YamlReflectUtil.deserialize(openFile, IDEFileReference.class);
+			}
+			
+			YamlNode treeExpState = projectState.getChildByName(PS_KEY_TREE_STATE);
+			if (treeExpState != null) {
+				treeExpansionState = new ProjectTreeExpansionState(treeExpState);
+			}
 		}
 	}
 
-	public void writeData() {
+	@Override
+	public void write() {
+		List<String> usedProjPaths = new ArrayList<>();
+		for (int i = 0; i < openedProjectPaths.size(); i++) {
+			String opp = openedProjectPaths.get(i);
+			if (usedProjPaths.contains(opp)) {
+				openedProjectPaths.remove(i);
+				i--;
+			} else {
+				usedProjPaths.add(opp);
+			}
+		}
+
 		YamlNode openedProjects = getEnsureRootNodeKeyNode(KEY_PROJECT_LIST);
 		openedProjects.removeAllChildren();
 
@@ -71,13 +109,34 @@ public class IDESaveData extends Yaml {
 			openedFiles.addChild(ref.getYML());
 		}
 
+		state.removeChildByName(PS_KEY_OPEN_FILE);
+		if (lastOpenedFile != null) {
+			state.addChild(YamlReflectUtil.serialize(PS_KEY_OPEN_FILE, lastOpenedFile));
+		}
+		
+		state.removeChildByName(PS_KEY_TREE_STATE);
+		if (treeExpansionState != null){
+			state.addChild(treeExpansionState);
+		}
+
+		super.write();
+	}
+
+	public void setLastOpenedFile(IDEFile f) {
+		lastOpenedFile = new IDEFileReference(f);
 		write();
 	}
 
 	public void putOpenedProjectPath(String pth) {
 		if (!openedProjectPaths.contains(pth)) {
 			openedProjectPaths.add(pth);
-			writeData();
+			write();
+		}
+	}
+
+	public void removeOpenedProjectPath(String pth) {
+		if (openedProjectPaths.remove(pth)) {
+			write();
 		}
 	}
 
@@ -90,8 +149,21 @@ public class IDESaveData extends Yaml {
 		if (!openedFilePaths.contains(ref)) {
 			openedFilePaths.add(ref);
 			if (write) {
-				writeData();
+				write();
 			}
+		}
+	}
+
+	public void removeOpenFile(IDEFile f) {
+		IDEFileReference ref = new IDEFileReference(f);
+		boolean write = false;
+		if (lastOpenedFile.equals(ref)) {
+			lastOpenedFile = null;
+			write = true;
+		}
+		write |= openedFilePaths.remove(new IDEFileReference(f));
+		if (write) {
+			write();
 		}
 	}
 
@@ -103,6 +175,7 @@ public class IDESaveData extends Yaml {
 
 		public String projectProdId;
 		public String path;
+		public boolean openRW;
 
 		public IDEFileReference() {
 
@@ -111,6 +184,7 @@ public class IDESaveData extends Yaml {
 		public IDEFileReference(IDEFile f) {
 			path = f.getPathInProject();
 			projectProdId = f.getProject().getManifest().getProductId();
+			openRW = f.canWrite();
 		}
 
 		public YamlNode getYML() {

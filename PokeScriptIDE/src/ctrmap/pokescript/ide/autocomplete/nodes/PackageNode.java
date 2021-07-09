@@ -10,7 +10,7 @@ public class PackageNode extends AbstractNode{
 		
 	public PackageNode(FSFile f, LangCompiler.CompilerArguments args){
 		this(f.getName());
-		List<FSFile> subs = f.listFiles();
+		List<? extends FSFile> subs = f.listFiles();
 		for (FSFile sub : subs){
 			if (sub.isDirectory()){
 				addChild(new PackageNode(sub, args));

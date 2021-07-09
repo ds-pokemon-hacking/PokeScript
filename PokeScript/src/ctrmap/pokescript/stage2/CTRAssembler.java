@@ -43,7 +43,7 @@ public class CTRAssembler {
 		}
 	}
 
-	public static void assemble(NCompileGraph graph, GFLPawnScript target, LangCompiler.CompilerArguments args) {
+	public static void assemble(NCompileGraph graph, GFLPawnScript target) {
 		List<AInstruction> allInstructions = new ArrayList<>();
 		allInstructions.add(0, graph.getPlain(APlainOpCode.ABORT_EXECUTION));
 
@@ -177,6 +177,8 @@ public class CTRAssembler {
 			}
 		}
 
+		LangCompiler.CompilerArguments args = graph.getArgs();
+		
 		args.logger.println(CompilerLogger.LogLevel.INFO, "Beginning optimization...");
 		for (int i = 0; i < args.optimizationPassCount; i++) {
 			args.logger.println(CompilerLogger.LogLevel.INFO, "Performing optimization pass " + (i + 1) + " of " + args.optimizationPassCount);

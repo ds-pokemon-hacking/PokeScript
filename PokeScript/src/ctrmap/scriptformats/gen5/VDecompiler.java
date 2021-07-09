@@ -32,13 +32,15 @@ public class VDecompiler {
 
 	private StackTracker stack = new StackTracker();
 
+	public String overrideClassName = null;
+
 	public VDecompiler(VScriptFile scr, VCommandDataBase cdb) {
 		this.scr = scr;
 		disasm = new VDisassembler(scr, cdb);
 	}
 
 	public static void main(String[] args) {
-		FSFile scrFile = new DiskFile("D:\\_REWorkspace\\CTRMapProjects\\White2\\vfs\\data\\a\\0\\5\\6\\290");
+		FSFile scrFile = new DiskFile("D:\\_REWorkspace\\CTRMapProjects\\White2\\vfs\\data\\a\\0\\5\\6\\12");
 		FSFile cdbFile = new DiskFile("C:\\Users\\Čeněk\\eclipse-workspace\\BsYmlGen\\B2W2.yml");
 		FSFile outFile = new DiskFile("D:\\_REWorkspace\\pokescript_genv\\decomp\\out.pks");
 
@@ -103,7 +105,11 @@ public class VDecompiler {
 		}
 
 		out.print("public class ");
-		out.print(FormattingUtils.getStrWithoutSpaces(FSUtil.getFileNameWithoutExtension(scr.getSourceFile().getName())));
+		if (overrideClassName != null) {
+			out.print(overrideClassName);
+		} else {
+			out.print(FormattingUtils.getStrWithoutNonAlphanumeric(FSUtil.getFileNameWithoutExtension(scr.getSourceFile().getName())));
+		}
 		out.println(" {");
 		out.incrementIndentLevel();
 
@@ -122,6 +128,26 @@ public class VDecompiler {
 
 		for (DisassembledMethod m : disasm.movements) {
 			dumpMovement(m, out);
+		}
+
+		List<Integer> movementOpCodes = new ArrayList<>();
+
+		for (DisassembledMethod movement : disasm.movements) {
+			for (DisassembledCall call : movement.instructions) {
+				movementOpCodes.add(call.definition.opCode);
+			}
+		}
+
+		if (!movementOpCodes.isEmpty()) {
+			out.println();
+			Collections.sort(movementOpCodes);
+			for (Integer mvmt : movementOpCodes) {
+				out.print("static native void Movement");
+				out.print(FormattingUtils.getStrWithLeadingZeros(4, Integer.toHexString(mvmt)));
+				out.print("(int duration) : 0x");
+				out.print(Integer.toHexString(mvmt));
+				out.println(";");
+			}
 		}
 
 		out.decrementIndentLevel();
@@ -217,67 +243,42 @@ public class VDecompiler {
 		if (stackResult != null) {
 			switch (stackResult) {
 				case POP_TO:
-					printFlex(call.args[0], out);
-					out.print(" = ");
-					StackTracker.StackElement elem = stack.pop();
-					elem.print(out);
+					int target = call.args[0];
+					printAsgnOrWorkSet(out, target, stack.pop().toString());
 					out.println(";");
 					break;
 			}
 		} else if (mathResult != null) {
 			int target = call.args[0];
 			int rhs = call.args[1];
-			if (target < 0x8000) {
-				out.print("EventWorks.WorkSet(");
-				out.print(target);
-				out.print(", ");
-				if (mathResult.operator != null) {
-					out.print(target);
-					out.print(" ");
-					out.print(mathResult.operator);
-					out.print(" ");
-					printByDataType(call.definition.parameters[1].dataType, rhs, out);
-				} else {
-					printFlex(rhs, out);
-				}
-				out.print(")");
-			} else {
-				printFlex(target, out);
-				out.print(" ");
-				if (mathResult.operator != null) {
-					out.print(mathResult.operator);
-				}
-				out.print("= ");
-				printByDataType(call.definition.parameters[1].dataType, rhs, out);
-			}
+			printVarAssignment(out, mathResult.operator, target, rhs, call.definition.parameters[1].dataType);
 			out.println(";");
 		} else if (call.command.type == VCommandDataBase.CommandType.REGULAR) {
 			if (!call.command.isDecompPrintable()) {
 				call.doNotDisassemble = true;
 				return;
 			}
-			
+
 			int rcbCount = 0;
-			for (int i = 0; i < call.command.def.parameters.length; i++){
-				if (call.command.def.parameters[i].isReturnCallback()){
+			for (int i = 0; i < call.command.def.parameters.length; i++) {
+				if (call.command.def.parameters[i].isReturnCallback()) {
 					rcbCount++;
 				}
 			}
 			boolean isRCB = rcbCount == 1;
 			int rcbIndex = call.command.def.getIndexOfFirstReturnArgument();
-						
-			if (isRCB){
-				printFlex(call.args[rcbIndex], out);
-				out.print(" = ");
+
+			if (isRCB) {
+				printAsgnOrWorkSet(out, call.args[rcbIndex], null);
 			}
-			
+
 			out.print(call.command.getPKSCallName());
 			out.print("(");
 
 			boolean started = false;
-			
+
 			for (int i = 0; i < call.args.length; i++) {
-				if (i == rcbIndex){
+				if (i == rcbIndex) {
 					continue;
 				}
 				if (started) {
@@ -294,12 +295,59 @@ public class VDecompiler {
 				}
 			}
 
-			out.println(");");
-
+			out.print(")");
+			if (isRCB && call.args[rcbIndex] < 0x8000) {
+				out.print(")");
+			}
+			out.println(";");
 		} else {
 			printIrregularCall(call, method, insIndex, out);
 		}
 		call.doNotDisassemble = true;
+	}
+
+	private static void printAsgnOrWorkSet(PrintStream out, int target, String rhs) {
+		if (target < 0x8000) {
+			out.print("EventWorks.WorkSet(");
+			out.print(target);
+			out.print(", ");
+			if (rhs != null) {
+				out.print(rhs);
+				out.print(")");
+			}
+		} else {
+			printFlex(target, out);
+			out.print(" = ");
+			if (rhs != null) {
+				out.print(rhs);
+			}
+		}
+	}
+
+	private static void printVarAssignment(PrintStream out, String operator, int target, int rhs, NTRDataType rhsType) {
+		if (target < 0x8000) {
+			out.print("EventWorks.WorkSet(");
+			out.print(target);
+			out.print(", ");
+			if (operator != null) {
+				out.print(target);
+				out.print(" ");
+				out.print(operator);
+				out.print(" ");
+				printByDataType(rhsType, rhs, out);
+			} else {
+				printFlex(rhs, out);
+			}
+			out.print(")");
+		} else {
+			printFlex(target, out);
+			out.print(" ");
+			if (operator != null) {
+				out.print(operator);
+			}
+			out.print("= ");
+			printByDataType(rhsType, rhs, out);
+		}
 	}
 
 	private static void printByDataType(NTRDataType dataType, int val, PrintStream out) {

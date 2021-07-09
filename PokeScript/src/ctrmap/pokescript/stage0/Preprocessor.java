@@ -10,13 +10,11 @@ import ctrmap.pokescript.stage0.content.AbstractContent;
 import ctrmap.pokescript.stage0.content.DeclarationContent;
 import ctrmap.pokescript.stage1.NCompilableMethod;
 import ctrmap.pokescript.stage1.NCompileGraph;
-import ctrmap.pokescript.types.classes.ClassDefinition;
 import ctrmap.stdlib.fs.FSFile;
 import ctrmap.stdlib.io.base.iface.ReadableStream;
 import ctrmap.stdlib.util.ArraysEx;
 import java.io.BufferedReader;
 import java.io.IOException;
-import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.Reader;
 import java.nio.charset.StandardCharsets;
@@ -55,11 +53,17 @@ public class Preprocessor {
 		read(stream);
 	}
 	
+	public LangCompiler.CompilerArguments getArgs(){
+		return args;
+	}
+	
 	public void read(FSFile fsf){
 		read(fsf.getInputStream());
 	}
 
 	public final void read(ReadableStream stream) {
+		lines.clear();
+		comments.clear();
 		try (BufferedReader reader = new BufferedReader(new InputStreamReader(stream.getInputStream(), StandardCharsets.UTF_8))) {
 			int line = 1;
 
@@ -228,6 +232,9 @@ public class Preprocessor {
 				}
 			}
 		}
+		
+		cg.finishCompileLoad();
+		
 		exc = collectExceptions();
 
 		for (CompilerExceptionData d : exc) {
@@ -246,6 +253,15 @@ public class Preprocessor {
 			d.addAll(l.getExceptionData());
 		}
 		return d;
+	}
+	
+	public boolean isCompileSuccessful(){
+		for (EffectiveLine l : lines) {
+			if (!l.exceptions.isEmpty()){
+				return false;
+			}
+		}
+		return true;
 	}
 
 	public static boolean isTerminator(char c) {
@@ -328,11 +344,11 @@ public class Preprocessor {
 		while (reader.ready()) {
 			c = (char) reader.read();
 
-			if (firstChar) {
+			if (!isInComment && !notifyNextComment && firstChar) {
 				if (c == LangConstants.CH_PP_KW_IDENTIFIER || c == LangConstants.CH_ANNOT_KW_IDENTIFIER) {
 					termList.add('\n');
 				}
-				if (!Character.isWhitespace(c)) {
+				if (!Character.isWhitespace(c) && c != '/') { //forbid comments
 					firstChar = false;
 				}
 			}

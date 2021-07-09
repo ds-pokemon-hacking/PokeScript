@@ -256,7 +256,7 @@ public class StatementContent extends AbstractContent {
 					if (tryDecl != null) {
 						tryDecl.addToGraph(graph);
 					}
-					if (isLeakDecl){
+					if (isLeakDecl) {
 						graph.pushBlock(forBlock);
 					}
 					PendingLabel effectiveStart = graph.addPendingLabel("FOR_effective_start");
@@ -275,6 +275,21 @@ public class StatementContent extends AbstractContent {
 					line.throwException("A for exception requires a declaration, condition and expression.");
 				}
 
+				break;
+			}
+			case GOTO: {
+				if (graph.provider.getMachineInfo().getAllowsGotoStatement()) {
+					if (arguments.isEmpty()) {
+						line.throwException("A goto statement needs a target.");
+					} else {
+						String label = arguments.get(0);
+						graph.addLabelRequest(label);
+						l.add(graph.provider.getConditionJump(APlainOpCode.JUMP, label));
+					}
+				}
+				else {
+					line.throwException("This compiler does not support the goto statement.");
+				}
 				break;
 			}
 		}

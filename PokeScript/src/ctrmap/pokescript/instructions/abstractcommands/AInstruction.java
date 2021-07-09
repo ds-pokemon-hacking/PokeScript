@@ -1,6 +1,5 @@
 package ctrmap.pokescript.instructions.abstractcommands;
 
-import ctrmap.scriptformats.gen6.PawnInstruction;
 import ctrmap.pokescript.stage1.NCompileGraph;
 import java.util.ArrayList;
 import java.util.List;

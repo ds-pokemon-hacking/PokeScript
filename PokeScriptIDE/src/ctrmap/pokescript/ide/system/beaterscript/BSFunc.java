@@ -14,6 +14,7 @@ public class BSFunc {
 
 	public String packageAndClass;
 	public String[] names;
+	public String brief;
 	public int opCode;
 	public List<NTRDataType> returnTypes = new ArrayList<>();
 	public List<String> returnArgNames = new ArrayList<>();
@@ -29,6 +30,7 @@ public class BSFunc {
 		String ind = getIndent(indent);
 
 		for (int r = 0; r < returnTypes.size(); r++) {
+			appendBrief(sb, indent);
 			NTRDataType returnType = returnTypes.get(r);
 			String returnArgName = r < returnArgNames.size() ? returnArgNames.get(r) : null;
 
@@ -84,8 +86,8 @@ public class BSFunc {
 			}
 			sb.append("(");
 			int firstArg = 0;
-			for (; firstArg < args.length; firstArg++){
-				if (!args[firstArg].isReturnCallback()){
+			for (; firstArg < args.length; firstArg++) {
+				if (!args[firstArg].isReturnCallback()) {
 					break;
 				}
 			}
@@ -97,24 +99,22 @@ public class BSFunc {
 				if (i != firstArg) {
 					sb.append(", ");
 				}
-				if (a.dataType == NTRDataType.VAR){
-					sb.append("ref ");
-				}
-				else if (a.dataType != NTRDataType.FLEX) {
+				if (a.dataType == NTRDataType.VAR) {
+				//	sb.append("var "); //do not do this, allow for numeric variables
+				} else if (a.dataType != NTRDataType.FLEX) {
 					sb.append("final ");
 				}
 				sb.append(getPKSType(a.dataType).getFriendlyName());
 				sb.append(" ");
 				sb.append(argNames[i]);
 			}
-			sb.append(") : ");
-			sb.append("0x");
-			sb.append(Integer.toHexString(opCode));
-			sb.append(";\n");
+			appendOpCodeAndEnd(sb);
 		}
 
 		if (returnTypes.size() > 1) {
 			sb.append("\n");
+
+			appendBrief(sb, indent);
 
 			//append combined function
 			sb.append(ind);
@@ -135,13 +135,47 @@ public class BSFunc {
 				sb.append(" ");
 				sb.append(argNames[i]);
 			}
-			sb.append(") : ");
-			sb.append("0x");
-			sb.append(Integer.toHexString(opCode));
-			sb.append(";\n");
+			appendOpCodeAndEnd(sb);
+		}
+
+		boolean hasVarArg = false;
+		for (int i = 0; i < args.length; i++) {
+			if (args[i].dataType == NTRDataType.VAR && !returnArgNames.contains(argNames[i])) {
+				hasVarArg = true;
+				break;
+			}
 		}
 
 		return sb.toString();
+	}
+
+	private void appendOpCodeAndEnd(StringBuilder sb) {
+		sb.append(") : ");
+		sb.append("0x");
+		sb.append(Integer.toHexString(opCode));
+		sb.append(";\n");
+	}
+
+	private void appendBrief(StringBuilder sb, int indentLvl) {
+		String ind = getIndent(indentLvl);
+		if (brief != null) {
+			sb.append(ind);
+			sb.append("/**\n");
+			String[] briefLines = brief.split("\\. ");
+			for (String bl : briefLines) {
+				if (!bl.isEmpty()) {
+					sb.append(ind);
+					sb.append(" * ");
+					sb.append(bl);
+					if (!bl.endsWith(".")) {
+						sb.append(".");
+					}
+					sb.append("\n");
+				}
+			}
+			sb.append(ind);
+			sb.append("*/\n");
+		}
 	}
 
 	private static String getIndent(int lvl) {

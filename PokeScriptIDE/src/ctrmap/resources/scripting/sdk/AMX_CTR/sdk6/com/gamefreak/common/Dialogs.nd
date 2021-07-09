@@ -1,7 +1,0 @@
-/**
-*	Queries the player to select a Pokémon from their party.
-*
-*	@param fullControl If set, this method invokes the simple selection dialog instead of the full-featured party management UI.
-*	@param targetWork The FlagWork value to store the selection result to. The result is an index into the player's party, or 6 if the selection was cancelled.
-*/
-native void CallPokeSelect(boolean restrictedControl, int targetWork, boolean unknown3, boolean unknown4);

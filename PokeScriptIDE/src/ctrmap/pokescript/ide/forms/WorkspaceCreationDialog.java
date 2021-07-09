@@ -1,6 +1,7 @@
 package ctrmap.pokescript.ide.forms;
 
 import ctrmap.pokescript.ide.system.savedata.IDEWorkspace;
+import ctrmap.stdlib.fs.accessors.DiskFile;
 import ctrmap.stdlib.gui.DialogUtils;
 import ctrmap.stdlib.gui.file.CMFileDialog;
 import java.awt.Component;
@@ -143,7 +144,7 @@ public class WorkspaceCreationDialog extends javax.swing.JDialog {
 		if (target == null || target.isEmpty()) {
 			DialogUtils.showErrorMessage(this, "Invalid path", "The workspace path is empty");
 		} else {
-			File targetFile = new File(target);
+			DiskFile targetFile = new DiskFile(target);
 			if (!targetFile.exists()) {
 				boolean createNew = DialogUtils.showYesNoDialog(this, "Directory not found", "The selected directory does not exist. Do you want to create it?");
 				if (createNew) {

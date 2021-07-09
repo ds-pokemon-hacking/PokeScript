@@ -50,6 +50,13 @@ public class CTRInstructionProvider implements AInstructionProvider {
 		}
 	};
 	
+	public static final MachineInfo PAWN_MACHINE_INFO = new MachineInfo() {
+		@Override
+		public boolean getAllowsGotoStatement() {
+			return false;
+		}
+	};
+	
 	@Override
 	public APlainInstruction getPlainInstruction(APlainOpCode opCode, int[] args) {
 		return new PawnPlainInstruction(opCode, args);
@@ -98,6 +105,11 @@ public class CTRInstructionProvider implements AInstructionProvider {
 	@Override
 	public IFloatHandler getFloatingPointHandler() {
 		return PawnFloatHandler.INSTANCE;
+	}
+
+	@Override
+	public MachineInfo getMachineInfo() {
+		return PAWN_MACHINE_INFO;
 	}
 
 }

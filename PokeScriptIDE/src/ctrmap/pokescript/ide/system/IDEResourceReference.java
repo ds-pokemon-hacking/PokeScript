@@ -1,8 +1,3 @@
-/*
- * To change this license header, choose License Headers in Project Properties.
- * To change this template file, choose Tools | Templates
- * and open the template in the editor.
- */
 package ctrmap.pokescript.ide.system;
 
 import ctrmap.pokescript.ide.system.project.IDEContext;
@@ -14,9 +9,6 @@ import ctrmap.stdlib.text.FormattingUtils;
 import ctrmap.stdlib.net.FileDownloader;
 import ctrmap.stdlib.res.ResourceAccess;
 
-/**
- *
- */
 public class IDEResourceReference {
 
 	public ResourcePathType pathType;
@@ -53,7 +45,7 @@ public class IDEResourceReference {
 		}
 	}
 
-	public FSFile resolve(FSFile parent, IDEContext ctx) {
+	public FSFile resolve(FSFile parent, IDEContext ctx, FSFile resolutionWorkDir) {
 		switch (pathType) {
 			case ON_DISK: {
 				FSFile rootChild = parent.getChild(path);
@@ -78,7 +70,7 @@ public class IDEResourceReference {
 				break;
 			}
 			case REMOTE_EXT:
-				return ctx.resolveRemoteExt(this);
+				return ctx.resolveRemoteExt(this, resolutionWorkDir);
 		}
 		return null;
 	}

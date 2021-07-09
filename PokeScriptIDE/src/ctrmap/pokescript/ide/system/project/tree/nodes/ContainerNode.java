@@ -6,19 +6,20 @@
 
 package ctrmap.pokescript.ide.system.project.tree.nodes;
 
-import ctrmap.stdlib.gui.components.tree.CustomJTreeNode;
+import ctrmap.pokescript.ide.PSIDE;
 
 /**
  *
  */
-public class ContainerNode extends CustomJTreeNode {
+public class ContainerNode extends IDENodeBase {
 
 	public static final int RESID_OFFSET = 6;
 	public static final int RESID_MAX = Type.values().length + RESID_OFFSET;
 	
 	private Type type;
 	
-	public ContainerNode(Type t){
+	public ContainerNode(PSIDE ide, Type t){
+		super(ide);
 		type = t;
 	}
 	
@@ -30,6 +31,11 @@ public class ContainerNode extends CustomJTreeNode {
 	@Override
 	public String getNodeName() {
 		return type.friendlyName;
+	}
+
+	@Override
+	public String getUniqueName() {
+		return getNodeName();
 	}
 
 	public static enum Type {

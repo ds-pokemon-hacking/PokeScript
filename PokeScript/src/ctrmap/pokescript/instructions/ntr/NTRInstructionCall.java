@@ -45,7 +45,11 @@ public class NTRInstructionCall extends ACompiledInstruction {
 	public void setupLink(VScriptFile scr, NTRInstructionLinkSetup... linkableOpCodes){
 		for (int i = 0; i < linkableOpCodes.length; i++){
 			if (linkableOpCodes[i].opCode == definition.opCode){
-				link = new NTRInstructionLink(this, scr.getInstructionByPtr(pointer + getSize() + args[linkableOpCodes[i].argNo]), linkableOpCodes[i].argNo);
+				int desiredArgNo = linkableOpCodes[i].argNo;
+				if (desiredArgNo >= args.length){
+					throw new ArrayIndexOutOfBoundsException("Could not set up link for opcode " + definition.opCode + " - argument " + desiredArgNo + " out of range ! - " + definition.debugName);
+				}
+				link = new NTRInstructionLink(this, scr.getInstructionByPtr(pointer + getSize() + args[desiredArgNo]), linkableOpCodes[i].argNo);
 				break;
 			}
 		}

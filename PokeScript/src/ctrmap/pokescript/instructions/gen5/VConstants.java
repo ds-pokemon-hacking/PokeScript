@@ -5,6 +5,8 @@ package ctrmap.pokescript.instructions.gen5;
  *
  */
 public class VConstants {
+	public static int WKVAL_START = 0x4000;
+	
 	public static int GP_REG_PRI = 0x8000;
 	public static int GP_REG_ALT = 0x8001;
 	public static int GP_REG_3 = 0x8002;

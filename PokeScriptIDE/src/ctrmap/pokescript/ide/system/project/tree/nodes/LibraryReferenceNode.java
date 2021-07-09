@@ -1,9 +1,9 @@
 package ctrmap.pokescript.ide.system.project.tree.nodes;
 
 import ctrmap.pokescript.ide.PSIDE;
+import ctrmap.pokescript.ide.system.project.IDEFile;
 import ctrmap.scriptformats.pkslib.LibraryFile;
 import ctrmap.scriptformats.pkslib.PlatformSourceTarget;
-import ctrmap.stdlib.fs.FSFile;
 
 public class LibraryReferenceNode extends PackageNode {
 
@@ -13,15 +13,16 @@ public class LibraryReferenceNode extends PackageNode {
 
 	public LibraryReferenceNode(PSIDE ide, LibraryFile library) {
 		super(ide);
+		IDEFile ideFileDummy = new IDEFile(null, library);
 		lib = library;
+		dir = ideFileDummy;
 
-		if (library.getManifest().isMultirelease()) {
-			for (PlatformSourceTarget tgt : library.getManifest().getMultireleaseTargets()) {
-				FSFile file = lib.getChild(tgt.path);
-				add(new SourceDirNode(ide, file));
+		for (PlatformSourceTarget tgt : library.getManifest().getMultireleaseTargets()) {
+			IDEFile file = ideFileDummy.getChild(tgt.path);
+			if (file == null){
+				throw new NullPointerException("Source directory " + tgt.path + " not present in library " + library + "(" + library.getSource().getClass() + ")");
 			}
-		} else {
-			addChildrenFromDir(library);
+			add(new SourceDirNode(ide, file));
 		}
 	}
 

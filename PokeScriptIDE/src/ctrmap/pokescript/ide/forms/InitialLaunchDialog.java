@@ -1,6 +1,7 @@
 package ctrmap.pokescript.ide.forms;
 
 import ctrmap.pokescript.ide.system.savedata.IDEWorkspace;
+import ctrmap.stdlib.fs.accessors.DiskFile;
 import ctrmap.stdlib.gui.DialogUtils;
 import ctrmap.stdlib.gui.file.CMFileDialog;
 import java.io.File;
@@ -20,7 +21,7 @@ public class InitialLaunchDialog extends javax.swing.JDialog {
 	private void trySetWS(IDEWorkspace ws) {
 		if (ws != null) {
 			this.ws = ws;
-			selectedWorkspace.setText(ws.getRoot().getAbsolutePath());
+			selectedWorkspace.setText(ws.getRoot().getPath());
 			btnContinue.setEnabled(true);
 		}
 	}
@@ -162,7 +163,7 @@ public class InitialLaunchDialog extends javax.swing.JDialog {
 		File dir = CMFileDialog.openDirectoryDialog();
 
 		if (dir != null) {
-			IDEWorkspace ws = IDEWorkspace.openWorkspaceIfApplicable(dir);
+			IDEWorkspace ws = IDEWorkspace.openWorkspaceIfApplicable(new DiskFile(dir));
 			if (ws != null) {
 				trySetWS(ws);
 			} else {

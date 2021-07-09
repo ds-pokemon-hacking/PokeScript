@@ -1,9 +1,0 @@
-/**
-*	Unloads the Field module.
-*/
-native void _FieldClose(boolean unknown1, boolean unknown2);
-
-/**
-*	Reloads the Field module.
-*/
-native void _FieldOpen(boolean unknown1);

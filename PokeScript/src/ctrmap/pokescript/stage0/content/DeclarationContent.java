@@ -241,7 +241,12 @@ public class DeclarationContent extends AbstractContent {
 						cnt.arguments.add(a);
 						
 						if (argCmdCmds.length != defStart + 2){
-							line.throwException("Too many parameters in argument declaration.");
+							//line.throwException("Too many parameters in argument declaration.");
+							for (int i = 0; i < argCmdCmds.length - 2; i++){
+								if (Modifier.fromName(argCmdCmds[i]) == null){
+									line.throwException("Invalid modifier: " + argCmdCmds[i]);
+								}
+							}
 						}
 					}
 				}

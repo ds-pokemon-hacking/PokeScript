@@ -45,7 +45,8 @@ public class AutoComplete {
 	public List<FSFile> includes = new ArrayList<>();
 
 	private FileEditorRSTA area;
-	
+	private IDEProject currentProject = null;
+
 	private AutoCompleteDocumentListener documentListener;
 
 	public AutoComplete() {
@@ -53,8 +54,8 @@ public class AutoComplete {
 		acMainWindow.addAcHintListListener(new SelectionListener());
 		documentListener = new AutoCompleteDocumentListener();
 	}
-	
-	public AutoCompleteDocumentListener getACDocListener(){
+
+	public AutoCompleteDocumentListener getACDocListener() {
 		return documentListener;
 	}
 
@@ -65,6 +66,7 @@ public class AutoComplete {
 	public void attachTextArea(FileEditorRSTA area) {
 		closeAndInvalidate();
 		this.area = area;
+		loadProject(area.getEditedFile().getProject());
 	}
 
 	private Stack<NodeResult.Handler> resultHandlers = new Stack<>();
@@ -220,9 +222,12 @@ public class AutoComplete {
 	}
 
 	public void loadProject(IDEProject project) {
-		acRoot.children.clear();
-		for (FSFile fsf : project.getAllIncludeFiles()) {
-			addInclude(fsf, project);
+		if (currentProject != project) {
+			currentProject = project;
+			acRoot.children.clear();
+			for (FSFile fsf : project.getAllIncludeFiles()) {
+				addInclude(fsf, project);
+			}
 		}
 	}
 
@@ -297,7 +302,7 @@ public class AutoComplete {
 	public void updateByArea() {
 		updateByArea(CaretMotion.NONE);
 	}
-	
+
 	public void updateByArea(CaretMotion motion) {
 		if (area != null) {
 			int caretPos = area.getCaretPosition();
@@ -313,8 +318,8 @@ public class AutoComplete {
 			updateAutocomplete(caretPos);
 		}
 	}
-	
-	public boolean isBoundToArea(FileEditorRSTA area){
+
+	public boolean isBoundToArea(FileEditorRSTA area) {
 		return this.area == area;
 	}
 
@@ -449,7 +454,7 @@ public class AutoComplete {
 			}
 		}
 	}
-	
+
 	public class AutoCompleteDocumentListener implements DocumentListener {
 
 		@Override

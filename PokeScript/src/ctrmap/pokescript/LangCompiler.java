@@ -183,40 +183,40 @@ public class LangCompiler {
 
 	public static GFLPawnScript compileFileCTR(FSFile fsf, CompilerArguments args) {
 		Preprocessor preprocessor = new Preprocessor(fsf, args);
-		return compileImplCTR(preprocessor, args);
+		return compileImplCTR(preprocessor);
 	}
 
 	public static GFLPawnScript compileStreamCTR(ReadableStream strm, CompilerArguments args) {
 		Preprocessor preprocessor = new Preprocessor(strm, "UnnamedContext", args);
-		return compileImplCTR(preprocessor, args);
+		return compileImplCTR(preprocessor);
 	}
 
 	public static VScriptFile compileFileV(FSFile fsf, CompilerArguments args) {
 		Preprocessor preprocessor = new Preprocessor(fsf, args);
-		return compileImplGenV(preprocessor, args);
+		return compileImplGenV(preprocessor);
 	}
 
 	public static VScriptFile compileStreamV(ReadableStream strm, CompilerArguments args) {
 		Preprocessor preprocessor = new Preprocessor(strm, "UnnamedContext", args);
-		return compileImplGenV(preprocessor, args);
+		return compileImplGenV(preprocessor);
 	}
 
-	private static GFLPawnScript compileImplCTR(Preprocessor preprocessor, CompilerArguments args) {
+	private static GFLPawnScript compileImplCTR(Preprocessor preprocessor) {
 		NCompileGraph cg = preprocessor.getCompileGraph();
 		if (cg == null) {
 			return null;
 		}
 		GFLPawnScript gflPawnScript = new GFLPawnScript();
-		CTRAssembler.assemble(cg, gflPawnScript, args);
+		CTRAssembler.assemble(cg, gflPawnScript);
 		return gflPawnScript;
 	}
 
-	private static VScriptFile compileImplGenV(Preprocessor preprocessor, CompilerArguments args) {
+	private static VScriptFile compileImplGenV(Preprocessor preprocessor) {
 		NCompileGraph cg = preprocessor.getCompileGraph();
 		if (cg == null) {
 			return null;
 		}
-		return VAssembler.assemble(cg, args);
+		return VAssembler.assemble(cg);
 	}
 
 	public static class CompilerArguments {
@@ -238,6 +238,8 @@ public class LangCompiler {
 		public void setPlatform(LangPlatform plaf) {
 			this.platform = plaf;
 			provider = getInstructionProvider(plaf);
+			optimizationPassCount = plaf == LangPlatform.AMX_CTR ? 2 : 1;
+			optimizationLevel = plaf == LangPlatform.EV_SWAN ? 5 : 2;
 		}
 
 		public LangPlatform getPlatform() {

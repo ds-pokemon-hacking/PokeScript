@@ -1,8 +1,6 @@
 package ctrmap.pokescript.expr;
 
 import ctrmap.pokescript.types.DataType;
-import ctrmap.scriptformats.gen6.PawnInstruction;
-import ctrmap.pokescript.instructions.ctr.instructions.CTRInstruction;
 import ctrmap.pokescript.instructions.abstractcommands.AInstruction;
 import ctrmap.pokescript.instructions.abstractcommands.APlainOpCode;
 import ctrmap.pokescript.stage0.EffectiveLine;
@@ -49,8 +47,8 @@ public abstract class CmnMathOp extends Operator {
 	public Priority getPriority() {
 		return Priority.NORMAL;
 	}
-	
-	public boolean isResultInAlt(){
+
+	public boolean isResultInAlt() {
 		return false;
 	}
 
@@ -70,8 +68,8 @@ public abstract class CmnMathOp extends Operator {
 		List<AInstruction> l = createCommonMathOpSequence(left == null ? null : left.getCode(getInputTypeLHS()), right == null ? null : right.getCode(getInputTypeRHS()), isDoubleOp, cg);
 
 		l.add(cg.getPlain(getSimpleOperationCommand()));
-		
-		if (isResultInAlt()){
+
+		if (isResultInAlt()) {
 			l.add(cg.getPlain(APlainOpCode.MOVE_ALT_TO_PRI));
 		}
 
@@ -93,12 +91,16 @@ public abstract class CmnMathOp extends Operator {
 
 	public static List<AInstruction> createCommonMathOpSequence(List<AInstruction> leftSource, List<AInstruction> rightSource, boolean doubleOp, NCompileGraph cg) {
 		List<AInstruction> l = new ArrayList<>();
-		l.addAll(leftSource);
+		if (leftSource != null) {
+			l.addAll(leftSource);
+		}
 		l.add(cg.getPlain(APlainOpCode.PUSH_PRI));
 		if (doubleOp) {
 			l.add(cg.getPlain(APlainOpCode.CONST_ALT, 1)); //will get optimized to INC/DEC in the assembler
 		} else {
-			l.addAll(rightSource);
+			if (rightSource != null) {
+				l.addAll(rightSource);
+			}
 			l.add(cg.getPlain(APlainOpCode.MOVE_PRI_TO_ALT));
 		}
 		l.add(cg.getPlain(APlainOpCode.POP_PRI));
@@ -171,7 +173,7 @@ public abstract class CmnMathOp extends Operator {
 			return APlainOpCode.DIVIDE;
 		}
 	}
-	
+
 	public static class Mod extends Div {
 
 		public Mod(String source) {
@@ -182,9 +184,9 @@ public abstract class CmnMathOp extends Operator {
 		public APlainOpCode getSimpleOperationCommand() {
 			return APlainOpCode.MODULO;
 		}
-		
+
 		@Override
-		public boolean isResultInAlt(){
+		public boolean isResultInAlt() {
 			return true;
 		}
 	}
@@ -200,6 +202,11 @@ public abstract class CmnMathOp extends Operator {
 		public APlainOpCode getSimpleOperationCommand() {
 			return APlainOpCode.AND;
 		}
+
+		@Override
+		public Priority getPriority() {
+			return Priority.BOOLOPS;
+		}
 	}
 
 	public static class BitOr extends Mul {
@@ -212,6 +219,11 @@ public abstract class CmnMathOp extends Operator {
 		public APlainOpCode getSimpleOperationCommand() {
 			return APlainOpCode.OR;
 		}
+
+		@Override
+		public Priority getPriority() {
+			return Priority.BOOLOPS;
+		}
 	}
 
 	public static class Xor extends Mul {
@@ -223,6 +235,11 @@ public abstract class CmnMathOp extends Operator {
 		@Override
 		public APlainOpCode getSimpleOperationCommand() {
 			return APlainOpCode.XOR;
+		}
+
+		@Override
+		public Priority getPriority() {
+			return Priority.BOOLOPS;
 		}
 	}
 }

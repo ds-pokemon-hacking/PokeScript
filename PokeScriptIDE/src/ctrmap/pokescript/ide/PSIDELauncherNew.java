@@ -2,9 +2,9 @@ package ctrmap.pokescript.ide;
 
 import ctrmap.pokescript.ide.forms.InitialLaunchDialog;
 import ctrmap.pokescript.ide.system.savedata.IDEWorkspace;
+import ctrmap.stdlib.fs.accessors.DiskFile;
 import ctrmap.stdlib.gui.DialogUtils;
 import ctrmap.stdlib.gui.components.ComponentUtils;
-import java.io.File;
 import java.util.prefs.Preferences;
 import javax.swing.JFrame;
 import javax.swing.SwingUtilities;
@@ -24,7 +24,7 @@ public class PSIDELauncherNew {
 		boolean openInitLaunchDialog = false;
 
 		if (lastWorkspace != null) {
-			File wsFile = new File(lastWorkspace);
+			DiskFile wsFile = new DiskFile(lastWorkspace);
 			ws = IDEWorkspace.openWorkspaceIfApplicable(wsFile);
 			if (ws == null) {
 				DialogUtils.showInfoMessage(null, "Invalid workspace", "The last used workspace path is invalid. The initial setup will now open.");
@@ -48,10 +48,11 @@ public class PSIDELauncherNew {
 		if (ws != null) {
 			final IDEWorkspace fWS = ws;
 			SwingUtilities.invokeLater(() -> {
-				PSIDE_MAIN_PREFS.put(KEY_LAST_WORKSPACE, fWS.getRoot().getAbsolutePath());
-				PSIDE ide = new PSIDE(fWS);
+				PSIDE_MAIN_PREFS.put(KEY_LAST_WORKSPACE, fWS.getRoot().getPath());
+				PSIDE ide = new PSIDE();
 				ide.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
 				ide.setVisible(true);
+				ide.loadWorkspace(fWS);
 			});
 		} else {
 			System.exit(0);

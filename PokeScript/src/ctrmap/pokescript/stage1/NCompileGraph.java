@@ -9,6 +9,7 @@ import ctrmap.pokescript.data.DataGraph;
 import ctrmap.pokescript.data.Variable;
 import ctrmap.pokescript.instructions.abstractcommands.AAccessGlobal;
 import ctrmap.pokescript.instructions.abstractcommands.ACaseTable;
+import ctrmap.pokescript.instructions.abstractcommands.AConditionJump;
 import ctrmap.pokescript.instructions.abstractcommands.AInstruction;
 import ctrmap.pokescript.instructions.abstractcommands.ALocalCall;
 import ctrmap.pokescript.instructions.abstractcommands.MetaCall;
@@ -51,6 +52,7 @@ public class NCompileGraph {
 	public BlockStack<CompileBlock> methodBlocks = new BlockStack<>();
 
 	private List<PendingLabel> pendingLabels = new ArrayList<>();
+	private List<LabelRequest> requestedLabels = new ArrayList<>();
 	private List<CompilerAnnotation> pendingAnnotations = new ArrayList<>();
 
 	private String graphUID;
@@ -67,6 +69,10 @@ public class NCompileGraph {
 		graphUID = UUID.randomUUID().toString();
 		this.args = args;
 		this.provider = args.provider;
+	}
+
+	public LangCompiler.CompilerArguments getArgs() {
+		return args;
 	}
 
 	public NCompilableMethod getCurrentMethod() {
@@ -103,7 +109,7 @@ public class NCompileGraph {
 		return null;
 	}
 
-	public AInstruction getInstructionByLabel(String label) {
+	private AInstruction getInstructionByLabelSafe(String label) {
 		for (NCompilableMethod m : methods) {
 			for (AInstruction i : m.body) {
 				if (i.hasLabel(label)) {
@@ -111,7 +117,24 @@ public class NCompileGraph {
 				}
 			}
 		}
-		throw new IllegalArgumentException("Jump label refers to non-existent instruction. " + label);
+		return null;
+	}
+
+	public AInstruction getInstructionByLabel(String label) {
+		AInstruction ins = getInstructionByLabelSafe(label);
+		if (ins == null) {
+			throw new IllegalArgumentException("Jump label refers to non-existent instruction. " + label);
+		}
+		return ins;
+	}
+
+	public void finishCompileLoad() {
+		//check that all labels were correctly linked
+		for (LabelRequest reqLabel : requestedLabels) {
+			if (getInstructionByLabelSafe(reqLabel.label) == null) {
+				reqLabel.source.throwException("Label not found: " + reqLabel.label);
+			}
+		}
 	}
 
 	public void addNative(InboundDefinition def) {
@@ -152,7 +175,25 @@ public class NCompileGraph {
 					casetbl.defaultCase = blk.getBlockTermFullLabel();
 				}
 			}
-			addInstruction(blk.blockEndControlInstruction);
+			boolean noAddBECI = false;
+			if (blk.blockEndControlInstruction instanceof AConditionJump) {
+				//If the block ends with an unconditional jump (if blocks), but the last instruction is a return, omit it
+				
+				if (((AConditionJump)blk.blockEndControlInstruction).getOpCode() == APlainOpCode.JUMP){
+					List<AInstruction> instructions = getCurrentMethod().body;
+					if (!instructions.isEmpty()){
+						AInstruction last = instructions.get(instructions.size() - 1);
+						if (last instanceof APlainInstruction){
+							if (((APlainInstruction)last).opCode == APlainOpCode.RETURN){
+								noAddBECI = true;
+							}
+						}
+					}
+				}
+			}
+			if (!noAddBECI) {
+				addInstruction(blk.blockEndControlInstruction);
+			}
 		}
 		pendingLabels.add(new PendingLabel(blk.getBlockTermLabel(), blk));
 		blockHistory.push(blk);
@@ -169,7 +210,7 @@ public class NCompileGraph {
 						hasReturn = true;
 						pendingLabels.add(new PendingLabel(blk.getBlockHaltLabel(), blk));
 						for (PendingLabel l : pendingLabels) {
-							pi.addLabel(l.getFullLabel());
+							pi.addLabel(l.getAddableLabel());
 						}
 						pendingLabels.clear();
 					}
@@ -227,6 +268,11 @@ public class NCompileGraph {
 		return pl;
 	}
 
+	public void addLabelRequest(String label) {
+		LabelRequest req = new LabelRequest(currentCompiledLine, label);
+		requestedLabels.add(req);
+	}
+
 	public void addPendingAnnot(CompilerAnnotation ant) {
 		pendingAnnotations.add(ant);
 	}
@@ -258,12 +304,14 @@ public class NCompileGraph {
 	}
 
 	public void pushBlock(CompileBlock block) {
+		boolean skipAddingLabel = false;
 		if (!pendingLabels.isEmpty()) {
 			PendingLabel l = pendingLabels.get(pendingLabels.size() - 1);
 			if (l.isUserLabel) {
 				block.setShortBlockLabel(l.shortName);
 			}
-			pendingLabels.remove(l);
+			//pendingLabels.remove(l); //keep the label
+			skipAddingLabel = true;
 		}
 		CompileBlock lastBlock = null;
 		if (!currentBlocks.empty()) {
@@ -276,7 +324,9 @@ public class NCompileGraph {
 		if (!block.explicitAdjustStack) {
 			addInstruction(block.blockBeginAdjustStackIns);
 		}
-		pendingLabels.add(new PendingLabel(block.getShortBlockName(), lastBlock));
+		if (!skipAddingLabel) {
+			pendingLabels.add(new PendingLabel(block.getShortBlockName(), lastBlock));
+		}
 	}
 
 	public void addLocal(Variable.Local l) {
@@ -299,7 +349,7 @@ public class NCompileGraph {
 
 	public void addInstruction(AInstruction i) {
 		for (PendingLabel lbl : pendingLabels) {
-			i.addLabel(lbl.getFullLabel());
+			i.addLabel(lbl.getAddableLabel());
 		}
 		pendingLabels.clear();
 		getCurrentMethod().addInstruction(i);
@@ -669,5 +719,16 @@ public class NCompileGraph {
 			}
 		}
 		return null;
+	}
+
+	public static class LabelRequest {
+
+		public EffectiveLine source;
+		public String label;
+
+		public LabelRequest(EffectiveLine line, String label) {
+			this.source = line;
+			this.label = label;
+		}
 	}
 }

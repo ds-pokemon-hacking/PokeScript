@@ -6,6 +6,6 @@ SDKBundles:
       - "SANGO"
   - Name: "Pokémon X/Y SDK"
     ResourceType: INTERNAL
-    ResourcePath: "sdk6"
+    ResourcePath: "sdk6.lib"
     Definitions:
       - "XY"

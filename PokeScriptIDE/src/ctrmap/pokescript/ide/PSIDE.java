@@ -4,78 +4,71 @@ import ctrmap.pokescript.CompilerExceptionData;
 import ctrmap.pokescript.LangCompiler;
 import ctrmap.pokescript.LangConstants;
 import ctrmap.pokescript.stage0.Preprocessor;
-import ctrmap.pokescript.stage1.NCompileGraph;
 import ctrmap.pokescript.ide.autocomplete.AutoComplete;
-import ctrmap.pokescript.ide.autocomplete.AutoCompleteKeyListener;
+import ctrmap.pokescript.ide.forms.InitialLaunchDialog;
 import ctrmap.stdlib.fs.accessors.DiskFile;
 import ctrmap.stdlib.gui.file.CMFileDialog;
-import ctrmap.pokescript.LangPlatform;
 import ctrmap.pokescript.ide.forms.ProjectCreationDialog;
 import ctrmap.pokescript.ide.forms.settings.ide.IDESettings;
 import ctrmap.pokescript.ide.system.IDEResourceReference;
 import ctrmap.pokescript.ide.system.IDESetupFile;
 import ctrmap.pokescript.ide.system.ResourcePathType;
+import ctrmap.pokescript.ide.system.beaterscript.BS2PKSRemoteExtResolver;
 import ctrmap.pokescript.ide.system.project.IDEContext;
 import ctrmap.pokescript.ide.system.project.IDEFile;
 import ctrmap.pokescript.ide.system.project.IDEProject;
+import ctrmap.pokescript.ide.system.project.tree.IDEProjectTree;
 import ctrmap.pokescript.ide.system.savedata.IDESaveData;
 import ctrmap.pokescript.ide.system.savedata.IDEWorkspace;
-import ctrmap.scriptformats.gen5.VScriptFile;
 import ctrmap.stdlib.fs.FSFile;
-import ctrmap.stdlib.fs.FSUtil;
 import ctrmap.stdlib.gui.DialogUtils;
 import ctrmap.stdlib.gui.components.ComponentUtils;
 import ctrmap.stdlib.gui.components.tabbedpane.JTabbedPaneEx;
 import ctrmap.stdlib.gui.components.tabbedpane.TabbedPaneTab;
 import ctrmap.stdlib.gui.components.tree.CustomJTreeNode;
-import ctrmap.stdlib.gui.file.ExtensionFilter;
 import ctrmap.stdlib.res.ResourceAccess;
-import java.awt.Component;
+import ctrmap.stdlib.util.ArraysEx;
+import java.awt.Font;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
-import java.io.ByteArrayInputStream;
 import java.io.File;
-import java.io.IOException;
-import java.io.UnsupportedEncodingException;
 import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
-import java.nio.file.StandardOpenOption;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 import javax.swing.Icon;
 import javax.swing.ImageIcon;
 import javax.swing.SwingUtilities;
 import javax.swing.event.ChangeEvent;
 import javax.swing.event.ChangeListener;
-import javax.swing.event.TreeSelectionEvent;
-import javax.swing.event.TreeSelectionListener;
 import javax.swing.table.DefaultTableModel;
+import javax.swing.tree.TreePath;
 import org.fife.ui.rtextarea.RTextScrollPane;
 
 public class PSIDE extends javax.swing.JFrame {
 
-	public static final IDEResourceReference PSIDE_SETUP_RESOURCE
-			= new IDEResourceReference(ResourcePathType.INTERNAL, "scripting/IDE.yml");
+	public static final IDEResourceReference DEFAULT_SETUP_RESOURCE
+		= new IDEResourceReference(ResourcePathType.INTERNAL, "scripting/IDE.yml");
 
 	public IDESetupFile setup;
 
 	public IDEContext context;
-	public IDEWorkspace ws;
-
-	public LangCompiler.CompilerArguments compilerCfg;
-	private TextAreaMarkManager marks = new TextAreaMarkManager();
 
 	private AutoComplete ac;
 
 	private IDESettings settingsFrame;
 
+	private List<FileEditorRSTA> fileEditors = new ArrayList<>();
+	private List<PSIDEListener> listeners = new ArrayList<>();
+
 	public static final String PSIDE_ERR_COLUMN_ID_FILE = "File";
 	public static final String PSIDE_ERR_COLUMN_ID_LINE = "Line";
 	public static final String PSIDE_ERR_COLUMN_ID_CAUSE = "Cause";
 
-	public PSIDE(IDEWorkspace workspace) {
+	public PSIDE() {
+		this(DEFAULT_SETUP_RESOURCE);
+	}
+	
+	public PSIDE(IDEResourceReference setup) {
 		IDEResources.load();
 
 		initComponents();
@@ -87,7 +80,7 @@ public class PSIDE extends javax.swing.JFrame {
 
 		initContext();
 
-		loadSetup(PSIDE_SETUP_RESOURCE);
+		loadSetup(DEFAULT_SETUP_RESOURCE);
 
 		errorTable.getColumn(PSIDE_ERR_COLUMN_ID_FILE).setMaxWidth(250);
 		errorTable.getColumn(PSIDE_ERR_COLUMN_ID_LINE).setMaxWidth(35);
@@ -99,14 +92,23 @@ public class PSIDE extends javax.swing.JFrame {
 		projectTree.addMouseListener(new MouseAdapter() {
 			@Override
 			public void mousePressed(MouseEvent e) {
-				if (e.getClickCount() == 2) {
+				if (SwingUtilities.isRightMouseButton(e)) {
+					int selRow = projectTree.getRowForLocation(e.getX(), e.getY());
+					TreePath selPath = projectTree.getPathForLocation(e.getX(), e.getY());
+					projectTree.setSelectionPath(selPath);
+					if (selRow > -1) {
+						projectTree.setSelectionRow(selRow);
+					}
+
+					Object obj = projectTree.getLastSelectedPathComponent();
+					if (obj instanceof CustomJTreeNode) {
+						((CustomJTreeNode) obj).onNodePopupInvoke(e);
+					}
+				} else if (e.getClickCount() == 2) {
 					Object obj = projectTree.getLastSelectedPathComponent();
 					if (obj instanceof CustomJTreeNode) {
 						((CustomJTreeNode) obj).onNodeSelected();
 					}
-				}
-				else if (e.isPopupTrigger()){
-					
 				}
 			}
 		});
@@ -114,33 +116,60 @@ public class PSIDE extends javax.swing.JFrame {
 		fileTabs.addChangeListener(new ChangeListener() {
 			@Override
 			public void stateChanged(ChangeEvent e) {
-				Component comp = fileTabs.getSelectedComponent();
-				if (comp instanceof FileEditorRSTA) {
-					ac.attachTextArea((FileEditorRSTA) comp);
-				} else {
-					ac.attachTextArea(null);
+				if (context.isAvailable()) {
+					FileEditorRSTA edt = getSelectedFileEditor();
+					if (edt != null) {
+						ac.attachTextArea(edt);
+						context.getWorkspace().saveData.setLastOpenedFile(edt.getEditedFile());
+						edt.publishErrorTable();
+					}
 				}
-				syncOpenedFilesWithSaveData();
 			}
 		});
 
 		fileTabs.addTabRemovedListener(new JTabbedPaneEx.TabRemovedListener() {
 			@Override
-			public void onTabRemoved(TabbedPaneTab tab) {
+			public boolean onTabIsRemoving(TabbedPaneTab tab) {
 				FileEditorRSTA rsta = (FileEditorRSTA) ((RTextScrollPane) tab.getComponent()).getTextArea();
 				rsta.getEditedFile().getProject().caretPosCache.storeCaretPositionOfEditor(rsta);
+				return rsta.saveTextToFile(true) != FileEditorRSTA.SaveResult.CANCELLED;
+			}
+
+			@Override
+			public void onTabRemoved(TabbedPaneTab tab) {
+				FileEditorRSTA editor = fileEditors.remove(tab.getIndex());
+				if (context.getWorkspace() != null) {
+					context.getWorkspace().saveData.removeOpenFile(editor.getEditedFile());
+				}
 			}
 		});
+	}
 
-		loadWorkspace(workspace);
+	public void addIDEListener(PSIDEListener listener) {
+		ArraysEx.addIfNotNullOrContains(listeners, listener);
+	}
+
+	public void removeIDEListener(PSIDEListener listener) {
+		listeners.remove(listener);
+	}
+
+	private void callSaveListeners() {
+		for (PSIDEListener l : listeners) {
+			l.onSaved();
+		}
+	}
+
+	public IDEProjectTree getProjectTree() {
+		return projectTree;
 	}
 
 	public void initContext() {
 		context = new IDEContext();
+		context.registerRemoteExtResolver(new BS2PKSRemoteExtResolver());
 	}
 
 	public void loadSetup(IDEResourceReference setupPath) {
-		FSFile setupFile = setupPath.resolve(new DiskFile(System.getProperty("user.dir")), context);
+		FSFile setupFile = setupPath.resolve(new DiskFile(System.getProperty("user.dir")), context, null);
 		if (setupFile == null) {
 			DialogUtils.showErrorMessage(this, "Internal error", "The setup file " + setupPath.path + " could not be found! Can not continue.");
 			System.exit(0);
@@ -148,12 +177,22 @@ public class PSIDE extends javax.swing.JFrame {
 		setup = new IDESetupFile(setupFile);
 	}
 
+	public FileEditorRSTA getSelectedFileEditor() {
+		int idx = fileTabs.getSelectedIndex();
+		if (idx != -1) {
+			FileEditorRSTA editor = fileEditors.get(fileTabs.getSelectedIndex());
+			return editor;
+		}
+		return null;
+	}
+
 	public IDEProject findLoadedProjectByProdId(String prodId) {
 		return context.getProjectByProdId(prodId);
 	}
 
 	public void loadWorkspace(IDEWorkspace ws) {
-		this.ws = ws;
+		context.loadWorkspace(ws);
+		context.lock();
 
 		projectTree.removeAllChildren();
 
@@ -161,7 +200,7 @@ public class PSIDE extends javax.swing.JFrame {
 			String projectPath = ws.saveData.openedProjectPaths.get(i);
 			File projectFile = new File(projectPath);
 
-			if (IDEProject.isIDEProject(projectFile)) {
+			if (IDEProject.isIDEProjectManifest(projectFile)) {
 				openProject(new IDEProject(new DiskFile(projectFile)), false);
 			} else {
 				ws.saveData.openedProjectPaths.remove(i);
@@ -172,37 +211,88 @@ public class PSIDE extends javax.swing.JFrame {
 		for (int i = 0; i < ws.saveData.openedFilePaths.size(); i++) {
 			IDESaveData.IDEFileReference ref = ws.saveData.openedFilePaths.get(i);
 
-			IDEProject prj = findLoadedProjectByProdId(ref.projectProdId);
-			boolean success = false;
+			IDEFile file = resolveIDEFileReference(ref);
 
-			if (prj != null) {
-				IDEFile file = prj.getFile(ref.path);
-				if (file != null && file.isFile()) {
-					success = true;
-					openFile(file);
-				}
-			}
-			if (!success) {
+			if (file == null) {
 				ws.saveData.openedFilePaths.remove(i);
 				i--;
+			} else {
+				openFile(file);
 			}
 		}
 
+		if (ws.saveData.lastOpenedFile != null) {
+			IDEFile lastOpenedFile = resolveIDEFileReference(ws.saveData.lastOpenedFile);
+			if (lastOpenedFile != null) {
+				openFile(lastOpenedFile);
+			}
+		}
+
+		context.releaseLock();
+		ws.saveData.write();
+
 		makeTree();
+		ws.saveData.loadTreeExpansionState(projectTree);
+	}
+
+	private IDEFile resolveIDEFileReference(IDESaveData.IDEFileReference ref) {
+		IDEProject prj = findLoadedProjectByProdId(ref.projectProdId);
+
+		if (prj != null) {
+			IDEFile file = prj.getExistingFile(ref);
+			if (file != null && file.isFile()) {
+				return file;
+			}
+		}
+		return null;
+	}
+	
+	public boolean saveWorkspace(){
+		for (FileEditorRSTA editor : fileEditors) {
+			if (editor.saveTextToFile(true) == FileEditorRSTA.SaveResult.CANCELLED) {
+				return false;
+			}
+		}
+
+		syncCaretPositionsWithCache();
+
+		context.saveCacheData();
+		if (context.getWorkspace() != null) {
+			context.getWorkspace().saveData.saveTreeExpansionState(projectTree);
+		}
+		return true;
+	}
+
+	public boolean closeWorkspace() {
+		if (!saveWorkspace()){
+			return false;
+		}
+		
+		context.loadWorkspace(null);
+
+		fileTabs.removeAll();
+		projectTree.removeAllChildren();
+
+		return true;
 	}
 
 	public boolean isIDEFileOpened(IDEFile f) {
 		return getOpenedFiles().contains(f);
 	}
+	
+	public IDEFile getAlreadyOpenedFile(IDEFile f){
+		List<IDEFile> opened = getOpenedFiles();
+		int index = opened.indexOf(f);
+		if (index != -1){
+			return opened.get(index);
+		}
+		return null;
+	}
 
 	public FileEditorRSTA getOpenedFileTabEditor(IDEFile f) {
-		for (int i = 0; i < fileTabs.getTabCount(); i++) {
-			Component c = fileTabs.getComponentAt(i);
-			if (c instanceof RTextScrollPane) {
-				FileEditorRSTA e = (FileEditorRSTA) ((RTextScrollPane) c).getTextArea();
-				if (e.getEditedFile().equals(f)) {
-					return e;
-				}
+		for (FileEditorRSTA e : fileEditors) {
+			if (e.getEditedFile().equals(f)) {
+				return e;
 			}
 		}
 		return null;
@@ -212,11 +302,23 @@ public class PSIDE extends javax.swing.JFrame {
 		if (!isIDEFileOpened(f)) {
 			FileEditorRSTA editor = new FileEditorRSTA(this, f);
 			f.getProject().caretPosCache.setStoredCaretPositionToEditor(editor);
+			fileEditors.add(editor);
 			fileTabs.addTab(f.getName(), getFileIcon(f), editor.getScrollPane(), f.getPath());
-			ws.saveData.putOpenFile(f);
+			context.getWorkspace().saveData.putOpenFile(f, true);
 			editor.requestFocus();
+			fileTabs.setSelectedComponent(getOpenedFileTabEditor(f).getScrollPane());
 		}
-		fileTabs.setSelectedComponent(getOpenedFileTabEditor(f).getScrollPane());
+		else {
+			f.transferListenersTo(getAlreadyOpenedFile(f));
+			fileTabs.setSelectedComponent(getOpenedFileTabEditor(f).getScrollPane());
+			ac.attachTextArea(getOpenedFileTabEditor(f));
+		}
+	}
+
+	public void setFileTabModified(FileEditorRSTA editor, boolean bln) {
+		TabbedPaneTab tab = fileTabs.getTab(fileEditors.indexOf(editor));
+		Font f = tab.getHeaderFont();
+		tab.setHeaderFont(f.deriveFont(bln ? f.getStyle() | Font.BOLD : f.getStyle() & ~Font.BOLD));
 	}
 
 	private static final ImageIcon DEFAULT_FILE_ICON = new ImageIcon(ResourceAccess.getByteArray("scripting/ui/tabs/sourcefile.png"));
@@ -237,12 +339,16 @@ public class PSIDE extends javax.swing.JFrame {
 		textArea.setCaretPosition(0);*/
 	}
 
-	public void createNewFileInProjectByTemplatetAndOpen(IDEProject prj, String filePath, String templateName, PSIDETemplateVar... vars) {
+	public void createNewFileInProjectByTemplateAndOpen(IDEProject prj, String filePath, String templateName, PSIDETemplateVar... vars) {
 		IDEFile file = prj.getFile(filePath);
 		file.setBytes(getTemplateData(templateName, vars));
 		openFile(file);
 	}
 
+	public static String getTemplateDataStr(String templateName, PSIDETemplateVar... vars) {
+		return new String(getTemplateData(templateName, vars));
+	}
+	
 	public static byte[] getTemplateData(String templateName, PSIDETemplateVar... vars) {
 		byte[] data = ResourceAccess.getByteArray("scripting/template/" + templateName);
 		String str = new String(data, StandardCharsets.UTF_8);
@@ -257,35 +363,72 @@ public class PSIDE extends javax.swing.JFrame {
 	}
 
 	public void openProject(IDEProject prj, boolean makeTree) {
+		if (context.hasOpenedProjectByPath(prj)){
+			return;
+		}
+		if (findLoadedProjectByProdId(prj.getManifest().getProductId()) != null) {
+			DialogUtils.showErrorMessage(this, "Could not open project", "A project with Product ID \"" + prj.getManifest().getProductId() + "\" is already opened.");
+			return;
+		}
 		if (context.setUpProjectToContext(prj)) {
 			if (makeTree) {
-				makeTree();
+				projectTree.addProject(prj);
 			}
 			String projectPath = prj.getProjectPath();
-			ws.saveData.putOpenedProjectPath(projectPath);
+			context.getWorkspace().saveData.putOpenedProjectPath(projectPath);
+		}
+	}
+
+	public void closeProject(IDEProject prj) {
+		for (int i = 0; i < fileEditors.size(); i++) {
+			FileEditorRSTA e = fileEditors.get(i);
+			IDEFile f = e.getEditedFile();
+			if (f.getProject() == prj) {
+				fileTabs.removeTabAt(i);
+				i--;
+			}
+		}
+		context.closeProject(prj);
+		projectTree.removeProject(prj);
+		context.getWorkspace().saveData.write();
+	}
+
+	public void deleteProject(IDEProject prj) {
+		closeProject(prj);
+		prj.getRoot().delete();
+	}
+
+	public void deleteFile(FSFile fsf) {
+		fsf.delete();
+		for (int i = 0; i < fileEditors.size(); i++) {
+			FileEditorRSTA e = fileEditors.get(i);
+			IDEFile f = e.getEditedFile();
+			if (f == fsf) {
+				fileTabs.removeTabAt(i);
+				i--;
+			}
 		}
 	}
 
 	public List<IDEFile> getOpenedFiles() {
 		List<IDEFile> files = new ArrayList<>();
-		for (int i = 0; i < fileTabs.getTabCount(); i++) {
-			Component c = fileTabs.getComponentAt(i);
-			if (c instanceof RTextScrollPane) {
-				FileEditorRSTA e = (FileEditorRSTA) ((RTextScrollPane) c).getTextArea();
-				files.add(e.getEditedFile());
-			}
+		for (FileEditorRSTA e : fileEditors) {
+			files.add(e.getEditedFile());
 		}
 		return files;
 	}
 
 	public void syncOpenedFilesWithSaveData() {
-		ws.saveData.clearOpenedFiles();
+		IDEWorkspace ws = context.getWorkspace();
+		if (ws != null) {
+			ws.saveData.clearOpenedFiles();
 
-		for (IDEFile of : getOpenedFiles()) {
-			ws.saveData.putOpenFile(of, false);
+			for (IDEFile of : getOpenedFiles()) {
+				ws.saveData.putOpenFile(of, false);
+			}
+
+			ws.saveData.write();
 		}
-
-		ws.saveData.writeData();
 	}
 
 	public void syncCaretPositionsWithCache() {
@@ -308,9 +451,9 @@ public class PSIDE extends javax.swing.JFrame {
 	}
 
 	public void buildErrorTable(Preprocessor pp) {
-		if (pp != null) {
-			DefaultTableModel tblModel = (DefaultTableModel) errorTable.getModel();
-			tblModel.setRowCount(0);
+		DefaultTableModel tblModel = (DefaultTableModel) errorTable.getModel();
+		tblModel.setRowCount(0);
+		if (pp != null) {	
 			for (CompilerExceptionData d : pp.collectExceptions()) {
 				tblModel.addRow(new String[]{d.fileName, String.valueOf(d.lineNumberStart), d.text});
 			}
@@ -318,9 +461,7 @@ public class PSIDE extends javax.swing.JFrame {
 	}
 
 	/**
-	 * This method is called from within the constructor to initialize the form.
-	 * WARNING: Do NOT modify this code. The content of this method is always
-	 * regenerated by the Form Editor.
+	 * This method is called from within the constructor to initialize the form. WARNING: Do NOT modify this code. The content of this method is always regenerated by the Form Editor.
 	 */
 	@SuppressWarnings("unchecked")
     // <editor-fold defaultstate="collapsed" desc="Generated Code">//GEN-BEGIN:initComponents
@@ -334,18 +475,20 @@ public class PSIDE extends javax.swing.JFrame {
         projectTree = new ctrmap.pokescript.ide.system.project.tree.IDEProjectTree();
         fileTabs = new ctrmap.stdlib.gui.components.tabbedpane.JTabbedPaneEx();
         menuBar = new javax.swing.JMenuBar();
-        projectsMenu = new javax.swing.JMenu();
-        btnNewProject = new javax.swing.JMenuItem();
         fileMenu = new javax.swing.JMenu();
+        btnNewProject = new javax.swing.JMenuItem();
+        btnOpenProject = new javax.swing.JMenuItem();
+        projFileSep = new javax.swing.JPopupMenu.Separator();
         btnOpen = new javax.swing.JMenuItem();
         btnSave = new javax.swing.JMenuItem();
-        compileMenu = new javax.swing.JMenu();
-        btnCompileToFile = new javax.swing.JMenuItem();
+        btnSaveAll = new javax.swing.JMenuItem();
+        fileWSSep = new javax.swing.JPopupMenu.Separator();
+        btnChangeWorkspace = new javax.swing.JMenuItem();
         optionsMenu = new javax.swing.JMenu();
         btnOpenSettings = new javax.swing.JMenuItem();
 
-        setDefaultCloseOperation(javax.swing.WindowConstants.DISPOSE_ON_CLOSE);
-        setTitle("PS6-IDE for CTRMap");
+        setDefaultCloseOperation(javax.swing.WindowConstants.DO_NOTHING_ON_CLOSE);
+        setTitle("PokéScript IDE");
         setLocationByPlatform(true);
         addComponentListener(new java.awt.event.ComponentAdapter() {
             public void componentMoved(java.awt.event.ComponentEvent evt) {
@@ -402,7 +545,7 @@ public class PSIDE extends javax.swing.JFrame {
 
         ideSplitPane.setLeftComponent(topSplitPane);
 
-        projectsMenu.setText("Projects");
+        fileMenu.setText("File");
 
         btnNewProject.setText("New Project");
         btnNewProject.addActionListener(new java.awt.event.ActionListener() {
@@ -410,11 +553,16 @@ public class PSIDE extends javax.swing.JFrame {
                 btnNewProjectActionPerformed(evt);
             }
         });
-        projectsMenu.add(btnNewProject);
+        fileMenu.add(btnNewProject);
 
-        menuBar.add(projectsMenu);
-
-        fileMenu.setText("File");
+        btnOpenProject.setText("Open Project");
+        btnOpenProject.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent evt) {
+                btnOpenProjectActionPerformed(evt);
+            }
+        });
+        fileMenu.add(btnOpenProject);
+        fileMenu.add(projFileSep);
 
         btnOpen.setAccelerator(javax.swing.KeyStroke.getKeyStroke(java.awt.event.KeyEvent.VK_O, java.awt.event.InputEvent.CTRL_DOWN_MASK));
         btnOpen.setText("Open");
@@ -434,19 +582,25 @@ public class PSIDE extends javax.swing.JFrame {
         });
         fileMenu.add(btnSave);
 
-        menuBar.add(fileMenu);
-
-        compileMenu.setText("Compile");
-
-        btnCompileToFile.setText("Compile to File");
-        btnCompileToFile.addActionListener(new java.awt.event.ActionListener() {
+        btnSaveAll.setAccelerator(javax.swing.KeyStroke.getKeyStroke(java.awt.event.KeyEvent.VK_S, java.awt.event.InputEvent.SHIFT_DOWN_MASK | java.awt.event.InputEvent.CTRL_DOWN_MASK));
+        btnSaveAll.setText("Save All");
+        btnSaveAll.addActionListener(new java.awt.event.ActionListener() {
             public void actionPerformed(java.awt.event.ActionEvent evt) {
-                btnCompileToFileActionPerformed(evt);
+                btnSaveAllActionPerformed(evt);
             }
         });
-        compileMenu.add(btnCompileToFile);
+        fileMenu.add(btnSaveAll);
+        fileMenu.add(fileWSSep);
 
-        menuBar.add(compileMenu);
+        btnChangeWorkspace.setText("Change Workspace");
+        btnChangeWorkspace.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent evt) {
+                btnChangeWorkspaceActionPerformed(evt);
+            }
+        });
+        fileMenu.add(btnChangeWorkspace);
+
+        menuBar.add(fileMenu);
 
         optionsMenu.setText("Options");
 
@@ -482,17 +636,6 @@ public class PSIDE extends javax.swing.JFrame {
         pack();
     }// </editor-fold>//GEN-END:initComponents
 
-	private File source;
-	private Runnable saveCallback;
-
-	public void setSaveCallback(Runnable r) {
-		saveCallback = r;
-	}
-
-	public void setSaveTarget(File f) {
-		source = f;
-	}
-
     private void btnOpenActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_btnOpenActionPerformed
 		File f = CMFileDialog.openFileDialog(LangConstants.LANG_SOURCE_FILE_EXTENSION_FILTER, LangConstants.LANG_NATIVE_DEFINITION_EXTENSION_FILTER);
 		if (f != null) {
@@ -500,43 +643,18 @@ public class PSIDE extends javax.swing.JFrame {
     }//GEN-LAST:event_btnOpenActionPerformed
 
     private void btnSaveActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_btnSaveActionPerformed
-		if (source == null) {
-			source = CMFileDialog.openSaveFileDialog(LangConstants.LANG_SOURCE_FILE_EXTENSION_FILTER, LangConstants.LANG_NATIVE_DEFINITION_EXTENSION_FILTER);
-		}
-		if (source != null) {
-			try {
-				source.delete();
-				Files.write(source.toPath(), getCode().getBytes("UTF-8"), StandardOpenOption.CREATE_NEW);
-			} catch (UnsupportedEncodingException ex) {
-				Logger.getLogger(PSIDE.class.getName()).log(Level.SEVERE, null, ex);
-			} catch (IOException ex) {
-				Logger.getLogger(PSIDE.class.getName()).log(Level.SEVERE, null, ex);
+		FileEditorRSTA editor = getSelectedFileEditor();
+
+		if (editor != null) {
+			if (editor.saveTextToFile(false) == FileEditorRSTA.SaveResult.SAVED) {
+				callSaveListeners();
 			}
-		}
-		if (saveCallback != null) {
-			saveCallback.run();
 		}
     }//GEN-LAST:event_btnSaveActionPerformed
 
     private void formComponentMoved(java.awt.event.ComponentEvent evt) {//GEN-FIRST:event_formComponentMoved
 		ac.close();
     }//GEN-LAST:event_formComponentMoved
-
-    private void btnCompileToFileActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_btnCompileToFileActionPerformed
-		//TODO
-		/*ExtensionFilter filter = compilerCfg.getPlatform().extensionFilter;
-		File f = CMFileDialog.openSaveFileDialog(filter);
-
-		if (f != null) {
-			new DiskFile(f).setBytes(LangCompiler.compileStreamToBinary(new ByteArrayInputStream(textArea.getText().getBytes(StandardCharsets.UTF_8)), compilerCfg));
-
-			if (compilerCfg.getPlatform() == LangPlatform.EV_SWAN) {
-				DiskFile ascii = new DiskFile(FSUtil.getFileNameWithoutExtension(f.getAbsolutePath()) + ".txt");
-				VScriptFile scr = LangCompiler.compileStreamV(new ByteArrayInputStream(textArea.getText().getBytes(StandardCharsets.UTF_8)), compilerCfg);
-				ascii.setBytes(scr.getASCII().getBytes(StandardCharsets.UTF_8));
-			}
-		}*/
-    }//GEN-LAST:event_btnCompileToFileActionPerformed
 
     private void btnOpenSettingsActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_btnOpenSettingsActionPerformed
 		settingsFrame.setLocationRelativeTo(this);
@@ -554,10 +672,45 @@ public class PSIDE extends javax.swing.JFrame {
     }//GEN-LAST:event_btnNewProjectActionPerformed
 
     private void formWindowClosing(java.awt.event.WindowEvent evt) {//GEN-FIRST:event_formWindowClosing
-		syncCaretPositionsWithCache();
-
-		context.saveCacheData();
+		if (saveWorkspace()) {
+			dispose();
+		}
     }//GEN-LAST:event_formWindowClosing
+
+    private void btnChangeWorkspaceActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_btnChangeWorkspaceActionPerformed
+		if (closeWorkspace()) {
+			setVisible(false);
+
+			InitialLaunchDialog dlg = new InitialLaunchDialog(this, true);
+			dlg.setVisible(true);
+
+			IDEWorkspace ws = dlg.getResult();
+
+			if (ws != null) {
+				loadWorkspace(ws);
+			}
+			setVisible(true);
+		}
+    }//GEN-LAST:event_btnChangeWorkspaceActionPerformed
+
+    private void btnOpenProjectActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_btnOpenProjectActionPerformed
+		File projectFile = CMFileDialog.openFileDialog(IDEProject.IDE_PROJECT_EXTENSION_FILTER);
+
+		if (projectFile != null) {
+			IDEProject proj = new IDEProject(new DiskFile(projectFile));
+			openProject(proj, true);
+		}
+    }//GEN-LAST:event_btnOpenProjectActionPerformed
+
+    private void btnSaveAllActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_btnSaveAllActionPerformed
+		boolean callListeners = false;
+		for (FileEditorRSTA editor : fileEditors){
+			callListeners |= editor.saveTextToFile(false) == FileEditorRSTA.SaveResult.SAVED;
+		}
+		if (callListeners){
+			callSaveListeners();
+		}
+    }//GEN-LAST:event_btnSaveAllActionPerformed
 
 	public String getCode() {
 		//TODO
@@ -566,22 +719,24 @@ public class PSIDE extends javax.swing.JFrame {
 	}
 
     // Variables declaration - do not modify//GEN-BEGIN:variables
-    private javax.swing.JMenuItem btnCompileToFile;
+    private javax.swing.JMenuItem btnChangeWorkspace;
     private javax.swing.JMenuItem btnNewProject;
     private javax.swing.JMenuItem btnOpen;
+    private javax.swing.JMenuItem btnOpenProject;
     private javax.swing.JMenuItem btnOpenSettings;
     private javax.swing.JMenuItem btnSave;
-    private javax.swing.JMenu compileMenu;
+    private javax.swing.JMenuItem btnSaveAll;
     private javax.swing.JTable errorTable;
     private javax.swing.JScrollPane errorTableScrollPane;
     private javax.swing.JMenu fileMenu;
     private ctrmap.stdlib.gui.components.tabbedpane.JTabbedPaneEx fileTabs;
+    private javax.swing.JPopupMenu.Separator fileWSSep;
     private javax.swing.JSplitPane ideSplitPane;
     private javax.swing.JMenuBar menuBar;
     private javax.swing.JMenu optionsMenu;
+    private javax.swing.JPopupMenu.Separator projFileSep;
     private ctrmap.pokescript.ide.system.project.tree.IDEProjectTree projectTree;
     private javax.swing.JScrollPane projectTreeSP;
-    private javax.swing.JMenu projectsMenu;
     private javax.swing.JSplitPane topSplitPane;
     // End of variables declaration//GEN-END:variables
 }

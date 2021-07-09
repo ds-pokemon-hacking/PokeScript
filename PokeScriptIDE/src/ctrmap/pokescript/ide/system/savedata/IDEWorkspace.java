@@ -1,69 +1,81 @@
-/*
- * To change this license header, choose License Headers in Project Properties.
- * To change this template file, choose Tools | Templates
- * and open the template in the editor.
- */
-
 package ctrmap.pokescript.ide.system.savedata;
 
-import ctrmap.stdlib.fs.accessors.DiskFile;
-import java.io.File;
+import ctrmap.stdlib.fs.FSFile;
 
+/**
+ * Handles access to the IDE's files in a workspace.
+ */
 public class IDEWorkspace {
 	public static String IDE_DIR_FILE_NAME = ".ide";
 	
-	private File workspaceRoot;
+	private FSFile workspaceRoot;
 	
-	private File ideDir;
+	private FSFile ideDir;
 	
 	public IDESaveData saveData;
 	
-	public IDEWorkspace(File f){
+	public IDEWorkspace(FSFile f){
 		workspaceRoot = f;
 		
-		ideDir = new File(workspaceRoot + "/" + IDE_DIR_FILE_NAME);
+		ideDir = workspaceRoot.getChild(IDE_DIR_FILE_NAME);
 		if (!ideDir.exists()){
 			ideDir.mkdirs();
 		}
 		
-		saveData = new IDESaveData(new DiskFile(getWSFile(WorkspaceFile.IDE_SAVE_DATA)));
+		saveData = new IDESaveData(getWSFile(WorkspaceFile.IDE_SAVE_DATA));
 	}
 	
-	public static IDEWorkspace openWorkspaceIfApplicable(File f){
+	public static IDEWorkspace openWorkspaceIfApplicable(FSFile f){
 		if (f == null || !f.exists() || !f.isDirectory()){
 			return null;
 		}
-		File ideDir = new File(f + "/" + IDE_DIR_FILE_NAME);
+		FSFile ideDir = f.getChild(IDE_DIR_FILE_NAME);
 		if (!ideDir.exists() || !ideDir.isDirectory()){
 			return null;
 		}
 		return new IDEWorkspace(f);
 	}
 	
-	public File getRoot(){
+	public FSFile getRoot(){
 		return workspaceRoot;
 	}
 	
-	public final File getWSFile(WorkspaceFile f){
-		File fsf = new File(ideDir + "/" + f.path);
-		File parent = fsf.getParentFile();
+	public final FSFile getWSFile(WorkspaceFile f){
+		FSFile fsf = ideDir.getChild(f.path);
+		FSFile parent = fsf.getParent();
 		if (parent != null && !parent.exists()) {
 			parent.mkdirs();
 		}
 		return fsf;
 	}
 	
-	public final File getProjectDir(String projectName){
-		return new File(workspaceRoot + "/" + projectName);
+	public final FSFile getWSDir(WorkspaceDir f){
+		FSFile fsf = ideDir.getChild(f.path);
+		fsf.mkdirs();
+		return fsf;
+	}
+	
+	public final FSFile getProjectDir(String projectName){
+		return workspaceRoot.getChild(projectName);
 	}
 	
 	public enum WorkspaceFile {
 		IDE_SAVE_DATA("IDESaveData.yml"),
-		IDE_SETTINGS("settings/IDE.yml")
+		IDE_SETTINGS("settings/IDE.yml"),
 		;
 		private final String path;
 			
 		private WorkspaceFile(String path){
+			this.path = path;
+		}
+	}
+	
+	public enum WorkspaceDir {
+		REMOTE_EXT_DATA("RemoteExtData")
+		;
+		private final String path;
+			
+		private WorkspaceDir(String path){
 			this.path = path;
 		}
 	}

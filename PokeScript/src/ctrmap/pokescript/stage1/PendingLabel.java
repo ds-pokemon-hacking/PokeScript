@@ -17,6 +17,13 @@ public class PendingLabel {
 		return parentBlock.fullBlockName + "_" + shortName;
 	}
 	
+	public String getAddableLabel(){
+		if (isUserLabel){
+			return shortName;
+		}
+		return getFullLabel();
+	}
+	
 	@Override
 	public String toString(){
 		if (parentBlock == null){

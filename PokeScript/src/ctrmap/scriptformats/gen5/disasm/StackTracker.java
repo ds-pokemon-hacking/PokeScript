@@ -86,29 +86,33 @@ public class StackTracker {
 		public StackElementType type;
 		public int value;
 
-		public StackElement() {
+		protected StackElement() {
 
 		}
 
 		public StackElement(StackElementType type, int value) {
+			if (type == null) {
+				throw new NullPointerException("Type can not be null.");
+			}
 			this.type = type;
 			this.value = value;
 		}
 
 		public void print(PrintStream out) {
+			out.print(toString());
+		}
+
+		@Override
+		public String toString() {
 			switch (type) {
 				case CONSTANT:
-					out.print(value);
-					break;
+					return String.valueOf(value);
 				case VARIABLE:
-					out.print(VDecompiler.flex2Str(value));
-					break;
+					return VDecompiler.flex2Str(value);
 				case FLAG:
-					out.print("EventFlags.Get(");
-					out.print(value);
-					out.print(")");
-					break;
+					return "EventFlags.Get(" + value + ")";
 			}
+			return null;
 		}
 	}
 
@@ -139,7 +143,8 @@ public class StackTracker {
 		}
 
 		@Override
-		public void print(PrintStream out) {
+		public String toString() {
+			StringBuilder out = new StringBuilder();
 			StackElement flag = getSideByType(StackElementType.FLAG);
 
 			StackElement cons = getSideByType(StackElementType.CONSTANT);
@@ -147,40 +152,38 @@ public class StackTracker {
 
 			if (flag != null && (cons != null || var != null)) {
 				//can only be equal or nequal - ignore side of equation
-				
-				if (var != null){
-					flag.print(out);
-					printOperator(out);
-					out.print("(boolean) ");
-					var.print(out);
-				}
-				else if (cons != null) {
+
+				if (var != null) {
+					out.append(flag.toString());
+					out.append(getOpStr());
+					out.append("(boolean) ");
+					out.append(var.toString());
+				} else if (cons != null) {
 					boolean isNequal = cmpType == VStackCmpOpRequest.NEQUAL;
-					
-					out.print((cons.value == 0 ^ isNequal) ? "!" : "");
-					flag.print(out);
+
+					out.append((cons.value == 0 ^ isNequal) ? "!" : "");
+					out.append(flag);
 				}
 			} else {
-				if (lhs != null){
-					lhs.print(out);
+				if (lhs != null) {
+					out.append(lhs.toString());
+				} else {
+					out.append("[STACK ERROR]");
 				}
-				else {
-					out.print("[STACK ERROR]");
-				}
-				printOperator(out);
-				if (rhs != null){
-					rhs.print(out);
-				}
-				else {
-					out.print("[STACK ERROR]");
+				out.append(getOpStr());
+				if (rhs != null) {
+					out.append(rhs.toString());
+				} else {
+					out.append("[STACK ERROR]");
 				}
 			}
+			return out.toString();
 		}
 
-		private void printOperator(PrintStream out) {
-			out.print(" ");
-			out.print(VStackCmpOpRequest.getStrOperator(cmpType));
-			out.print(" ");
+		private String getOpStr() {
+			return " "
+				+ VStackCmpOpRequest.getStrOperator(cmpType)
+				+ " ";
 		}
 	}
 
@@ -191,25 +194,27 @@ public class StackTracker {
 		public VOpCode operator;
 
 		@Override
-		public void print(PrintStream out) {
-			lhs.print(out);
-			out.print(" ");
+		public String toString() {
+			StringBuilder out = new StringBuilder();
+			out.append(lhs.toString());
+			out.append(" ");
 			switch (operator) {
 				case AddPriAlt:
-					out.print("+");
+					out.append("+");
 					break;
 				case SubPriAlt:
-					out.print("-");
+					out.append("-");
 					break;
 				case MulPriAlt:
-					out.print("*");
+					out.append("*");
 					break;
 				case DivPriAlt:
-					out.print("/");
+					out.append("/");
 					break;
 			}
-			out.print(" ");
-			rhs.print(out);
+			out.append(" ");
+			out.append(rhs.toString());
+			return out.toString();
 		}
 	}
 

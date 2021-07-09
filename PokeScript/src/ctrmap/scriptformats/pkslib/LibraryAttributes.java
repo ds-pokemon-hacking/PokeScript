@@ -14,9 +14,9 @@ public class LibraryAttributes {
 	public static final String AK_SR_PLAF = "SingleTargetPlatform";
 
 	/**
-	 * Specifies bindings of multi-release source packages to platform names.
+	 * Specifies bindings of source packages to platform names.
 	 */
-	public static final String AK_MR_PATH_LIST = "MultiReleaseTargets";
+	public static final String AK_PATH_LIST = "SourceDirectories";
 
 	/**
 	 * Specifies a friendly name of the library for use with IDE/package manager

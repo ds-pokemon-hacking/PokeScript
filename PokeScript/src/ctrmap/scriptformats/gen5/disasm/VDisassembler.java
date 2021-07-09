@@ -2,16 +2,12 @@ package ctrmap.scriptformats.gen5.disasm;
 
 import ctrmap.pokescript.instructions.ntr.NTRArgument;
 import ctrmap.pokescript.instructions.ntr.NTRDataType;
-import ctrmap.pokescript.instructions.ntr.NTRInstructionCall;
 import ctrmap.pokescript.instructions.ntr.NTRInstructionPrototype;
 import ctrmap.scriptformats.gen5.VCommandDataBase;
 import ctrmap.scriptformats.gen5.VScriptFile;
 import ctrmap.stdlib.io.base.impl.ext.data.DataIOStream;
 import ctrmap.stdlib.text.FormattingUtils;
-import ctrmap.stdlib.io.util.IndentedPrintStream;
-import java.io.ByteArrayOutputStream;
 import java.io.IOException;
-import java.io.PrintStream;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.logging.Level;
@@ -96,17 +92,17 @@ public class VDisassembler {
 
 	private void createLabelsAndLinks() {
 		System.out.println("--Re-linking main methods--");
-		createLabelsImpl(publics, "main_", true);
+		createLabelsImpl(publics, "main_", true, 1);
 		System.out.println("--Re-linking sub methods--");
-		createLabelsImpl(functionCalls, "sub_", false);
+		createLabelsImpl(functionCalls, "sub_", false, 0);
 		System.out.println("--Re-linking jumps--");
-		createLabelsImpl(jumpLinks, "LABEL_", false);
+		createLabelsImpl(jumpLinks, "LABEL_", false, 0);
 		System.out.println("--Re-linking movement--");
-		createLabelsImpl(movementJumps, "PlayMovement_", false);
+		createLabelsImpl(movementJumps, "PlayMovement_", false, 0);
 	}
 
-	private void createLabelsImpl(List<LinkPrototype> links, String prefix, boolean labelByIndex) {
-		int index = 0;
+	private void createLabelsImpl(List<LinkPrototype> links, String prefix, boolean labelByIndex, int initialIndex) {
+		int index = initialIndex;
 		for (LinkPrototype jmp : links) {
 			DisassembledCall jumpTarget = findCallOrMovementByPtr(jmp.targetOffset);
 			DisassembledCall jumpSrc = findCallByPtr(jmp.sourceOffset);
@@ -167,6 +163,7 @@ public class VDisassembler {
 			int insPtr = dis.getPosition();
 
 			int opCode = dis.readUnsignedShort();
+			//System.out.println("read " + Integer.toHexString(opCode) + " at " + Integer.toHexString(insPtr));
 
 			VCommandDataBase.VCommand c = cdb.getCommandProto(opCode);
 			if (c == null) {
@@ -214,6 +211,17 @@ public class VDisassembler {
 				switch (c.type) {
 					case HALT:
 					case RETURN:
+						boolean hasJumpTo = false;
+						for (LinkPrototype jumpTo : jumpLinks){
+							if (jumpTo.targetOffset == dis.getPosition()){
+								hasJumpTo = true;
+								break;
+							}
+						}
+						if (hasJumpTo){
+							//WORKAROUND: If there is a forward jump to this instruction, keep reading
+							break;
+						}
 						break FuncReader;
 					case JUMP:
 						jumpLinks.add(new LinkPrototype(dis, call.args[call.args.length - 1]));

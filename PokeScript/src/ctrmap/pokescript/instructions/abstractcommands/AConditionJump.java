@@ -15,6 +15,10 @@ public abstract class AConditionJump extends AInstruction {
 		this.cmd = cmd;
 		this.targetLabel = targetLabel;
 	}
+	
+	public APlainOpCode getOpCode(){
+		return cmd;
+	}
 
 	@Override
 	public List<AInstruction> getAllInstructions() {

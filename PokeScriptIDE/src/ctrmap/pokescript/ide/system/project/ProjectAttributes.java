@@ -13,6 +13,11 @@ public class ProjectAttributes {
 	public static final String AK_COMPILE_PRAGMA = "Pragmata";
 	
 	/**
+	 * The name of the class containing the entrypoint(s) of the compiled program.
+	 */
+	public static final String AK_MAIN_CLASS = "MainClass";
+	
+	/**
 	 * A list of references to LIBs, projects or source directories to satisfy the Dependencies of the project.
 	 */
 	public static final String AK_PROJECT_DEPS = "DepPaths";

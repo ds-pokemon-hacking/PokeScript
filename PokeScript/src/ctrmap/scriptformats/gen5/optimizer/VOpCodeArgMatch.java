@@ -9,7 +9,7 @@ public enum VOpCodeArgMatch {
 	ANY_GPR(new int[]{VConstants.GP_REG_PRI, VConstants.GP_REG_3}, new CmpType[]{CmpType.GEQUAL, CmpType.LEQUAL}),
 
 	VARIABLE(VConstants.GP_REG_PRI, CmpType.GEQUAL),
-	CONSTANT(VConstants.GP_REG_PRI, CmpType.LESS),
+	CONSTANT(VConstants.WKVAL_START, CmpType.LESS),
 	ZERO(0, CmpType.EQUAL),
 	ONE(1, CmpType.EQUAL),
 	ANY(-1, CmpType.NOTEQUAL);

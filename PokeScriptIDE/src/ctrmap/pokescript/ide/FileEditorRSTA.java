@@ -1,23 +1,25 @@
 package ctrmap.pokescript.ide;
 
-import ctrmap.pokescript.LangCompiler;
 import ctrmap.pokescript.ide.autocomplete.AutoComplete;
 import ctrmap.pokescript.ide.autocomplete.AutoCompleteKeyListener;
 import ctrmap.pokescript.ide.system.project.IDEFile;
 import ctrmap.pokescript.stage0.Preprocessor;
 import ctrmap.pokescript.stage1.NCompileGraph;
-import ctrmap.stdlib.fs.FSFile;
+import ctrmap.stdlib.gui.DialogUtils;
+import ctrmap.stdlib.io.base.impl.InputStreamReadable;
 import java.awt.Color;
 import java.awt.Graphics;
 import java.awt.Rectangle;
 import java.awt.event.ActionEvent;
 import java.awt.event.KeyEvent;
+import java.io.ByteArrayInputStream;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import javax.swing.AbstractAction;
+import javax.swing.JOptionPane;
 import javax.swing.KeyStroke;
 import javax.swing.event.CaretEvent;
 import javax.swing.event.CaretListener;
@@ -35,29 +37,33 @@ public class FileEditorRSTA extends RSyntaxTextArea {
 	private PSIDE ide;
 	private AutoComplete ac;
 
+	private String lastSavedContent;
 	private IDEFile file;
 
 	private TextAreaMarkManager marks = new TextAreaMarkManager();
 	private List<CustomHighLight> customHLs = new ArrayList<>();
 
 	private RTextScrollPane scrollPane;
+	
+	private PPParser parser;
 
 	public FileEditorRSTA(PSIDE ide, IDEFile file) {
 		super();
 		this.ide = ide;
 		this.file = file;
 		this.ac = ide.getAutoCompletionEngine();
-		
+
 		setEditable(file.canWrite());
-		
-		if (!isEditable()){
+
+		if (!isEditable()) {
 			setBackground(new Color(220, 220, 220));
 		}
 
 		scrollPane = new RTextScrollPane(this, true);
 
 		setSyntaxEditingStyle(SYNTAX_STYLE_PP);
-		addParser(new PPParser());
+		parser = new PPParser();
+		addParser(parser);
 		getDocument().addDocumentListener(ac.getACDocListener());
 		getDocument().addDocumentListener(marks);
 
@@ -92,10 +98,39 @@ public class FileEditorRSTA extends RSyntaxTextArea {
 		});
 		addKeyListener(new AutoCompleteKeyListener(ac));
 
-		setText(new String(file.getBytes()));
+		lastSavedContent = new String(file.getBytes());
+
+		setText(lastSavedContent);
+		discardAllEdits();
 	}
-	
-	public IDEFile getEditedFile(){
+
+	public SaveResult saveTextToFile(boolean dialog) {
+		String text = getText();
+		if (!text.equals(lastSavedContent)) {
+			int rsl = JOptionPane.YES_OPTION;
+			if (dialog) {
+				rsl = DialogUtils.showSaveConfirmationDialog(ide, file.getName());
+			}
+
+			switch (rsl) {
+				case JOptionPane.NO_OPTION:
+					return SaveResult.NO_CHANGES;
+				case JOptionPane.CANCEL_OPTION:
+					return SaveResult.CANCELLED;
+			}
+
+			file.setBytes(text.getBytes());
+			file.saveNotify();
+
+			lastSavedContent = text;
+			ide.setFileTabModified(this, false);
+
+			return SaveResult.SAVED;
+		}
+		return SaveResult.NO_CHANGES;
+	}
+
+	public IDEFile getEditedFile() {
 		return file;
 	}
 
@@ -130,6 +165,10 @@ public class FileEditorRSTA extends RSyntaxTextArea {
 	public void removeCustomHighlight(CustomHighLight hl) {
 		customHLs.remove(hl);
 	}
+	
+	public void publishErrorTable(){
+		ide.buildErrorTable(parser.pp);
+	}
 
 	@Override
 	public void paintComponent(Graphics g) {
@@ -144,6 +183,12 @@ public class FileEditorRSTA extends RSyntaxTextArea {
 				Logger.getLogger(FileEditorRSTA.class.getName()).log(Level.SEVERE, null, ex);
 			}
 		}
+	}
+
+	public static enum SaveResult {
+		SAVED,
+		NO_CHANGES,
+		CANCELLED
 	}
 
 	public static class CustomHighLight {
@@ -161,16 +206,27 @@ public class FileEditorRSTA extends RSyntaxTextArea {
 
 	public class PPParser extends AbstractParser {
 
+		public Preprocessor pp;
+		
 		@Override
 		public ParseResult parse(RSyntaxDocument doc, String style) {
-			Preprocessor pp = file.getCompiler();
-			pp.read(file);
-			NCompileGraph cg = pp.getCompileGraph();
+			if (/*file.canWrite()*/true) {
+				String text = getText();
 
-			if (cg != null) {
-				ac.rebuildNodeTree(pp);
+				boolean modified = !text.equals(lastSavedContent);
+				ide.setFileTabModified(FileEditorRSTA.this, modified);
+
+				pp = file.getCompiler();
+				pp.read(new InputStreamReadable(new ByteArrayInputStream(text.getBytes())));
+				NCompileGraph cg = pp.getCompileGraph();
+
+				if (cg != null) {
+					ac.rebuildNodeTree(pp);
+				}
+				ide.buildErrorTable(pp);
+			} else {
+				ide.buildErrorTable(null);
 			}
-			ide.buildErrorTable(pp);
 
 			return new DefaultParseResult(this);
 		}

@@ -48,6 +48,13 @@ public class VInstructionProvider implements AInstructionProvider {
 		}
 	};
 	
+	public static final MachineInfo V_MACHINE_INFO = new MachineInfo() {
+		@Override
+		public boolean getAllowsGotoStatement() {
+			return true;
+		}
+	};
+	
 	@Override
 	public APlainInstruction getPlainInstruction(APlainOpCode opCode, int[] args) {
 		return PokeScriptToV.getPlainNTRForOpCode(opCode, args);
@@ -100,6 +107,11 @@ public class VInstructionProvider implements AInstructionProvider {
 	@Override
 	public IFloatHandler getFloatingPointHandler() {
 		return FXFloatHandler.INSTANCE;
+	}
+
+	@Override
+	public MachineInfo getMachineInfo() {
+		return V_MACHINE_INFO;
 	}
 
 }

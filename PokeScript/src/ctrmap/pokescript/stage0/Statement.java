@@ -18,6 +18,7 @@ public enum Statement {
 	IMPORT("import", EffectiveLine.StatementFlags.NEEDS_ARGUMENTS, EffectiveLine.StatementFlags.ALLOWS_GLOBAL_EXPLICIT),
 	BREAK("break"),
 	CONTINUE("continue"),
+	GOTO("goto", EffectiveLine.StatementFlags.NEEDS_ARGUMENTS),
 	
 	//Preprocessor statements
 	

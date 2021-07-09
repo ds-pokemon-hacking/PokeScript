@@ -24,4 +24,9 @@ public class ProjectReferenceNode extends IDENodeBase {
 	public String getNodeName() {
 		return project.getManifest().getProductName();
 	}
+
+	@Override
+	public String getUniqueName() {
+		return project.getManifest().getProductId();
+	}
 }

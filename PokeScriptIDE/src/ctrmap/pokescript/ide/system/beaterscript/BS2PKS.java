@@ -50,17 +50,16 @@ public class BS2PKS {
 			yaml = new Yaml(new DiskFile(inFile));
 		}
 
-		makePKSIncludes(yaml, incRoot);
+		makePKSIncludes(yaml, new DiskFile(incRoot));
 	}
 
-	public static void makePKSIncludes(Yaml beaterScriptYml, File includesRoot) {
-		DiskFile irdf = new DiskFile(includesRoot);
-
+	public static void makePKSIncludes(Yaml beaterScriptYml, FSFile includesRoot) {
 		List<BSFunc> funcs = new ArrayList<>();
 
 		/*
 		Read the YAML into a function list
 		 */
+
 		for (YamlNode funcNode : beaterScriptYml.root.children) {
 			int op = funcNode.getKeyInt();
 
@@ -102,6 +101,13 @@ public class BS2PKS {
 			if (pksName != null) {
 				name = pksName.getValue();
 			}
+			
+			String brief = null;
+			
+			YamlNode briefNode = funcNode.getChildByName("Brief");
+			if (briefNode != null) {
+				brief = briefNode.getValue();
+			}
 
 			YamlNode pksPackageAndClass = funcNode.getChildByName("PSPackage");
 			if (pksPackageAndClass != null) {
@@ -117,6 +123,7 @@ public class BS2PKS {
 			f.packageAndClass = className;
 			f.returnTypes = pksReturnTypes;
 			f.returnArgNames = returnParamNames;
+			f.brief = brief;
 			f.args = new NTRArgument[paramTypes.size()];
 			f.argNames = new String[paramTypes.size()];
 			for (int i = 0; i < paramTypes.size(); i++) {
@@ -149,7 +156,7 @@ public class BS2PKS {
 		for (Map.Entry<String, List<BSFunc>> e : funcsPerPackage.entrySet()) {
 			String classPath = e.getKey().replace('.', '/');
 			String className = FSUtil.getFileName(classPath);
-			FSFile target = irdf.getChild(classPath + LangConstants.NATIVE_DEFINITION_EXTENSION);
+			FSFile target = includesRoot.getChild(classPath + LangConstants.NATIVE_DEFINITION_EXTENSION);
 
 			target.getParent().mkdirs();
 

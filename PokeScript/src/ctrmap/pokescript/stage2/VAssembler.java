@@ -7,6 +7,7 @@ import ctrmap.pokescript.instructions.abstractcommands.AInstruction;
 import ctrmap.pokescript.instructions.abstractcommands.APlainInstruction;
 import ctrmap.pokescript.instructions.abstractcommands.APlainOpCode;
 import ctrmap.pokescript.instructions.gen5.VOpCode;
+import ctrmap.pokescript.instructions.gen5.metahandlers.VMovementFuncHandler;
 import ctrmap.pokescript.instructions.ntr.NTRInstructionCall;
 import ctrmap.pokescript.instructions.ntr.instructions.PlainNTRInstruction;
 import ctrmap.pokescript.stage0.Modifier;
@@ -25,14 +26,16 @@ import java.util.Map;
  */
 public class VAssembler {
 
-	public static VScriptFile assemble(NCompileGraph graph, LangCompiler.CompilerArguments args) {
+	public static VScriptFile assemble(NCompileGraph graph) {
 		VScriptFile scr = new VScriptFile();
-		assemble(graph, scr, args);
+		assemble(graph, scr);
 		return scr;
 	}
 
-	public static void assemble(NCompileGraph graph, VScriptFile scr, LangCompiler.CompilerArguments args) {
+	public static void assemble(NCompileGraph graph, VScriptFile scr) {
 		scr.instructions.clear();
+		scr.movements.clear();
+		scr.publics.clear();
 
 		for (NCompilableMethod m : graph.methods) {
 			if (m.hasModifier(Modifier.PUBLIC)) {
@@ -71,24 +74,37 @@ public class VAssembler {
 
 		Map<AInstruction, NCompilableMethod> publicsInstructionHooks = new HashMap<>();
 		for (NCompilableMethod m : graph.methods) {
-			if (m.hasModifier(Modifier.PUBLIC) && m.hasModifier(Modifier.STATIC) && !m.hasModifier(Modifier.NATIVE) && !m.hasModifier(Modifier.META)) {
+			if ((m.hasModifier(Modifier.PUBLIC) && m.hasModifier(Modifier.STATIC) && !m.hasModifier(Modifier.NATIVE)) || m.hasModifier(Modifier.META)) {
 				publicsInstructionHooks.put(m.body.get(0), m);
 			}
 		}
 
 		boolean putPublicNext = false;
+		boolean putAsMovement = false;
 		for (AInstruction i : allInstructions) {
 			List<? extends ACompiledInstruction> compiled = i.compile(graph);
 
-			if (!putPublicNext && publicsInstructionHooks.containsKey(i)) {
-				putPublicNext = true;
+			if (publicsInstructionHooks.containsKey(i)) {
+				NCompilableMethod m = publicsInstructionHooks.get(i);
+				putAsMovement = false;
+				if (m.hasModifier(Modifier.META)) {
+					if (m.metaHandler instanceof VMovementFuncHandler) {
+						putAsMovement = true;
+					}
+				} else {
+					putPublicNext = true;
+				}
 			}
 			for (ACompiledInstruction ci : compiled) {
 				if (ci instanceof NTRInstructionCall) {
-					scr.instructions.add((NTRInstructionCall) ci);
+					if (putAsMovement) {
+						scr.movements.add((NTRInstructionCall) ci);
+					} else {
+						scr.instructions.add((NTRInstructionCall) ci);
+					}
 
-					if (putPublicNext){
-						scr.addPublic((NTRInstructionCall)ci);
+					if (putPublicNext) {
+						scr.addPublic((NTRInstructionCall) ci);
 						putPublicNext = false;
 					}
 				} else {
@@ -96,9 +112,9 @@ public class VAssembler {
 				}
 			}
 		}
-		
+
 		scr.setUpLinks();
-		
-		VAsmOptimizer.optimize(scr, 5);
+
+		VAsmOptimizer.optimize(scr, graph.getArgs().optimizationLevel);
 	}
 }

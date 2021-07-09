@@ -8,7 +8,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 public class LibraryManifest extends Yaml {
-	
+
 	public static final String LIBRARY_MANIFEST_NAME = ".manifest";
 
 	public LibraryManifest(FSFile fsf) {
@@ -37,12 +37,12 @@ public class LibraryManifest extends Yaml {
 
 	public List<PlatformSourceTarget> getMultireleaseTargets() {
 		List<PlatformSourceTarget> l = new ArrayList<>();
-		if (isMultirelease()) {
-			YamlNode mr = getRootNodeKeyNode(LibraryAttributes.AK_MR_PATH_LIST);
-			for (YamlNode child : mr.children) {
-				l.add(new PlatformSourceTarget(child));
-			}
+
+		YamlNode mr = getRootNodeKeyNode(LibraryAttributes.AK_PATH_LIST);
+		for (YamlNode child : mr.children) {
+			l.add(new PlatformSourceTarget(child));
 		}
+
 		return l;
 	}
 
@@ -60,16 +60,15 @@ public class LibraryManifest extends Yaml {
 			if (targets.length > 1) {
 				getEnsureRootNodeKeyNode(LibraryAttributes.AK_MR_ENABLE).setValueBool(true);
 				removeRootNodeKeyNode(LibraryAttributes.AK_SR_PLAF);
-				YamlNode mrl = getEnsureRootNodeKeyNode(LibraryAttributes.AK_MR_PATH_LIST);
-
-				mrl.children.clear();
-				for (PlatformSourceTarget tgt : targets) {
-					mrl.addChild(tgt.makeNode());
-				}
 			} else {
-				removeRootNodeKeyNode(LibraryAttributes.AK_MR_PATH_LIST);
 				getEnsureRootNodeKeyNode(LibraryAttributes.AK_MR_ENABLE).setValueBool(false);
 				getEnsureRootNodeKeyNode(LibraryAttributes.AK_SR_PLAF).setValue(targets[0].platform.toString());
+			}
+			YamlNode mrl = getEnsureRootNodeKeyNode(LibraryAttributes.AK_PATH_LIST);
+
+			mrl.children.clear();
+			for (PlatformSourceTarget tgt : targets) {
+				mrl.addChild(tgt.makeNode());
 			}
 		} else {
 			throw new IllegalArgumentException("At least one target platform has to be specified.");

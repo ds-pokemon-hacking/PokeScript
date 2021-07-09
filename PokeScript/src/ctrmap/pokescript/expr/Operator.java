@@ -158,6 +158,7 @@ public abstract class Operator {
 	}
 
 	public static enum Priority {
+		BOOLOPS,
 		COMPARE,
 		NORMAL,
 		ALG_MULT,

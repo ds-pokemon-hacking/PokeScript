@@ -17,7 +17,7 @@ import ctrmap.pokescript.instructions.providers.floatlib.IFloatHandler;
  */
 public class IVInstructionProvider implements AInstructionProvider {
 
-	public MemoryInfo IVMemoryInfo = new MemoryInfo() {
+	public static final MemoryInfo IVMemoryInfo = new MemoryInfo() {
 		@Override
 		public int getStackIndexingStep() {
 			return 1;
@@ -41,6 +41,13 @@ public class IVInstructionProvider implements AInstructionProvider {
 		@Override
 		public boolean isStackOrderNatural() {
 			return false;
+		}
+	};
+	
+	public static final MachineInfo IVMachineInfo = new MachineInfo() {
+		@Override
+		public boolean getAllowsGotoStatement() {
+			return true;
 		}
 	};
 	
@@ -92,6 +99,11 @@ public class IVInstructionProvider implements AInstructionProvider {
 	@Override
 	public IFloatHandler getFloatingPointHandler() {
 		throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
+	}
+
+	@Override
+	public MachineInfo getMachineInfo() {
+		return IVMachineInfo;
 	}
 
 }
