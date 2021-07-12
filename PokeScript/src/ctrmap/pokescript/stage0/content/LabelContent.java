@@ -54,7 +54,6 @@ public class LabelContent extends AbstractContent {
 	@Override
 	public void addToGraph(NCompileGraph graph) {
 		PendingLabel pl = graph.addPendingLabel(label);
-		pl.isUserLabel = true;
 		switch (type) {
 			case SWITCH_DEFAULT_CASE:
 			case SWITCH_CASE:
@@ -86,6 +85,9 @@ public class LabelContent extends AbstractContent {
 				} else {
 					line.throwException("Case label outside of a switch block. - control instruction is of type " + (control == null ? null : control.getClass().getSimpleName()));
 				}
+				break;
+			default:
+				pl.isUserLabel = true;
 				break;
 		}
 	}

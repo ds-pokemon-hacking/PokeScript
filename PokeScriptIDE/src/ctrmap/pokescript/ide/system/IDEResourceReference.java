@@ -8,6 +8,7 @@ import ctrmap.stdlib.gui.DialogUtils;
 import ctrmap.stdlib.text.FormattingUtils;
 import ctrmap.stdlib.net.FileDownloader;
 import ctrmap.stdlib.res.ResourceAccess;
+import java.util.Objects;
 
 public class IDEResourceReference {
 
@@ -99,4 +100,26 @@ public class IDEResourceReference {
 		}
 		return FormattingUtils.getFriendlyEnum(pathType);
 	}
+	
+	@Override
+	public boolean equals(Object obj) {
+		if (this == obj) {
+			return true;
+		}
+		if (obj != null && obj instanceof IDEResourceReference){
+			IDEResourceReference r = (IDEResourceReference)obj;
+			return Objects.equals(remoteExtType, r.remoteExtType) && pathType == r.pathType && Objects.equals(path, r.path);
+		}
+		return false;
+	}
+
+	@Override
+	public int hashCode() {
+		int hash = 7;
+		hash = 13 * hash + Objects.hashCode(this.pathType);
+		hash = 13 * hash + Objects.hashCode(this.remoteExtType);
+		hash = 13 * hash + Objects.hashCode(this.path);
+		return hash;
+	}
+	
 }

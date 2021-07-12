@@ -10,6 +10,7 @@ import ctrmap.pokescript.ide.system.IDEResourceReference;
 import ctrmap.pokescript.ide.system.project.ProjectAttributes;
 import ctrmap.stdlib.formats.yaml.YamlListElement;
 import ctrmap.stdlib.formats.yaml.YamlNode;
+import java.util.Objects;
 
 /**
  *
@@ -35,4 +36,25 @@ public class Dependency {
 		ref.addToNode(n);
 		return n;
 	}
+
+	@Override
+	public boolean equals(Object obj) {
+		if (this == obj) {
+			return true;
+		}
+		if (obj != null && obj instanceof Dependency){
+			Dependency d = (Dependency)obj;
+			return Objects.equals(ref, d.ref) && type == d.type;
+		}
+		return false;
+	}
+
+	@Override
+	public int hashCode() {
+		int hash = 5;
+		hash = 83 * hash + Objects.hashCode(this.type);
+		hash = 83 * hash + Objects.hashCode(this.ref);
+		return hash;
+	}
+
 }

@@ -51,6 +51,7 @@ public class CTRAssembler {
 		target.instructions.clear();
 		target.natives.clear();
 		target.publics.clear();
+		target.publicVars.clear();
 		target.nameTable.clear();
 		target.libraries.clear();
 		target.tags.clear();

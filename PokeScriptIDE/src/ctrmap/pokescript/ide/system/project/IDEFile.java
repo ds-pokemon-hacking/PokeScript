@@ -30,6 +30,10 @@ public class IDEFile extends FSFileAdapter {
 	public void addIDEFileListener(IDEFileListener l) {
 		ArraysEx.addIfNotNullOrContains(listeners, l);
 	}
+	
+	public void removeIDEFileListener(IDEFileListener l){
+		listeners.remove(l);
+	}
 
 	public void transferListenersTo(IDEFile f) {
 		for (IDEFileListener l : listeners) {

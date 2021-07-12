@@ -44,7 +44,7 @@ public class FileEditorRSTA extends RSyntaxTextArea {
 	private List<CustomHighLight> customHLs = new ArrayList<>();
 
 	private RTextScrollPane scrollPane;
-	
+
 	private PPParser parser;
 
 	public FileEditorRSTA(PSIDE ide, IDEFile file) {
@@ -98,10 +98,7 @@ public class FileEditorRSTA extends RSyntaxTextArea {
 		});
 		addKeyListener(new AutoCompleteKeyListener(ac));
 
-		lastSavedContent = new String(file.getBytes());
-
-		setText(lastSavedContent);
-		discardAllEdits();
+		reloadFromFile();
 	}
 
 	public SaveResult saveTextToFile(boolean dialog) {
@@ -120,14 +117,23 @@ public class FileEditorRSTA extends RSyntaxTextArea {
 			}
 
 			file.setBytes(text.getBytes());
-			file.saveNotify();
 
 			lastSavedContent = text;
 			ide.setFileTabModified(this, false);
 
+			file.saveNotify();
+
 			return SaveResult.SAVED;
 		}
 		return SaveResult.NO_CHANGES;
+	}
+
+	public void reloadFromFile() {
+		lastSavedContent = new String(file.getBytes());
+
+		setText(lastSavedContent);
+		
+		discardAllEdits();
 	}
 
 	public IDEFile getEditedFile() {
@@ -165,8 +171,8 @@ public class FileEditorRSTA extends RSyntaxTextArea {
 	public void removeCustomHighlight(CustomHighLight hl) {
 		customHLs.remove(hl);
 	}
-	
-	public void publishErrorTable(){
+
+	public void publishErrorTable() {
 		ide.buildErrorTable(parser.pp);
 	}
 
@@ -207,7 +213,7 @@ public class FileEditorRSTA extends RSyntaxTextArea {
 	public class PPParser extends AbstractParser {
 
 		public Preprocessor pp;
-		
+
 		@Override
 		public ParseResult parse(RSyntaxDocument doc, String style) {
 			if (/*file.canWrite()*/true) {

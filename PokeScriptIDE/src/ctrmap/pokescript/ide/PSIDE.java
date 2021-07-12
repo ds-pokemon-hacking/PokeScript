@@ -299,6 +299,10 @@ public class PSIDE extends javax.swing.JFrame {
 	}
 
 	public void openFile(IDEFile f) {
+		openFile(f, false);
+	}
+	
+	public void openFile(IDEFile f, boolean forceReload) {
 		if (!isIDEFileOpened(f)) {
 			FileEditorRSTA editor = new FileEditorRSTA(this, f);
 			f.getProject().caretPosCache.setStoredCaretPositionToEditor(editor);
@@ -310,8 +314,12 @@ public class PSIDE extends javax.swing.JFrame {
 		}
 		else {
 			f.transferListenersTo(getAlreadyOpenedFile(f));
-			fileTabs.setSelectedComponent(getOpenedFileTabEditor(f).getScrollPane());
-			ac.attachTextArea(getOpenedFileTabEditor(f));
+			FileEditorRSTA edt = getOpenedFileTabEditor(f);
+			if (forceReload){
+				edt.reloadFromFile();
+			}
+			fileTabs.setSelectedComponent(edt.getScrollPane());
+			ac.attachTextArea(edt);
 		}
 	}
 

@@ -18,7 +18,7 @@ public class LibraryFile extends FSFileAdapter {
 		this.source = source;
 
 		FSFile mf = source.getChild(LibraryManifest.LIBRARY_MANIFEST_NAME);
-		if (mf.exists()) {
+		if (mf.isFile()) {
 			manifest = new LibraryManifest(mf);
 		} else {
 			throw new UnsupportedOperationException("Library does not have a manifest!");

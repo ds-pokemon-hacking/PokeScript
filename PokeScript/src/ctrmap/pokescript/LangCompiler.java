@@ -30,7 +30,7 @@ import java.util.Map;
  */
 public class LangCompiler {
 
-	public static final String COMPILER_VERSION = "0.4.2@2021/04/11";
+	public static final String COMPILER_VERSION = "0.5.1@2021/07/12";
 
 	public static final ArgumentPattern[] langCompilerArgConfig = new ArgumentPattern[]{
 		new ArgumentPattern("target", "Target platform (ntrv/ntriv/ctr)", ArgumentType.STRING, LangPlatform.AMX_CTR.name, true, "-t", "--target"),

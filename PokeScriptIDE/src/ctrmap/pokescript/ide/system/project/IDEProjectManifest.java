@@ -80,7 +80,9 @@ public class IDEProjectManifest extends LibraryManifest {
 
 	public void addCompilerDefinition(String def) {
 		if (def != null) {
-			getEnsureRootNodeKeyNode(ProjectAttributes.AK_COMPILE_DEFS).addChildValue(def);
+			YamlNode listElem = new YamlNode(new YamlListElement());
+			listElem.addChildValue(def);
+			getEnsureRootNodeKeyNode(ProjectAttributes.AK_COMPILE_DEFS).addChild(listElem);
 		}
 	}
 
