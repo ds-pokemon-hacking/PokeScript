@@ -19,7 +19,6 @@ import ctrmap.stdlib.fs.FSFile;
 import ctrmap.stdlib.fs.FSUtil;
 import ctrmap.stdlib.fs.accessors.DiskFile;
 import ctrmap.stdlib.io.base.iface.ReadableStream;
-import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -30,10 +29,10 @@ import java.util.Map;
  */
 public class LangCompiler {
 
-	public static final String COMPILER_VERSION = "0.5.1@2021/07/12";
+	public static final String COMPILER_VERSION = "0.6.9@2021/08/22";
 
 	public static final ArgumentPattern[] langCompilerArgConfig = new ArgumentPattern[]{
-		new ArgumentPattern("target", "Target platform (ntrv/ntriv/ctr)", ArgumentType.STRING, LangPlatform.AMX_CTR.name, true, "-t", "--target"),
+		new ArgumentPattern("target", "Target platform (ntrv/ctr)", ArgumentType.STRING, LangPlatform.AMX_CTR.name, true, "-t", "--target"),
 		new ArgumentPattern("defines", "Preprocessor definitions (can be chained)", ArgumentType.STRING, null, true, "-D", "--define"),
 		new ArgumentPattern("includes", "Include directory paths (can be chained)", ArgumentType.STRING, null, true, "-I", "--include"),
 		new ArgumentPattern("inputs", "List of files to compile (can be chained, default)", ArgumentType.STRING, null, true, "-i", "--input"),
@@ -45,6 +44,8 @@ public class LangCompiler {
 	};
 
 	public static void main(String[] args) {
+		args = new String[]{"-i D:\\_REWorkspace\\scr\\debug.pks -D SANGO"};
+		
 		System.out.println("* * * New PokéScript compiler U version " + COMPILER_VERSION + " * * *\n");
 		System.out.println("PokéScript is part of CTRMap at https://github.com/HelloOO7/CTRMap-BleedingEdge\n");
 		ArgumentBuilder bld = new ArgumentBuilder(langCompilerArgConfig);
@@ -127,6 +128,10 @@ public class LangCompiler {
 			ca.preprocessorDefinitions = commonDefinitions;
 
 			for (FSFile in : inputs) {
+				if (!in.exists() || in.isDirectory()) {
+					System.err.println("Could not read file " + in);
+					continue;
+				}
 				CompilerArguments a2 = new CompilerArguments(ca);
 				a2.includeRoots.add(in.getParent());
 				System.out.println("Compiling file " + in + "...");
@@ -164,7 +169,8 @@ public class LangCompiler {
 	public static byte[] compileFileToBinary(FSFile fsf, CompilerArguments args) {
 		switch (args.platform) {
 			case AMX_CTR:
-				return compileFileCTR(fsf, args).getScriptBytes();
+				GFLPawnScript scr = compileFileCTR(fsf, args);
+				return scr == null ? null : scr.getScriptBytes();
 			case EV_SWAN:
 				return compileFileV(fsf, args).getBinaryData();
 		}

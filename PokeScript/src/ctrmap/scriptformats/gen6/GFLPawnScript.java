@@ -1,19 +1,17 @@
 package ctrmap.scriptformats.gen6;
 
 import ctrmap.stdlib.fs.FSFile;
+import ctrmap.stdlib.fs.accessors.DiskFile;
 import ctrmap.stdlib.io.base.iface.DataInputEx;
 import ctrmap.stdlib.io.base.iface.DataOutputEx;
 import ctrmap.stdlib.io.base.impl.ext.data.DataIOStream;
 import ctrmap.stdlib.io.base.impl.ext.data.DataInStream;
 import ctrmap.stdlib.io.util.StringIO;
-import java.io.ByteArrayInputStream;
-import java.io.ByteArrayOutputStream;
+import ctrmap.stdlib.math.BitMath;
 import java.io.DataInput;
 import java.io.DataOutput;
 import java.io.IOException;
-import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -22,9 +20,9 @@ import java.util.logging.Logger;
 
 public class GFLPawnScript {
 
-	public byte[] compCode;
-	public int[] decInstructions;
-	private boolean decompressed;
+	public static final int PAWN32_MAGIC = 0xF1E0;
+	public static final int PAWN64_MAGIC = 0xF1E1;
+	public static final int PAWN16_MAGIC = 0xF1E2;
 
 	public List<PawnPrefixEntry> publics = new ArrayList<>();
 	public List<PawnPrefixEntry> natives = new ArrayList<>();
@@ -39,7 +37,7 @@ public class GFLPawnScript {
 	public List<PawnInstruction> instructions = new ArrayList<>();
 	public List<PawnInstruction> data = new ArrayList<>();
 
-	Map<Integer, PawnInstruction> publicDummies = new HashMap<>();
+	Map<Long, PawnInstruction> publicDummies = new HashMap<>();
 	public PawnInstruction mainEntryPointDummy;
 
 	public int len;
@@ -67,8 +65,7 @@ public class GFLPawnScript {
 	public int decCodeLen;
 
 	public GFLPawnScript() {
-		decompressed = true;
-		magic = 0xF1E0;
+		magic = PAWN32_MAGIC;
 		ver = 10;
 		minCompatVer = 10;
 		flags = 0x1C;
@@ -77,10 +74,31 @@ public class GFLPawnScript {
 		sNAMEMAX = 63;
 	}
 
+	public int getCellSize() {
+		switch (magic) {
+			case PAWN16_MAGIC:
+				return Short.BYTES;
+			case PAWN32_MAGIC:
+				return Integer.BYTES;
+			case PAWN64_MAGIC:
+				return Long.BYTES;
+		}
+		throw new RuntimeException("Invalid magic: " + Integer.toHexString(magic) + "; Can not determine cell size!");
+	}
+
+	public long hashName(String name) {
+		if (magic == PAWN32_MAGIC) {
+			return GFScrHash.getHash(name);
+		} else if (magic == PAWN64_MAGIC) {
+			return GFScrHash.getHash64(name);
+		}
+		throw new UnsupportedOperationException("No hash function for 16-bit Pawn.");
+	}
+
 	public static GFLPawnScript createExecutableGFLScript() {
 		GFLPawnScript s = new GFLPawnScript();
 
-		s.instructions.add(new PawnInstruction(PawnInstruction.Commands.HALT_P));
+		s.instructions.add(new PawnInstruction(PawnOpCode.HALT_P));
 		s.mainEntryPoint = 0;
 		s.setInstructionListeners();
 
@@ -90,7 +108,7 @@ public class GFLPawnScript {
 	public GFLPawnScript(byte[] b) {
 		this(new DataInStream(b));
 	}
-	
+
 	public GFLPawnScript(FSFile fsf) {
 		this(new DataInStream(fsf.getInputStream()));
 	}
@@ -98,7 +116,7 @@ public class GFLPawnScript {
 	public GFLPawnScript(DataInputEx in) {
 		try {
 			len = in.readInt();
-			magic = in.readShort(); //F1 E0 == 32-bit cell, 0x04
+			magic = in.readUnsignedShort(); //F1 E0 == 32-bit cell, 0x04
 			ver = in.readUnsignedByte(); //0x06
 			minCompatVer = in.readUnsignedByte(); //0x07
 			flags = in.readUnsignedShort(); //0x08
@@ -117,12 +135,14 @@ public class GFLPawnScript {
 			overlaysOffset = in.readInt(); //0x34
 			nameTableOffset = in.readInt(); //0x38
 
-			readEntries(publics, PawnPrefixEntry.Type.PUBLIC, defsize, in, (nativesOffset - publicsOffset) / defsize);
-			readEntries(natives, PawnPrefixEntry.Type.NATIVE, defsize, in, (librariesOffset - nativesOffset) / defsize);
-			readEntries(libraries, PawnPrefixEntry.Type.LIBRARY, defsize, in, (publicVarsOffset - librariesOffset) / defsize);
-			readEntries(publicVars, PawnPrefixEntry.Type.PUBLIC_VAR, defsize, in, (tagsOffset - publicVarsOffset) / defsize);
-			readEntries(tags, PawnPrefixEntry.Type.TAG, defsize, in, (overlaysOffset - tagsOffset) / defsize);
-			readEntries(overlays, PawnPrefixEntry.Type.OVERLAY, defsize, in, (nameTableOffset - overlaysOffset) / defsize);
+			int cellSize = getCellSize();
+
+			readEntries(publics, PawnPrefixEntry.Type.PUBLIC, defsize, cellSize, in, (nativesOffset - publicsOffset) / defsize);
+			readEntries(natives, PawnPrefixEntry.Type.NATIVE, defsize, cellSize, in, (librariesOffset - nativesOffset) / defsize);
+			readEntries(libraries, PawnPrefixEntry.Type.LIBRARY, defsize, cellSize, in, (publicVarsOffset - librariesOffset) / defsize);
+			readEntries(publicVars, PawnPrefixEntry.Type.PUBLIC_VAR, defsize, cellSize, in, (tagsOffset - publicVarsOffset) / defsize);
+			readEntries(tags, PawnPrefixEntry.Type.TAG, defsize, cellSize, in, (overlaysOffset - tagsOffset) / defsize);
+			readEntries(overlays, PawnPrefixEntry.Type.OVERLAY, defsize, cellSize, in, (nameTableOffset - overlaysOffset) / defsize);
 			//readEntries(unknowns, PawnPrefixEntry.Type.UNKNOWN, defsize, in, (instructionStart - unknownOffset) / defsize);
 
 			readNameTable(in);
@@ -133,8 +153,27 @@ public class GFLPawnScript {
 			compCodeLen = len - instructionStart;
 
 			decCodeLen = heapStart - instructionStart;
-			compCode = new byte[compCodeLen];
+			byte[] compCode = new byte[compCodeLen];
 			in.read(compCode);
+
+			byte[] decCode = quickDecompress(compCode, decCodeLen, cellSize);
+
+			new DiskFile("D:/_REWorkspace/scr/enumtest/coderaw.bin").setBytes(decCode);
+
+			DataIOStream codeReader = new DataIOStream(decCode);
+
+			int dataLen = dataStart - instructionStart;
+
+			int pos;
+			while ((pos = codeReader.getPosition()) < dataLen) {
+				instructions.add(new PawnInstruction(codeReader, pos, cellSize));
+			}
+
+			while (codeReader.getPosition() < decCodeLen) {
+				data.add(new PawnInstruction(PawnInstruction.readCell(codeReader, cellSize)));
+			}
+
+			setInstructionListeners();
 		} catch (IOException ex) {
 			Logger.getLogger(GFLPawnScript.class.getName()).log(Level.SEVERE, null, ex);
 		}
@@ -171,37 +210,48 @@ public class GFLPawnScript {
 	}
 
 	public void write(DataOutputEx dos) throws IOException {
-		byte[] instructionsToWrite;
-		if (decompressed) {
-			publicsOffset = 0x3C; //header length
-			nativesOffset = publicsOffset + publics.size() * defsize;
-			librariesOffset = nativesOffset + natives.size() * defsize;
-			publicVarsOffset = librariesOffset + libraries.size() * defsize;
-			tagsOffset = publicVarsOffset + publicVars.size() * defsize;
-			overlaysOffset = tagsOffset + tags.size() * defsize;
-			nameTableOffset = overlaysOffset + overlays.size() * defsize;
+		publicsOffset = 0x3C; //header length
+		nativesOffset = publicsOffset + publics.size() * defsize;
+		librariesOffset = nativesOffset + natives.size() * defsize;
+		publicVarsOffset = librariesOffset + libraries.size() * defsize;
+		tagsOffset = publicVarsOffset + publicVars.size() * defsize;
+		overlaysOffset = tagsOffset + tags.size() * defsize;
+		nameTableOffset = overlaysOffset + overlays.size() * defsize;
 
-			updateRaw();
-			instructionStart = nameTableOffset + getNameTableLength();
-			heapStart = instructionStart + decInstructions.length * 4;
-			dataStart = heapStart - data.size() * 4;
-			if (mainEntryPointDummy != null) {
-				mainEntryPoint = mainEntryPointDummy.argumentCells[0];
-			} else {
-				mainEntryPoint = -1;
-			}
-			instructionsToWrite = compressScript(decInstructions);
-			len = instructionStart + instructionsToWrite.length;
+		instructionStart = nameTableOffset + getNameTableLength();
 
-			for (PawnPrefixEntry p : publics) {
-				PawnInstruction jump = publicDummies.get(p.data[1]);
-				if (jump != null) {
-					p.data[0] = jump.argumentCells[0];
-				}
-			}
-		} else {
-			instructionsToWrite = compCode;
+		DataIOStream codeImage = new DataIOStream();
+
+		for (PawnInstruction ins : instructions) {
+			ins.write(codeImage);
 		}
+
+		int cellSize = getCellSize();
+
+		dataStart = instructionStart + codeImage.getLength();
+
+		for (PawnInstruction ins : data) {
+			PawnInstruction.writeCell(codeImage, cellSize, ins.arguments.length > 0 ? ins.arguments[0] : 0);
+		}
+
+		heapStart = instructionStart + codeImage.getLength();
+
+		if (mainEntryPointDummy != null) {
+			mainEntryPoint = (int) mainEntryPointDummy.arguments[0];
+		} else {
+			mainEntryPoint = -1;
+		}
+		codeImage.seek(0);
+		byte[] instructionsToWrite = compressScript(codeImage, codeImage.getLength(), getCellSize());
+		len = instructionStart + instructionsToWrite.length;
+
+		for (PawnPrefixEntry p : publics) {
+			PawnInstruction jump = publicDummies.get(p.data[1]);
+			if (jump != null) {
+				p.data[0] = jump.arguments[0];
+			}
+		}
+
 		dos.writeInt(len);
 		dos.writeShort((short) magic);
 		dos.write(ver);
@@ -221,28 +271,25 @@ public class GFLPawnScript {
 		dos.writeInt(overlaysOffset);
 		dos.writeInt(nameTableOffset);
 
-		writeEntries(publics, dos);
-		writeEntries(natives, dos);
-		writeEntries(libraries, dos);
-		writeEntries(publicVars, dos);
-		writeEntries(tags, dos);
-		writeEntries(overlays, dos);
+		writeEntries(publics, dos, cellSize);
+		writeEntries(natives, dos, cellSize);
+		writeEntries(libraries, dos, cellSize);
+		writeEntries(publicVars, dos, cellSize);
+		writeEntries(tags, dos, cellSize);
+		writeEntries(overlays, dos, cellSize);
 		//writeEntries(unknowns, dos);
 
 		writeNameTable(dos);
 
-		while (dos.getPosition() % 4 != 0) {
-			dos.write(0);
-		}
+		dos.pad(4);
 
 		dos.write(instructionsToWrite);
-		while (dos.getPosition() % 4 != 0) { //padding to 4 bytes
-			dos.write(0);
-		}
+
+		dos.pad(4);
 	}
 
 	public void replaceAll(GFLPawnScript copy) {
-		if (copy == null){
+		if (copy == null) {
 			return;
 		}
 		publics = copy.publics;
@@ -263,6 +310,32 @@ public class GFLPawnScript {
 
 		setInstructionListeners();
 	}
+	
+	public int readDataAtI(long dataAddr) {
+		return (int)readDataAt(dataAddr);
+	}
+	
+	public long readDataAt(long dataAddr) {
+		return data.get((int)(dataAddr / getCellSize())).arguments[0];
+	}
+	
+	public void writeDataAt(long dataAddr, long value) {
+		long dataIndex = dataAddr / getCellSize();
+		if (dataIndex < data.size()) {
+			data.get((int)dataIndex).arguments[0] = value;
+		}
+		else {
+			throw new ArrayIndexOutOfBoundsException("Could not write to data section at " + Long.toHexString(dataAddr));
+		}
+	}
+	
+	public void expandDataSection(long newSize) {
+		long numToAdd = (newSize / getCellSize()) - data.size();
+		for (int i = 0; i < numToAdd; i++) {
+			PawnInstruction ins = new PawnInstruction(0);
+			data.add(ins);
+		}
+	}
 
 	public byte[] getScriptBytes() {
 		try {
@@ -275,60 +348,19 @@ public class GFLPawnScript {
 		}
 	}
 
-	public void decompressThis() {
-		if (!decompressed) {
-			decInstructions = quickDecompress(compCode, decCodeLen / 4);
-			decompressed = true;
-			instructions.clear();
-			data.clear();
-			for (int i = 0; i < (dataStart - instructionStart) / 4; i++) {
-				PawnInstruction ins = new PawnInstruction(i * 4, decInstructions, this);
-				instructions.add(ins);
-				if (!ins.hasCompressedArgument) {
-					i += ins.getArgumentCount();
-				}
-			}
-			for (int j = dataStart - instructionStart; j < decInstructions.length * 4; j += 4) {
-				String parse = Integer.toHexString(decInstructions[j / 4]);
-				PawnInstruction dataDummy = new PawnInstruction(j, decInstructions[j / 4], parse);
-				dataDummy.hasCompressedArgument = false;
-				dataDummy.argumentCells = new int[0];
-				data.add(dataDummy);
-			}
-		}
-	}
-
-	private void readEntries(List<PawnPrefixEntry> target, PawnPrefixEntry.Type typeForAll, int defsize, DataInput in, int count) throws IOException {
+	private static void readEntries(List<PawnPrefixEntry> target, PawnPrefixEntry.Type typeForAll, int defsize, int cellSize, DataInput in, int count) throws IOException {
 		for (int i = 0; i < count; i++) {
-			target.add(new PawnPrefixEntry(defsize, typeForAll, in));
+			target.add(new PawnPrefixEntry(defsize, cellSize, typeForAll, in));
 		}
 	}
 
-	private void writeEntries(List<PawnPrefixEntry> list, DataOutput target) throws IOException {
+	private static void writeEntries(List<PawnPrefixEntry> list, DataOutput target, int cellSize) throws IOException {
 		for (int i = 0; i < list.size(); i++) {
-			list.get(i).write(target);
+			list.get(i).write(target, cellSize);
 		}
 	}
 
-	public void updateRaw() {
-		int[] codeIns = PawnDisassembler.getRawInstructions(instructions);
-		int[] dataIns = PawnDisassembler.getRawInstructions(data);
-		int movementLength = dataIns.length * 4;
-		dataStart = heapStart - movementLength;
-		decInstructions = new int[codeIns.length + dataIns.length];
-		System.arraycopy(codeIns, 0, decInstructions, 0, codeIns.length);
-		System.arraycopy(dataIns, 0, decInstructions, codeIns.length, dataIns.length);
-	}
-
-	public void replaceInstructions(int[] newIns) {
-		int[] compiledMovement = PawnDisassembler.getRawInstructions(data);
-		int[] target = new int[newIns.length + compiledMovement.length];
-		System.arraycopy(newIns, 0, target, 0, newIns.length);
-		System.arraycopy(compiledMovement, 0, target, newIns.length, compiledMovement.length);
-		decInstructions = target;
-	}
-
-	public PawnInstruction lookupInstructionByPtr(int ptr) {
+	public PawnInstruction lookupInstructionByPtr(long ptr) {
 		for (int i = 0; i < instructions.size(); i++) {
 			if (instructions.get(i).pointer == ptr) {
 				return instructions.get(i);
@@ -355,8 +387,8 @@ public class GFLPawnScript {
 
 		for (PawnPrefixEntry p : publics) {
 			if (!publicDummies.containsKey(p.data[1])) {
-				PawnInstruction jump = new PawnInstruction(0, 0x81, "PUBLIC DUMMY");
-				jump.argumentCells = new int[]{p.data[0]};
+				PawnInstruction jump = new PawnInstruction(PawnOpCode.JUMP);
+				jump.arguments = new long[]{p.data[0]};
 				jump.setParent(this);
 				publicDummies.put(p.data[1], jump);
 			}
@@ -364,8 +396,8 @@ public class GFLPawnScript {
 
 		if (mainEntryPoint != -1) {
 			if (mainEntryPointDummy == null) {
-				mainEntryPointDummy = new PawnInstruction(0, 0x81, "MAIN ENTRYPOINT");
-				mainEntryPointDummy.argumentCells = new int[]{mainEntryPoint};
+				mainEntryPointDummy = new PawnInstruction(PawnOpCode.JUMP);
+				mainEntryPointDummy.arguments = new long[]{mainEntryPoint};
 				mainEntryPointDummy.setParent(this);
 			}
 		}
@@ -384,12 +416,230 @@ public class GFLPawnScript {
 			}
 		}
 	}
-	
-	public PawnPrefixEntry getPrefixEntryByName(List<PawnPrefixEntry> list, String name) {
-		return getPrefixEntryByName(list, GFScrHash.getHash(name));
+
+	public List<MethodCall> searchForNativeCalls(String nativeName) {
+		List<MethodCall> l = new ArrayList<>();
+		PawnPrefixEntry e = getPrefixEntryByName(natives, nativeName);
+		if (e != null) {
+			long nativeNo = natives.indexOf(e);
+
+			for (PawnInstruction i : instructions) {
+				if (i.opCode == PawnOpCode.SYSREQ_N) {
+					if (i.arguments[0] == nativeNo) {
+						MethodCall call = new MethodCall();
+						call.methodName = nativeName;
+						call.caller = i;
+						call.args.addAll(searchForArgs(i));
+						l.add(call);
+					}
+				}
+			}
+		}
+		return l;
 	}
 
-	public PawnPrefixEntry getPrefixEntryByName(List<PawnPrefixEntry> list, int name) {
+	public List<MethodCall> searchForMethodCalls(PawnInstruction methodProcIns) {
+		List<MethodCall> l = new ArrayList<>();
+		for (PawnInstruction i : instructions) {
+			if (i.opCode == PawnOpCode.CALL) {
+				if (i.arguments[0] + i.pointer == methodProcIns.pointer) {
+					MethodCall call = new MethodCall();
+					call.caller = i;
+					call.methodName = "sub_" + Integer.toHexString(methodProcIns.pointer);
+					call.args.addAll(searchForArgs(i));
+					l.add(call);
+				}
+			}
+		}
+		return l;
+	}
+
+	public PawnInstruction getMethodStart(PawnInstruction ins) {
+		int index = instructions.indexOf(ins);
+		for (int i = index; i >= 0; i--) {
+			if (instructions.get(i).opCode == PawnOpCode.PROC) {
+				return instructions.get(i);
+			}
+		}
+		return null;
+	}
+
+	public List<MethodCallArgument> searchForArgs(PawnInstruction callInstr) {
+		List<MethodCallArgument> l = new ArrayList<>();
+
+		long numberOf;
+		int insIdx = instructions.indexOf(callInstr);
+		if (insIdx == -1) {
+			return l;
+		}
+
+		if (callInstr.opCode == PawnOpCode.SYSREQ_N) {
+			numberOf = callInstr.getArgument(1) / getCellSize();
+		} else {
+			numberOf = instructions.get(insIdx - 1).getArgument(0) / getCellSize();
+			insIdx--;
+		}
+		insIdx--;
+		//System.out.println("searching for " + numberOf + " args of method idx " + callInstr.arguments[0]);
+
+		MethodCallArgument arg = new MethodCallArgument();
+
+		for (int i = insIdx; i >= 0; i--) {
+			PawnInstruction ins = instructions.get(i);
+
+			int amount = 1;
+			switch (ins.opCode) {
+				case PUSH2:
+				case PUSH2_C:
+				case PUSH2_S:
+				case PUSH2_ADR:
+					amount = 2;
+					break;
+				case PUSH3:
+				case PUSH3_C:
+				case PUSH3_S:
+				case PUSH3_ADR:
+					amount = 3;
+					break;
+				case PUSH4:
+				case PUSH4_C:
+				case PUSH4_S:
+				case PUSH4_ADR:
+					amount = 4;
+					break;
+				case PUSH5:
+				case PUSH5_C:
+				case PUSH5_S:
+				case PUSH5_ADR:
+					amount = 5;
+					break;
+			}
+
+			for (int j = 0; j < amount; j++) {
+				int argIdx = amount - j - 1;
+
+				switch (ins.opCode) {
+					case PUSH:
+					case PUSH_P:
+					case PUSH2:
+					case PUSH3:
+					case PUSH4:
+					case PUSH5:
+						arg.type = StackArgType.GVAR;
+						arg.value = ins.getArgument(argIdx);
+						break;
+					case PUSH_C:
+					case PUSH_P_C:
+					case PUSH2_C:
+					case PUSH3_C:
+					case PUSH4_C:
+					case PUSH5_C:
+						arg.type = StackArgType.CONSTANT;
+						arg.value = ins.getArgument(argIdx);
+						break;
+					case PUSH_S:
+					case PUSH_P_S:
+					case PUSH2_S:
+					case PUSH3_S:
+					case PUSH4_S:
+					case PUSH5_S:
+						arg.type = StackArgType.LOCVAR;
+						arg.value = ins.getArgument(argIdx);
+						break;
+					case PUSH_PRI:
+						arg.type = StackArgType.REG_PRI;
+						break;
+					case PUSH_ALT:
+						arg.type = StackArgType.REG_ALT;
+						break;
+					case PUSH_ADR:
+					case PUSH_P_ADR:
+					case PUSH2_ADR:
+					case PUSH3_ADR:
+					case PUSH4_ADR:
+					case PUSH5_ADR:
+						arg.type = StackArgType.ADDRESS;
+						arg.value = ins.getArgument(argIdx);
+						break;
+				}
+
+				if (arg.type != null) {
+					l.add(arg);
+					arg = new MethodCallArgument();
+				}
+			}
+
+			if (l.size() >= numberOf) {
+				break;
+			}
+		}
+
+		return l;
+	}
+
+	public static class MethodCall {
+		public PawnInstruction caller;
+		
+		public String methodName;
+
+		public List<MethodCallArgument> args = new ArrayList<>();
+		
+		@Override
+		public String toString() {
+			StringBuilder sb = new StringBuilder();
+			sb.append(methodName);
+			sb.append("(");
+			for (int i = 0; i < args.size(); i++) {
+				if (i != 0) {
+					sb.append(", ");
+				}
+				sb.append(args.get(i).toString(caller.script));
+			}
+			sb.append(")");
+			return sb.toString();
+		}
+	}
+
+	public static class MethodCallArgument {
+
+		public StackArgType type;
+		public Long value;
+		
+		public String toString(GFLPawnScript scr) {
+			int cellSize = scr.getCellSize();
+			switch (type) {
+				case ADDRESS:
+					return "&(" + value + ")";
+				case CONSTANT:
+					return String.valueOf(value);
+				case GVAR:
+					return String.valueOf(scr.data.get((int)(value / cellSize)).arguments[0]);
+				case LOCVAR:
+					return (value >= cellSize * 3) ? "FUNCARG_" + ((value / cellSize) - 3) : "LOCVAR_" + ((value / -cellSize) - 1);
+				case REG_ALT:
+					return "ALT";
+				case REG_PRI:
+					return "PRI";
+			}
+			return "NULL_TYPE_ERR";
+		}
+	}
+
+	public static enum StackArgType {
+		LOCVAR,
+		GVAR,
+		REG_PRI,
+		REG_ALT,
+		CONSTANT,
+		ADDRESS
+	}
+
+	public PawnPrefixEntry getPrefixEntryByName(List<PawnPrefixEntry> list, String name) {
+		long hash = hashName(name);
+		return getPrefixEntryByName(list, hash);
+	}
+
+	public PawnPrefixEntry getPrefixEntryByName(List<PawnPrefixEntry> list, long name) {
 		for (PawnPrefixEntry e : list) {
 			if (e.data[1] == name) {
 				return e;
@@ -402,7 +652,6 @@ public class GFLPawnScript {
 		setPtrsByIndex();
 		for (int i = 0; i < instructions.size(); i++) {
 			instructions.get(i).callJumpListeners();
-			instructions.get(i).updateDisassembly();
 		}
 		for (PawnInstruction i : publicDummies.values()) {
 			i.callJumpListeners();
@@ -412,33 +661,28 @@ public class GFLPawnScript {
 		}
 	}
 
-	public static int[] quickDecompress(byte[] data, int count) {
-		int[] code = new int[count];
-		int i = 0, j = 0, x = 0, f = 0;
-		while (i < code.length) {
-			int b = data[f++],
-					v = b & 0x7F;
-			if (++j == 1) // sign extension possible
-			{
-				x = (int) ((((v >> 6 == 0 ? 1 : 0) - 1) << 6) | v); // only for bit6 being set
-			} else {
-				x = (x << 7) | (byte) v; // shift data into place
-			}
-			if ((b & 0x80) != 0) {
-				continue; // more data to read
-			}
-			code[i++] = x;
-			j = 0; // write finalized instruction
-		}
-		return code;
-	}
-
-	public static byte[] compressScript(int[] cmd) {
-		ByteArrayOutputStream out = new ByteArrayOutputStream();
+	public static byte[] quickDecompress(byte[] data, int byteSize, int cellSize) {
+		DataIOStream out = new DataIOStream();
 		try {
-			for (int pos = 0; pos < cmd.length; pos++) {
-				out.write(compressInstruction(cmd[pos]));
-				out.close();
+			int i = 0, j = 0, f = 0;
+			long x = 0;
+			byteSize /= cellSize;
+			while (i < byteSize) {
+				long b = data[f++],
+					v = b & 0x7F;
+				if (++j == 1) // sign extension possible
+				{
+					x = ((((v >> 6 == 0 ? 1 : 0) - 1) << 6) | v); // only for bit6 being set
+				} else {
+					x = (x << 7) | v; // shift data into place
+				}
+				if ((b & 0x80) != 0) {
+					continue; // more data to read
+				}
+				PawnInstruction.writeCell(out, cellSize, x);
+				i++;
+				j = 0; // write finalized instruction
+
 			}
 		} catch (IOException ex) {
 			Logger.getLogger(GFLPawnScript.class.getName()).log(Level.SEVERE, null, ex);
@@ -446,49 +690,55 @@ public class GFLPawnScript {
 		return out.toByteArray();
 	}
 
-	private static byte[] compressInstruction(int instruction) {
-		List<Byte> bytes = new ArrayList<>();
-		boolean sign = (instruction & 0x80000000) != 0;
-
-		// Signed (negative) values are handled opposite of unsigned (positive) values.
-		// Positive values are "done" when we've shifted the value down to zero, but
-		// we don't need to store the highest 1s in a signed value. We handle this by
-		// tracking the loop via a NOTed shadow copy of the instruction if it's signed.
-		int shadow = sign ? ~instruction : instruction;
-
-		do {
-			int least7 = instruction & 0b01111111;
-			byte byteVal = (byte) least7;
-
-			if (!bytes.isEmpty()) // Continuation bit on all but the lowest byte
-			{
-				byteVal |= 0x80;
-			}
-
-			bytes.add(byteVal);
-
-			instruction >>= 7;
-			shadow >>= 7;
-		} while (shadow != 0);
-
-		if (bytes.size() < 5) {
-			// Ensure "sign bit" (bit just to the right of highest continuation bit) is
-			// correct. Add an extra empty continuation byte if we need to. Values can't
-			// be longer than 5 bytes, though.
-
-			int signBit = sign ? 0x40 : 0x00;
-			if ((bytes.get(bytes.size() - 1) & 0x40) != signBit) {
-				bytes.add((byte) (sign ? 0xFF : 0x80));
-			}
+	public static byte[] compressScript(DataInput in, int byteSize, int cellSize) {
+		DataIOStream out = new DataIOStream();
+		try {
+			int cellCount = byteSize / cellSize;
+			write_encoded(out, in, cellCount, cellSize);
+			out.close();
+		} catch (IOException ex) {
+			Logger.getLogger(GFLPawnScript.class.getName()).log(Level.SEVERE, null, ex);
 		}
+		return out.toByteArray();
+	}
 
-		Collections.reverse(bytes);
+	/*
+	 * Pawn toolkit 3.x.
+	 *
+	 * C source available at https://github.com/compuphase/pawn/blob/6d82fa4bfa3df019f8144dcb75b994240f8b9a7e/compiler/sc6.c#L193
+	 */
+	public static void write_encoded(DataOutput out, DataInput in, int count, int cellSize) throws IOException {
+		int ENC_MAX = cellSize + 1;
+		int ENC_MASK = BitMath.makeMask(cellSize);
 
-		byte[] out = new byte[bytes.size()];
-		for (int i = 0; i < bytes.size(); i++) {
-			out[i] = bytes.get(i);
+		while (count-- > 0) {
+			long p = PawnInstruction.readCell(in, cellSize);
+			byte[] t = new byte[ENC_MAX];
+			byte code;
+			int index;
+			for (index = 0; index < ENC_MAX; index++) {
+				t[index] = (byte) (p & 0x7f);
+				/* store 7 bits */
+				p >>= 7;
+			}
+			/* for */
+ /* skip leading zeros */
+			while (index > 1 && t[index - 1] == 0 && (t[index - 2] & 0x40) == 0) {
+				index--;
+			}
+			/* skip leading -1s */
+			if (index == ENC_MAX && t[index - 1] == ENC_MASK && (t[index - 2] & 0x40) != 0) {
+				index--;
+			}
+			while (index > 1 && t[index - 1] == 0x7f && (t[index - 2] & 0x40) != 0) {
+				index--;
+			}
+			/* write high byte first, write continuation bits */
+			while (index-- > 0) {
+				code = (byte) ((index == 0) ? t[index] : (t[index] | 0x80));
+				out.writeByte(code);
+			}
+			/* while */
 		}
-
-		return out;
 	}
 }

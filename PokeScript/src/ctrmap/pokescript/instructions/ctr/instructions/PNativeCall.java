@@ -1,17 +1,17 @@
 package ctrmap.pokescript.instructions.ctr.instructions;
 
-import ctrmap.scriptformats.gen6.PawnInstruction;
 import ctrmap.pokescript.InboundDefinition;
 import ctrmap.pokescript.OutboundDefinition;
 import ctrmap.pokescript.instructions.abstractcommands.ACompiledInstruction;
+import ctrmap.pokescript.instructions.abstractcommands.AInstruction;
 import ctrmap.pokescript.types.DataType;
 import java.util.ArrayList;
 import java.util.List;
 import static ctrmap.pokescript.instructions.ctr.instructions.PLocalCall.getFloatConversionInstructions;
-import ctrmap.pokescript.instructions.abstractcommands.AInstruction;
 import ctrmap.pokescript.instructions.abstractcommands.ANativeCall;
 import ctrmap.pokescript.stage1.NCompileGraph;
-import ctrmap.stdlib.util.ArraysEx;
+import ctrmap.scriptformats.gen6.PawnInstruction;
+import ctrmap.scriptformats.gen6.PawnOpCode;
 
 public class PNativeCall extends ANativeCall {
 
@@ -29,22 +29,36 @@ public class PNativeCall extends ANativeCall {
 		//stack is backwards, so we can conveniently insert everything at index 0
 		InboundDefinition n = g.findMethod(call);
 		if (n == null) {
-			System.err.println("fault resolving method " + call);
+			throw new RuntimeException("fault resolving method " + call + ", callhash " + System.identityHashCode(call));
 		}
 		int idx = g.getNativeIdx(call.name);
-		PawnInstruction sysreq_n = new PawnInstruction(PawnInstruction.Commands.SYSREQ_N, idx, getArgArrayBytes());
-		r.add(sysreq_n);
+		PawnInstruction sysreq_n = new PawnInstruction(PawnOpCode.SYSREQ_N, idx, getArgArrayBytes());
+		
+		int ptr = pointer;
 
-		for (int i = 0; i < getArgCount(); i++) {
-			r.add(0, new PawnInstruction(PawnInstruction.Commands.PUSH_PRI));
-			if (n.args[i].typeDef.baseType == DataType.FLOAT && InboundDefinition.possiblyDowncast(call.args[i].type) == DataType.INT) {
+		for (int i = getArgCount() - 1; i >= 0; i--) {
+			if (n.args[i].typeDef.baseType == DataType.FLOAT && InboundDefinition.possiblyDowncast(call.args[i].type.baseType) == DataType.INT) {
 				if (!call.args[i].isImmediate() || call.args[i].getImmediateValue() != 0) {//don't need to cast 0 to a float
-					r.addAll(0, getFloatConversionInstructions(g));
+					List<PawnInstruction> fconv = getFloatConversionInstructions(g);
+					for (PawnInstruction ins : fconv) {
+						ins.pointer = ptr;
+						ptr += ins.getSize();
+					}
+					r.addAll(fconv);
 				}
 			}
 
-			r.addAll(0, CTRInstruction.compileIL(call.args[i].getCode(DataType.ANY), g));
+			List<AInstruction> toCompile = call.args[i].getCode(DataType.ANY.typeDef());
+			for (AInstruction tc : toCompile) {
+				tc.pointer = ptr;
+				ptr += tc.getAllocatedPointerSpace(g);
+			}
+			
+			r.addAll(CTRInstruction.compileIL(toCompile, g));
+			r.add(new PawnInstruction(PawnOpCode.PUSH_PRI));
+			ptr += 4;
 		}
+		r.add(sysreq_n);
 
 		return r;
 	}

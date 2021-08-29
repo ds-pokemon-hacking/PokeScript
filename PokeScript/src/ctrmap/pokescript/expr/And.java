@@ -1,6 +1,7 @@
 package ctrmap.pokescript.expr;
 
 import ctrmap.pokescript.types.DataType;
+import ctrmap.pokescript.types.TypeDef;
 
 public class And extends CmnMathOp.BitAnd {
 	//the method is the same as regular and, we just restrict it to booleans for cleanliness
@@ -9,17 +10,17 @@ public class And extends CmnMathOp.BitAnd {
 	}
 	
 	@Override
-	public DataType getInputTypeRHS() {
-		return DataType.BOOLEAN;
+	public TypeDef getInputTypeRHS() {
+		return DataType.BOOLEAN.typeDef();
 	}
 	
 	@Override
-	public DataType getInputTypeLHS() {
-		return DataType.BOOLEAN;
+	public TypeDef getInputTypeLHS() {
+		return DataType.BOOLEAN.typeDef();
 	}
 
 	@Override
-	public DataType getOutputType() {
-		return DataType.BOOLEAN;
+	public TypeDef getOutputType() {
+		return DataType.BOOLEAN.typeDef();
 	}
 }

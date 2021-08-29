@@ -1,5 +1,6 @@
 package ctrmap.pokescript.stage0.content;
 
+import ctrmap.pokescript.LangConstants;
 import ctrmap.pokescript.stage0.Preprocessor;
 import ctrmap.pokescript.data.Variable;
 import ctrmap.pokescript.instructions.abstractcommands.ACaseTable;
@@ -13,12 +14,11 @@ import ctrmap.pokescript.stage1.PendingLabel;
  */
 public class LabelContent extends AbstractContent {
 
-	public EffectiveLine line;
 	public LabelType type;
 	public String label;
 
 	public LabelContent(EffectiveLine line) {
-		this.line = line;
+		super(line);
 		String source = line.data;
 		EffectiveLine.Word word = EffectiveLine.getWord(0, source);
 		type = LabelType.getLabelType(word.wordContent);
@@ -27,14 +27,14 @@ public class LabelContent extends AbstractContent {
 			if (label.isEmpty()) {
 				line.throwException("Label can not be empty.");
 			}
-			checkExpectedEnd(source, line, word.sourceEndIdx, ':');
+			checkExpectedEnd(source, line, word.sourceEndIdx, LangConstants.CH_LABEL_IDENT);
 		} else {
 			EffectiveLine.Word word1 = EffectiveLine.getWord(word.sourceEndIdx, source);
 			if (word1.wordContent.isEmpty()) {
 				line.throwException("Label can not be empty.");
 			}
 			label = word1.wordContent;
-			checkExpectedEnd(source, line, word1.sourceEndIdx, ':');
+			checkExpectedEnd(source, line, word1.sourceEndIdx, LangConstants.CH_LABEL_IDENT);
 		}
 	}
 

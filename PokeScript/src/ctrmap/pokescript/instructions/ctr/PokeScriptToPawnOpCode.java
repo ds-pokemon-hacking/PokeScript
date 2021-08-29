@@ -1,85 +1,85 @@
 
 package ctrmap.pokescript.instructions.ctr;
 
-import ctrmap.scriptformats.gen6.PawnInstruction;
 import ctrmap.pokescript.instructions.abstractcommands.APlainOpCode;
+import ctrmap.scriptformats.gen6.PawnOpCode;
 
 /**
  *
  */
 public class PokeScriptToPawnOpCode {
-	public static PawnInstruction.Commands getOpCode(APlainOpCode plain){
+	public static PawnOpCode getOpCode(APlainOpCode plain){
 		switch (plain){
 			case ABORT_EXECUTION:
-				return PawnInstruction.Commands.HALT;
+				return PawnOpCode.HALT;
 			case BEGIN_METHOD:
-				return PawnInstruction.Commands.PROC;
+				return PawnOpCode.PROC;
 			case CONST_ALT:
-				return PawnInstruction.Commands.CONST_ALT;
+				return PawnOpCode.CONST_ALT;
 			case CONST_PRI:
-				return PawnInstruction.Commands.CONST_PRI;
+				return PawnOpCode.CONST_PRI;
 			case LOAD_STACK_PRI:
-				return PawnInstruction.Commands.LOAD_S_PRI;
+				return PawnOpCode.LOAD_S_PRI;
 			case POP_ALT:
-				return PawnInstruction.Commands.PALT;
+				return PawnOpCode.PALT;
 			case POP_PRI:
-				return PawnInstruction.Commands.PPRI;
+				return PawnOpCode.PPRI;
 			case PUSH_ALT:
-				return PawnInstruction.Commands.PUSH_ALT;
+				return PawnOpCode.PUSH_ALT;
 			case PUSH_PRI:
-				return PawnInstruction.Commands.PUSH_PRI;
+				return PawnOpCode.PUSH_PRI;
 			case RESIZE_STACK:
-				return PawnInstruction.Commands.STACK;
+				return PawnOpCode.STACK;
 			case RETURN:
-				return PawnInstruction.Commands.RETN;
+				return PawnOpCode.RETN;
 			case STORE_PRI_STACK:
-				return PawnInstruction.Commands.STOR_S_PRI;
+				return PawnOpCode.STOR_S_PRI;
 			case ZERO_ALT:
-				return PawnInstruction.Commands.ZERO_ALT;
+				return PawnOpCode.ZERO_ALT;
 			case ZERO_PRI:
-				return PawnInstruction.Commands.ZERO_PRI;
+				return PawnOpCode.ZERO_PRI;
 			case ADD:
-				return PawnInstruction.Commands.ADD;
+				return PawnOpCode.ADD;
 			case AND:
-				return PawnInstruction.Commands.AND;
+				return PawnOpCode.AND;
 			case DIVIDE:
-				return PawnInstruction.Commands.SDIV_ALT;
+				return PawnOpCode.SDIV_ALT;
 			case EQUAL:
-				return PawnInstruction.Commands.EQ;
+				return PawnOpCode.EQ;
 			case GEQUAL:
-				return PawnInstruction.Commands.SGEQ;
+				return PawnOpCode.SGEQ;
 			case GREATER:
-				return PawnInstruction.Commands.SGRTR;
+				return PawnOpCode.SGRTR;
 			case LEQUAL:
-				return PawnInstruction.Commands.SLEQ;
+				return PawnOpCode.SLEQ;
 			case LESS:
-				return PawnInstruction.Commands.SLESS;
+				return PawnOpCode.SLESS;
 			case MOVE_PRI_TO_ALT:
-				return PawnInstruction.Commands.MOVE_ALT;
+				return PawnOpCode.MOVE_ALT;
 			case MOVE_ALT_TO_PRI:
-				return PawnInstruction.Commands.MOVE_PRI;
+				return PawnOpCode.MOVE_PRI;
 			case MULTIPLY:
-				return PawnInstruction.Commands.SMUL;
+				return PawnOpCode.SMUL;
 			case MODULO:
-				return PawnInstruction.Commands.SDIV_ALT;
+				return PawnOpCode.SDIV_ALT;
 			case NEGATE:
-				return PawnInstruction.Commands.NEG;
+				return PawnOpCode.NEG;
 			case NEQUAL:
-				return PawnInstruction.Commands.NEQ;
+				return PawnOpCode.NEQ;
 			case NOT:
-				return PawnInstruction.Commands.NOT;
+				return PawnOpCode.NOT;
 			case OR:
-				return PawnInstruction.Commands.OR;
+				return PawnOpCode.OR;
 			case SUBTRACT:
-				return PawnInstruction.Commands.SUB_ALT;
+				return PawnOpCode.SUB_ALT;
 			case XOR:
-				return PawnInstruction.Commands.XOR;
+				return PawnOpCode.XOR;
 			case JUMP:
-				return PawnInstruction.Commands.JUMP;
+				return PawnOpCode.JUMP;
 			case JUMP_IF_ZERO:
-				return PawnInstruction.Commands.JZER;
+				return PawnOpCode.JZER;
 			case SWITCH:
-				return PawnInstruction.Commands.SWITCH;
+				return PawnOpCode.SWITCH;
 		}
 		return null;
 	}

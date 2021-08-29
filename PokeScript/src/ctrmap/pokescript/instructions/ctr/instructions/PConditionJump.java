@@ -1,10 +1,10 @@
 package ctrmap.pokescript.instructions.ctr.instructions;
 
-import ctrmap.scriptformats.gen6.PawnInstruction;
 import ctrmap.pokescript.instructions.abstractcommands.AConditionJump;
 import ctrmap.pokescript.instructions.abstractcommands.APlainOpCode;
 import ctrmap.pokescript.instructions.ctr.PokeScriptToPawnOpCode;
 import ctrmap.pokescript.stage1.NCompileGraph;
+import ctrmap.scriptformats.gen6.PawnInstruction;
 import java.util.ArrayList;
 import java.util.List;
 

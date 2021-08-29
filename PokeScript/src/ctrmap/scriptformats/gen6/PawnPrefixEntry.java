@@ -7,29 +7,29 @@ import java.util.Arrays;
 
 public class PawnPrefixEntry {
 	public Type type;
-	public int[] data;
+	public long[] data;
 	
-	public PawnPrefixEntry(int defsize, Type type, DataInput source) throws IOException{
+	public PawnPrefixEntry(int defsize, int cellSize, Type type, DataInput source) throws IOException{
 		this.type = type;
-		data = new int[defsize / 4];
+		data = new long[defsize / cellSize];
 		for (int i = 0; i < data.length; i++){
 			data[i] = source.readInt();
 		}
 	}
 	
-	public PawnPrefixEntry(int defsize, Type type, int[] data){
+	public PawnPrefixEntry(int defsize, Type type, long... data){
 		this.type = type;
 		if (data == null){
-			this.data = new int[defsize];
+			this.data = new long[defsize];
 		}
 		else {
 			this.data = data;
 		}
 	}
 	
-	public void write(DataOutput out) throws IOException{
+	public void write(DataOutput out, int cellSize) throws IOException{
 		for (int i = 0; i < data.length; i++){
-			out.writeInt(data[i]);
+			PawnInstruction.writeCell(out, cellSize, data[i]);
 		}
 	}
 	

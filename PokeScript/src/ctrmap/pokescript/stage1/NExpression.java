@@ -16,7 +16,6 @@ import ctrmap.pokescript.instructions.abstractcommands.AInstruction;
 import ctrmap.pokescript.instructions.abstractcommands.ALocalCall;
 import ctrmap.pokescript.stage0.BraceContent;
 import ctrmap.pokescript.stage0.EffectiveLine;
-import ctrmap.pokescript.stage0.Modifier;
 import ctrmap.stdlib.util.ArraysEx;
 import java.util.ArrayList;
 import java.util.List;
@@ -43,6 +42,7 @@ public class NExpression {
 		}
 
 		text = getTextWithoutStartEndPairedBrackets(EffectiveLine.removeAllWhitespaces(text));
+		//System.out.println("abt to parse " + text);
 
 		//slice left/op/right
 		StringBuilder leftB = new StringBuilder();
@@ -54,6 +54,8 @@ public class NExpression {
 		StringBuilder sb = rightB;
 
 		int bracketLevel = 0;
+		
+		char lastC = 0;
 
 		for (int i = text.length() - 1; i >= 0; i--) {
 			char c = text.charAt(i);
@@ -67,7 +69,7 @@ public class NExpression {
 			if (bracketLevel == 0) {
 				//only allow sb switch when we are not inside a bracket
 				if (sb == rightB || sb == leftB) {
-					if (!isNameChar(c)) {
+					if (!LangConstants.isAllowedNameChar(c)) {
 						if (sb == leftB) {
 							//try detect new operator
 							//line.throwException("Illegal character: " + c);
@@ -78,12 +80,18 @@ public class NExpression {
 					}
 				} else {
 					//opB
-					if (isNameChar(c)) {
+					if (LangConstants.isAllowedNameChar(c)) {
 						if (sb == opB) {
 							sb = leftB;
 						} else {
 							//reached second operator
 							sb = restB;
+						}
+					}
+					else if (lastC == '!' || lastC == '-') {
+						//negation or not have to be separated from other ops
+						if (sb == opB) {
+							sb = opB2;
 						}
 					}
 				}
@@ -99,15 +107,16 @@ public class NExpression {
 				case '(':
 					bracketLevel--;
 					if (bracketLevel < 0) {
-						line.throwException("Unclosed bracket!");
+						line.throwException("Unclosed bracket! - expression " + text);
 					}
 					break;
 			}
 
 			sb.append(c);
+			lastC = c;
 		}
 		if (bracketLevel > 0) {
-			line.throwException("Unopened bracket!");
+			line.throwException("Unopened bracket! - expression " + text);
 		}
 
 		rightB.reverse();
@@ -129,7 +138,8 @@ public class NExpression {
 		boolean isRHSExpr = true;
 
 		if (opS.endsWith("-") && opS.length() > 1) {
-			if (opS.charAt(opS.length() - 2) != '-' || hasRHS) { //can't be -- if there is a right side operand
+			char charAtBefore = opS.charAt(opS.length() - 2);
+			if ((charAtBefore != '-') || hasRHS) { //can't be -- if there is a right side operand
 				//this is a NEG wrongly merged with another op
 				restS = restS + opS2 + leftS;
 				hasRest = !restS.isEmpty();
@@ -206,10 +216,10 @@ public class NExpression {
 			isRHSExpr = false;
 			DataType castType = DataType.getTypeCast(rightS);
 			if (castType != null) {
-				op = new TypeCast(castType);
+				op = new TypeCast(castType.typeDef());
 
 				//weird, but will work to get the cast end
-				String uncasted = rightS.substring(rightS.indexOf(')'));
+				String uncasted = rightS.substring(rightS.indexOf(')') + 1);
 				right = new NExpression(uncasted, line, cg).toThroughput(cg);
 			} else {
 				//No cast and...
@@ -219,7 +229,6 @@ public class NExpression {
 				//1) a number
 				//2) a variable
 				//3) a call
-				
 				right = DataType.getThroughput(rightS, cg);
 				if (right == null) {
 					//Not a number
@@ -234,7 +243,10 @@ public class NExpression {
 							//needs args in braces
 							int braceIdx = rightS.indexOf('(');
 							if (braceIdx == -1) {
-								line.throwException("Unresolved symbol: " + rightS);
+								for (Variable glb : cg.globals.variables) {
+									//System.err.println("has glb " + glb.name + " / " + glb.aliases);
+								}
+								line.throwException("Unresolved variable: " + rightS);
 							} else {
 								String methodName = rightS.substring(0, braceIdx);
 								BraceContent bc = Preprocessor.getContentInBraces(rightS, braceIdx);
@@ -255,7 +267,7 @@ public class NExpression {
 									}
 									ALocalCall ins;
 									ins = cg.getMethodCall(def, m);
-									right = new Throughput(m.retnType.baseType, ArraysEx.asList(ins));
+									right = new Throughput(m.retnType, ArraysEx.asList(ins));
 								} else {
 									line.throwException("Unresolved symbol: " + rightS);
 								}
@@ -275,6 +287,20 @@ public class NExpression {
 			}
 			if (hasRHS && isRHSExpr) {
 				right = new NExpression(rightS, line, cg).toThroughput(cg);
+			}
+
+			if (op instanceof Neg) {
+				//Merge negations into -(immediate constants) where possible
+				if (right != null && right.isImmediateConstant()) {
+					op = null;
+					int imm = right.getImmediateValue();
+					if (right.type.baseType == DataType.FLOAT && !cg.provider.getFloatingPointHandler().isFixedPoint()) {
+						imm ^= 0x80000000;
+					} else {
+						imm = -imm;
+					}
+					right.setImmediateConstantValue(imm);
+				}
 			}
 		}
 	}
@@ -329,9 +355,5 @@ public class NExpression {
 			}
 		}
 		return text.substring(trimSize, text.length() - trimSize);
-	}
-
-	private boolean isNameChar(char c) {
-		return Character.isLetterOrDigit(c) || LangConstants.allowedNonAlphaNumericNameCharacters.contains(c);
 	}
 }

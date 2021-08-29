@@ -41,14 +41,22 @@ public class LocalDataGraph extends DataGraph {
 		}
 		variables.removeAll(toRemove);
 		int argCount = stk;
+		//System.out.println("argcount " + stk);
 		for (int i = 0; i < variables.size(); i++) {
 			//System.out.println("Checking variable " + variables.get(i).index);
 			int expectedIndex = i;
 			if (i < argCount) {
-				expectedIndex = -argOffset - stk;
+				expectedIndex = -argOffset - argCount + i;
+			}
+			else {
+				//System.out.println("nonarg var " + variables.get(i).name);
+				expectedIndex -= argCount;
 			}
 			if (expectedIndex != variables.get(i).index) {
-				throw new UnsupportedOperationException("Tried to remove variable " + variables.get(i).name + " from in between the stack. (" + variables.get(i).index + ").");
+				System.err.println("All vars: " + variables);
+				throw new UnsupportedOperationException(
+					"Tried to remove variable " + variables.get(i).name + " from in between the stack. (" + variables.get(i).index + "). "
+					+ "Expected index " + expectedIndex);
 			}
 		}
 	}
@@ -58,6 +66,7 @@ public class LocalDataGraph extends DataGraph {
 			variables.add(0, v);
 			stk += v.getSizeOf(cg);
 			v.setNumeric(-argOffset - stk); //before stack frame
+			//System.out.println("adding " + v.name + " at " + v.index);
 		}
 		else {
 			addVariable(v, cg);

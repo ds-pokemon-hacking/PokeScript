@@ -50,7 +50,6 @@ public class PSIDELauncherNew {
 			SwingUtilities.invokeLater(() -> {
 				PSIDE_MAIN_PREFS.put(KEY_LAST_WORKSPACE, fWS.getRoot().getPath());
 				PSIDE ide = new PSIDE();
-				ide.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
 				ide.setVisible(true);
 				ide.loadWorkspace(fWS);
 			});

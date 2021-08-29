@@ -1,5 +1,7 @@
 package ctrmap.pokescript.stage0.content;
 
+import ctrmap.pokescript.InboundDefinition;
+import ctrmap.pokescript.LangConstants;
 import ctrmap.pokescript.data.ClassVariable;
 import ctrmap.pokescript.stage0.Preprocessor;
 import ctrmap.pokescript.data.Variable;
@@ -13,16 +15,16 @@ import ctrmap.pokescript.stage1.NCompilableMethod;
 import ctrmap.pokescript.stage1.NCompileGraph;
 import ctrmap.pokescript.stage1.NExpression;
 import ctrmap.pokescript.types.TypeDef;
+import ctrmap.pokescript.types.classes.ClassDefinition;
+import ctrmap.pokescript.types.declarers.DeclarerController;
+import ctrmap.stdlib.text.StringEx;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
 
 /**
  *
  */
 public class DeclarationContent extends AbstractContent {
-
-	public EffectiveLine line;
 
 	public String declaredName;
 	public String declaredExtendsName;
@@ -33,7 +35,7 @@ public class DeclarationContent extends AbstractContent {
 	public List<Argument> arguments = new ArrayList<>();
 
 	public DeclarationContent(EffectiveLine l) {
-		line = l;
+		super(l);
 	}
 
 	public boolean hasModifier(Modifier mod) {
@@ -44,12 +46,96 @@ public class DeclarationContent extends AbstractContent {
 		return hasModifier(Modifier.CLASSDEF);
 	}
 
+	public boolean isEnumDeclaration() {
+		return hasModifier(Modifier.ENUMDEF);
+	}
+
+	public boolean isClassOrEnumDeclaration() {
+		return isClassDeclaration() || isEnumDeclaration();
+	}
+
 	public boolean isVarDeclaration() {
 		return hasModifier(Modifier.VARIABLE);
 	}
 
 	public boolean isMethodDeclaration() {
-		return !isVarDeclaration() && !isClassDeclaration();
+		return !isVarDeclaration() && !isClassOrEnumDeclaration();
+	}
+
+	private Object declaredObject;
+
+	@Override
+	public void declareToGraph(NCompileGraph graph, DeclarerController declarer) {
+		if (isVarDeclaration()) {
+			if (line.context != EffectiveLine.AnalysisLevel.LOCAL) {
+				declaredType = getCorrectTypeDef(graph);
+
+				NExpression init_from = null;
+				if (initFromContent != null) {
+					init_from = new NExpression(initFromContent, line, graph);
+				}
+
+				if (hasModifier(Modifier.STATIC) || line.context == EffectiveLine.AnalysisLevel.GLOBAL) {
+					if (declarer.classDecl != null) {
+						Variable.Global g = new Variable.Global(
+							LangConstants.makePath(declarer.classDecl.def.className, declaredName),
+							declaredModifiers,
+							declaredType,
+							init_from,
+							graph
+						);
+						declarer.addGlobal(g);
+					} else {
+						line.throwException("Can not declare outside of a class!!");
+					}
+				} else {
+					//TODO class fields
+				}
+
+				if (init_from != null) {
+					Throughput tp = init_from.toThroughput(graph);
+					checkVariableInitType(tp);
+				}
+			}
+		} else if (isClassDeclaration()) {
+			declaredObject = declarer.beginClass(declaredName);
+			declarer.classDecl.def.modifiers.addAll(declaredModifiers);
+		} else if (isEnumDeclaration()) {
+			declaredObject = declarer.beginEnum(declaredName);
+			declarer.classDecl.def.modifiers.addAll(declaredModifiers);
+		} else if (isMethodDeclaration()) {
+			NCompilableMethod m = getMethod();
+			m.def.retnType = getCorrectTypeDef(graph);
+			for (Argument a : m.def.args) {
+				a.typeDef = getCorrectTypeDef(graph, a.typeDef);
+			}
+			declaredObject = m;
+			InboundDefinition def = m.def;
+			if (declarer.classDecl != null) {
+				def.name = LangConstants.makePath(declarer.classDecl.def.className, def.name);
+				declarer.addMethod(def);
+			} else {
+				line.throwException("Can not declare outside of a class!!");
+			}
+		}
+	}
+
+	private TypeDef getCorrectTypeDef(NCompileGraph graph) {
+		return getCorrectTypeDef(graph, declaredType);
+	}
+
+	private TypeDef getCorrectTypeDef(NCompileGraph graph, TypeDef td) {
+		if (td.isClassOrEnum()) {
+			ClassDefinition def = graph.resolveClass(td.className);
+			if (def == null) {
+				line.throwException("Could not resolve argument type " + td);
+				return td;
+			} else {
+				return def.getTypeDef();
+			}
+		} else {
+			return td;
+		}
 	}
 
 	@Override
@@ -62,47 +148,51 @@ public class DeclarationContent extends AbstractContent {
 
 			Variable result = null;
 
-			switch (line.context) {
-				case GLOBAL:
-				case CLASS:
-					if (hasModifier(Modifier.STATIC) || line.context == EffectiveLine.AnalysisLevel.GLOBAL) {
-						Variable.Global g = new Variable.Global(declaredName, declaredModifiers, declaredType, init_from, graph);
-						graph.addGlobal(g);
-						result = g;
-					} else {
-						ClassVariable cv = new ClassVariable(declaredName, declaredModifiers, declaredType, graph);
-						result = cv;
-					}
-					break;
-				case LOCAL:
-					Variable.Local l = new Variable.Local(declaredName, declaredModifiers, declaredType, graph);
-					graph.addLocal(l);
-					result = l;
-					break;
-			}
-			if (init_from != null) {
-				Throughput tp = init_from.toThroughput(graph);
-				if (tp != null) {
-					if (tp.type != declaredType.baseType) {
-						line.throwException("Invalid assignment type: " + tp.type + " for variable of type " + declaredType.getClassName() + ".");
-					} else {
+			if (line.context == EffectiveLine.AnalysisLevel.LOCAL) {
+				declaredType = getCorrectTypeDef(graph);
+
+				Variable.Local l = new Variable.Local(declaredName, declaredModifiers, declaredType, graph);
+				graph.addLocal(l);
+				graph.addInstruction(graph.getPlain(APlainOpCode.RESIZE_STACK, graph.provider.getMemoryInfo().getStackIndexingStep()));
+				result = l;
+				if (init_from != null) {
+					Throughput tp = init_from.toThroughput(graph);
+					if (checkVariableInitType(tp)) {
 						if (line.context == EffectiveLine.AnalysisLevel.LOCAL) {
-							graph.addInstructions(tp.getCode(declaredType.baseType));
+							graph.addInstructions(tp.getCode(declaredType));
 							graph.addInstruction(result.getWriteIns(graph));
 						}
 					}
 				}
 			}
-		} else if (declaredType.isClass()) {
-
-		} else {
-			NCompilableMethod m = getMethod();
-			m.initWithCompiler(line, graph);
-			if (m.metaHandler != null){
-				m.metaHandler.onDeclare(this);
+		} else if (isMethodDeclaration()) {
+			if (declaredObject instanceof NCompilableMethod) {
+				NCompilableMethod m = (NCompilableMethod) declaredObject;
+				m.initWithCompiler(line, graph);
+				if (m.metaHandler != null) {
+					m.metaHandler.onDeclare(this);
+				}
+				graph.addMethod(m);
 			}
-			graph.addMethod(m);
+		} else {
+			if (isClassOrEnumDeclaration()) {
+				if (declaredObject instanceof ClassDefinition) {
+					graph.currentClass = (ClassDefinition) declaredObject;
+				}
+			}
 		}
+	}
+
+	private boolean checkVariableInitType(Throughput tp) {
+		if (tp != null) {
+			if (!Throughput.checkImplicitCast(declaredType, tp.type)) {
+				line.throwException("Invalid assignment type: " + tp.type + " for variable of type " + declaredType + ".");
+				return true;
+			} else {
+				return true;
+			}
+		}
+		return false;
 	}
 
 	public NCompilableMethod getMethod() {
@@ -120,7 +210,7 @@ public class DeclarationContent extends AbstractContent {
 		}
 		str = Preprocessor.getStrWithoutTerminator(str);
 		int firstBrace = str.indexOf('(');
-		int firstEquals = str.indexOf('=');
+		int firstEquals = str.indexOf(LangConstants.CH_ASSIGNMENT);
 		int declarationEnd = -1;
 		if (firstBrace != -1) {
 			declarationEnd = firstBrace;
@@ -132,8 +222,14 @@ public class DeclarationContent extends AbstractContent {
 			declarationEnd = str.length();
 		}
 		String declStr = str.substring(0, declarationEnd).trim();
+		for (int i = 0; i < declStr.length(); i++) {
+			char c = declStr.charAt(i);
+			if (!(Character.isWhitespace(c) || LangConstants.isAllowedNameChar(c))) {
+				return null;
+			}
+		}
 		//the EffectiveLine preprocessor will already have removed duped whitespaces
-		String[] declCommands = declStr.split(" ");
+		String[] declCommands = StringEx.splitOnecharFast(declStr, ' ');
 		boolean modifiersDone = false;
 		DataType declaredType = null;
 		String declaredTypeName = null;
@@ -142,9 +238,12 @@ public class DeclarationContent extends AbstractContent {
 		if (declCommands.length < 2) {
 			return null;
 		}
+
+		boolean isClassDef = false;
+
 		for (String cmd : declCommands) {
 			if (declaredName != null) {
-				line.throwException("Assignment expected at command " + cmd);
+				return null;
 			}
 			if (declaredTypeName != null) {
 				declaredName = cmd;
@@ -162,15 +261,14 @@ public class DeclarationContent extends AbstractContent {
 			}
 			if (modifiersDone && declaredType == null) {
 				declaredType = DataType.fromName(cmd);
-				/*if (declaredType == null) {
-					if (!mods.isEmpty()) {
-						//if there were modifiers, it's sure to be a malformed declaration
-						line.throwException("Invalid data type: " + cmd);
+				declaredTypeName = cmd;
+
+				if (declaredType == null) {
+					declaredType = DataType.CLASS;
+				} else {
+					if (declaredType == DataType.CLASS || declaredType == DataType.ENUM) {
+						isClassDef = true;
 					}
-					return null;
-				}*/
-				if (declaredType != null || state.getClassDef(cmd) != null) {
-					declaredTypeName = cmd;
 				}
 			}
 		}
@@ -182,12 +280,12 @@ public class DeclarationContent extends AbstractContent {
 			cnt.declaredModifiers = mods;
 			//No going back, this is MEANT to be a declaration
 			for (Modifier m : mods) {
-				if (state.level == EffectiveLine.AnalysisLevel.LOCAL) {
+				if (state.getLevel() == EffectiveLine.AnalysisLevel.LOCAL) {
 					line.throwException("Modifier " + m + " is not allowed in a local context!");
 				}
 			}
 			char charAtDeclEnd = Preprocessor.safeCharAt(str, declarationEnd);
-			boolean hasSetting = charAtDeclEnd == '=';
+			boolean hasSetting = charAtDeclEnd == LangConstants.CH_ASSIGNMENT;
 			boolean isMethod = charAtDeclEnd == '(';
 
 			if (isMethod) {
@@ -195,13 +293,13 @@ public class DeclarationContent extends AbstractContent {
 					line.throwException(str + " A method can not be assigned with = !");
 				}
 				BraceContent braceCnt = Preprocessor.getContentInBraces(str, firstBrace);
-				String[] argsCommands = braceCnt.getContentInBraces().split(",");
+				String[] argsCommands = StringEx.splitOnecharFast(braceCnt.getContentInBraces(), LangConstants.CH_ELEMENT_SEPARATOR);
 				for (String argCmd : argsCommands) {
 					argCmd = argCmd.trim();
 					if (argCmd.isEmpty()) {
 						continue;
 					}
-					String[] argCmdCmds = argCmd.split(" ");
+					String[] argCmdCmds = StringEx.splitOnecharFast(argCmd, ' ');
 					if (argCmdCmds.length < 2) {
 						line.throwException("An argument declaration must contain at least a return type and a name. - " + braceCnt.getContentInBraces());
 					} else {
@@ -210,40 +308,38 @@ public class DeclarationContent extends AbstractContent {
 							//line.throwException("Unknown argument type: " + argCmdCmds[0]);
 						}*/
 						Argument a = new Argument();
-						
+
 						int defStart = 0;
-						for (; defStart < argCmdCmds.length; defStart++){
+						for (; defStart < argCmdCmds.length; defStart++) {
 							Modifier mod = Modifier.fromName(argCmdCmds[defStart]);
-							if (mod != null){
+							if (mod != null) {
 								a.requestedModifiers.add(mod);
-							}
-							else {
+							} else {
 								break;
 							}
 						}
-						
+
 						checkModifiers(a.requestedModifiers, Modifier.ModifierTarget.ARG, line);
 						a.typeDef = new TypeDef(argCmdCmds[defStart]);
-						
-						if (a.requestedModifiers.contains(Modifier.VAR)){
-							if (a.typeDef.baseType != DataType.CLASS){
+
+						if (a.requestedModifiers.contains(Modifier.VAR)) {
+							if (a.typeDef.baseType != DataType.CLASS) {
 								a.typeDef.baseType = a.typeDef.baseType.getVarType();
-							}
-							else {
+							} else {
 								line.throwException("A class parameter can not have the var modifier specified.");
 							}
 						}
-						
+
 						a.name = argCmdCmds[defStart + 1];
 						if (!Preprocessor.checkNameValidity(a.name)) {
 							line.throwException("Illegal character in name: " + a.name);
 						}
 						cnt.arguments.add(a);
-						
-						if (argCmdCmds.length != defStart + 2){
+
+						if (argCmdCmds.length != defStart + 2) {
 							//line.throwException("Too many parameters in argument declaration.");
-							for (int i = 0; i < argCmdCmds.length - 2; i++){
-								if (Modifier.fromName(argCmdCmds[i]) == null){
+							for (int i = 0; i < argCmdCmds.length - 2; i++) {
+								if (Modifier.fromName(argCmdCmds[i]) == null) {
 									line.throwException("Invalid modifier: " + argCmdCmds[i]);
 								}
 							}
@@ -262,19 +358,18 @@ public class DeclarationContent extends AbstractContent {
 						line.throwException("Non-native methods require a body.");
 					}
 				}
-				
-				int extendsIdx = str.indexOf(':', braceCnt.endIndex);
-				if (extendsIdx != -1){
+
+				int extendsIdx = str.indexOf(LangConstants.CH_METHOD_EXTENDS_IDENT, braceCnt.endIndex);
+				if (extendsIdx != -1) {
 					String extendsStr = str.substring(extendsIdx + 1, str.length()).trim();
-					
+
 					cnt.declaredExtendsName = extendsStr;
 				}
 				checkModifiers(cnt.declaredModifiers, Modifier.ModifierTarget.METHOD, line);
-			} else if (declaredType != DataType.CLASS) {
+			} else if (!isClassDef) {
 				if (declaredType == DataType.VOID) {
 					line.throwException("A variable can not be of the void type.");
 				}
-				cnt.declaredModifiers.add(Modifier.VARIABLE);
 				if (hasSetting) {
 					int initStart = declarationEnd + 1;
 					if (initStart >= str.length()) {
@@ -283,22 +378,34 @@ public class DeclarationContent extends AbstractContent {
 					cnt.initFromContent = Preprocessor.getStrWithoutTerminator(str.substring(initStart, str.length()).trim());
 				}
 				checkModifiers(cnt.declaredModifiers, Modifier.ModifierTarget.VAR, line);
+				cnt.declaredModifiers.add(Modifier.VARIABLE);
 			} else {
-				//Class definition
-				if (!line.hasType(EffectiveLine.LineType.BLOCK_START) || hasSetting) {
-					line.throwException("Class definitions should start with {");
+				if (declaredType != DataType.ENUM) {
+					//Class definition
+					if (!line.hasType(EffectiveLine.LineType.BLOCK_START) || hasSetting) {
+						line.throwException("Class definitions should start with {");
+					}
+
+					checkModifiers(cnt.declaredModifiers, Modifier.ModifierTarget.CLASS, line);
+					cnt.declaredModifiers.add(Modifier.CLASSDEF);
+				} else {
+					if (hasSetting) {
+						line.throwException("Enum definitions may not have an assignment.");
+					}
+
+					checkModifiers(cnt.declaredModifiers, Modifier.ModifierTarget.ENUM, line);
+					cnt.declaredModifiers.add(Modifier.ENUMDEF);
 				}
-				cnt.declaredModifiers.add(Modifier.CLASSDEF);
 			}
 			return cnt;
 		} else {
 			return null;
 		}
 	}
-	
-	public static void checkModifiers(List<Modifier> modifiers, Modifier.ModifierTarget tgt, EffectiveLine line){
-		for (Modifier m : modifiers){
-			if (!m.supportsTarget(tgt)){
+
+	public static void checkModifiers(List<Modifier> modifiers, Modifier.ModifierTarget tgt, EffectiveLine line) {
+		for (Modifier m : modifiers) {
+			if (!m.supportsTarget(tgt)) {
 				line.throwException("Modifier " + m.name + " not supported on target " + tgt);
 			}
 		}

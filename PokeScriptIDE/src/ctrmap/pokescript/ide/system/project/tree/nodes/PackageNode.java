@@ -122,8 +122,13 @@ public class PackageNode extends IDENodeBase {
 	protected JMenuItem createNewMenuItem(IDEFile parentFile) {
 		JMenu btnNew = new JMenu("New");
 		JMenuItem newClass = new JMenuItem("Class");
+		JMenuItem newHeader = new JMenuItem("Header");
+		JMenuItem newEnum = new JMenuItem("Enum");
 		JMenuItem newPackage = new JMenuItem("Package");
 		btnNew.add(newClass);
+		btnNew.add(newHeader);
+		btnNew.add(newEnum);
+		btnNew.addSeparator();
 		btnNew.add(newPackage);
 
 		class NewItemActionListener implements ActionListener {
@@ -141,8 +146,16 @@ public class PackageNode extends IDENodeBase {
 				IDEFile rsl = dlg.getResult();
 				if (rsl != null) {
 					switch (type) {
+						case HEADER:
+						case ENUM:
 						case CLASS: {
-							rsl.setBytes(PSIDE.getTemplateData("Class.pks", new PSIDETemplateVar("CLASSNAME", rsl.getNameWithoutExtension())));
+							String classType = type == NewItemDialog.IDEFileItemType.ENUM ? "enum" : "class";
+							
+							rsl.setBytes(PSIDE.getTemplateData("Class.pks", 
+								new PSIDETemplateVar("CLASSNAME", rsl.getNameWithoutExtension()),
+								new PSIDETemplateVar("CLASSTYPE", classType),
+								new PSIDETemplateVar("PKGNAME", dir.getClasspathInProject())
+							));
 							ide.openFile(rsl);
 							ClassNode cls = new ClassNode(ide, rsl);
 							int idx = getNewClassIndex(rsl.getName());
@@ -164,6 +177,8 @@ public class PackageNode extends IDENodeBase {
 		}
 
 		newClass.addActionListener(new NewItemActionListener(NewItemDialog.IDEFileItemType.CLASS));
+		newHeader.addActionListener(new NewItemActionListener(NewItemDialog.IDEFileItemType.HEADER));
+		newEnum.addActionListener(new NewItemActionListener(NewItemDialog.IDEFileItemType.ENUM));
 		newPackage.addActionListener(new NewItemActionListener(NewItemDialog.IDEFileItemType.PACKAGE));
 
 		return btnNew;

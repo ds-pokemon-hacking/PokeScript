@@ -12,6 +12,7 @@ import ctrmap.pokescript.stage0.EffectiveLine;
 import ctrmap.pokescript.stage0.Modifier;
 import ctrmap.pokescript.stage0.content.DeclarationContent;
 import ctrmap.pokescript.types.TypeDef;
+import ctrmap.pokescript.types.classes.ClassDefinition;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
@@ -27,13 +28,19 @@ public class NCompilableMethod {
 	public NCompilableMethod(String name, List<Modifier> mods, DeclarationContent.Argument[] args, TypeDef retnType) {
 		def = new InboundDefinition(name, args, retnType, mods);
 	}
+	
+	public NCompilableMethod(InboundDefinition def) {
+		this.def = def;
+	}
 
 	public void initWithCompiler(EffectiveLine line, NCompileGraph graph) {
 		addInstruction(graph.getPlain(APlainOpCode.BEGIN_METHOD));
 
 		locals = new LocalDataGraph(graph);
+		//System.out.println("METHOD " + def.name);
 		for (int i = 0; i < def.args.length; i++) {
-			locals.addVariableUnderStackFrame(new Variable.Local(def.args[i].name, new ArrayList<Modifier>(), def.args[i].typeDef, graph), graph);
+			//System.out.println("ADDING ARGLOCAL " + def.args[i].typeDef);
+			locals.addVariableUnderStackFrame(new Variable.Local(def.args[i].name, new ArrayList<>(), def.args[i].typeDef, graph), graph);
 		}
 
 		if (hasModifier(Modifier.META)) {

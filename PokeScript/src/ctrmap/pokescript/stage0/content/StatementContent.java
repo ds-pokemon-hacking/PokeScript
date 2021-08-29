@@ -1,5 +1,6 @@
 package ctrmap.pokescript.stage0.content;
 
+import ctrmap.pokescript.LangConstants;
 import ctrmap.pokescript.expr.Throughput;
 import ctrmap.pokescript.stage0.Preprocessor;
 import ctrmap.pokescript.instructions.abstractcommands.AInstruction;
@@ -15,17 +16,19 @@ import ctrmap.pokescript.stage1.NCompileGraph;
 import ctrmap.pokescript.stage1.NExpression;
 import ctrmap.pokescript.stage1.PendingLabel;
 import ctrmap.pokescript.types.DataType;
+import ctrmap.pokescript.types.declarers.DeclarerController;
+import ctrmap.stdlib.text.StringEx;
+import ctrmap.stdlib.util.ArraysEx;
 import java.util.ArrayList;
 import java.util.List;
 
 public class StatementContent extends AbstractContent {
 
-	public EffectiveLine line;
 	public Statement statement;
 	public List<String> arguments = new ArrayList<>();
 
 	public StatementContent(Statement statement, EffectiveLine line, int contentStart) {
-		this.line = line;
+		super(line);
 		this.statement = statement;
 		String source = line.data;
 
@@ -56,35 +59,76 @@ public class StatementContent extends AbstractContent {
 				if (!args.hasIntegrity) {
 					line.throwException("Unbalanced statement arguments - ) expected at " + source);
 				}
-				String[] argsSplit = args.getContentInBraces().split(";");
-				for (String arg : argsSplit) {
-					String at = arg.trim();
-					if (!at.isEmpty()) {
-						arguments.add(at);
-					}
-				}
+				String[] argsSplit = StringEx.splitOnecharFastNoBlank(args.getContentInBraces(), LangConstants.CH_STATEMENT_SEPARATOR);
+				arguments.addAll(ArraysEx.asList(argsSplit));
 			} else {
-				//only one argument is possible here
+				//arguments separated with gaps
 				String at = Preprocessor.getStrWithoutTerminator(source.substring(realStart)).trim();
 				if (!at.isEmpty()) {
-					arguments.add(at);
+					StringBuilder sb = new StringBuilder();
+					int bl = 0;
+					for (int i = 0; i < at.length(); i++) {
+						char c = at.charAt(i);
+						switch (c) {
+							case '(':
+								bl++;
+								break;
+							case ')':
+								bl--;
+								break;
+							case ' ':
+								if (bl == 0) {
+									arguments.add(sb.toString());
+									sb = new StringBuilder();
+								}
+								break;
+						}
+						sb.append(c);
+					}
+					if (sb.length() != 0) {
+						arguments.add(sb.toString());
+					}
 				}
 			}
 
 			if (arguments.isEmpty() && statement.hasFlag(EffectiveLine.StatementFlags.NEEDS_ARGUMENTS)) {
 				line.throwException("Illegal statement - statement " + statement + " requires arguments.");
 			}
-			if (statement.hasFlag(EffectiveLine.StatementFlags.PREPROCESSOR_STATEMENT)) {
+			/*if (statement.hasFlag(EffectiveLine.StatementFlags.PREPROCESSOR_STATEMENT)) {
 				if (arguments.size() > 1) {
 					line.throwException("Illegal preprocessor statement - preprocessor statements can only have 1 argument, got " + arguments.size() + ".");
 				}
-			}
+			}*/
 		}
 	}
 
 	@Override
 	public CompilerContentType getContentType() {
 		return CompilerContentType.STATEMENT;
+	}
+
+	@Override
+	public void declareToGraph(NCompileGraph graph, DeclarerController declarer) {
+		if (statement == Statement.PACKAGE) {
+			if (arguments.size() != 1) {
+				line.throwException("Package can have only one argument.");
+			}
+			String packageName = arguments.get(0);
+			declarer.setPackage(packageName);
+		} else if (statement == Statement.IMPORT) {
+			if (arguments.size() != 1) {
+				line.throwException("Import can have exactly one argument.");
+			}
+			String importPath = arguments.get(0);
+			boolean success = graph.ensureIncludeForPath(importPath); //this ensures the inclusion of the import's compile graph
+			if (!success) {
+				line.throwException("Unresolved import: " + importPath);
+			}
+			String parentPath = getTrimmedImport(importPath);
+			graph.importedNamespaces.add(importPath);
+			graph.applyImport(parentPath);
+			graph.includedClasses.add(importPath);
+		}
 	}
 
 	@Override
@@ -95,20 +139,6 @@ public class StatementContent extends AbstractContent {
 				l.add(graph.getPlain(APlainOpCode.ZERO_PRI));
 				l.add(graph.getPlain(APlainOpCode.ZERO_ALT));
 				l.add(graph.getPlain(APlainOpCode.ABORT_EXECUTION, 12));
-				break;
-			case IMPORT:
-				if (arguments.size() != 1) {
-					line.throwException("Import can have exactly one argument.");
-				}
-				String importPath = arguments.get(0);
-				boolean success = graph.ensureIncludeForPath(importPath); //this ensures the inclusion of the import's compile graph
-				if (!success) {
-					line.throwException("Unresolved import: " + importPath);
-				}
-				String parentPath = getTrimmedImport(importPath);
-				graph.importedNamespaces.add(importPath);
-				graph.applyImport(parentPath);
-				graph.includedClasses.add(importPath);
 				break;
 			case BREAK: {
 				String label = null;
@@ -145,16 +175,25 @@ public class StatementContent extends AbstractContent {
 
 				NCompilableMethod m = graph.getCurrentMethod();
 
-				if (expr != null) {
-					l.addAll(expr.toThroughput(graph).getCode(m.def.retnType.baseType));
-				} else {
-					if (m.def.retnType.baseType != DataType.VOID) {
-						line.throwException("Expected a return value.");
+				if (m != null) {
+					if (expr != null) {
+						l.addAll(expr.toThroughput(graph).getCode(m.def.retnType));
+					} else {
+						if (m.def.retnType.baseType != DataType.VOID) {
+							line.throwException("Expected a return value.");
+						}
+						l.add(graph.getPlain(APlainOpCode.ZERO_PRI));
 					}
-					l.add(graph.getPlain(APlainOpCode.ZERO_PRI));
+					if (m.locals != null) {
+						l.add(graph.getLocalsRemoveIns(m.locals.getNonArgVars())); //removes all the locals used in the method so far
+					}
+					else {
+						line.throwException("Internal error: method not initialized " + m.def);
+					}
+					l.add(graph.getPlain(APlainOpCode.RETURN));
+				} else {
+					line.throwException("No method to return from!");
 				}
-				l.add(graph.getLocalsRemoveIns(m.locals.getNonArgVars())); //removes all the locals used in the method so far
-				l.add(graph.getPlain(APlainOpCode.RETURN));
 				break;
 			}
 			case SWITCH: {
@@ -163,8 +202,8 @@ public class StatementContent extends AbstractContent {
 				NExpression expr = getExprArg(graph);
 				if (expr != null) {
 					Throughput tp = expr.toThroughput(graph);
-					if (tp.checkCast(DataType.INT, line)) {
-						l.addAll(expr.toThroughput(graph).getCode(DataType.INT));
+					if (tp.checkImplicitCast(DataType.INT.typeDef(), line)) {
+						l.addAll(expr.toThroughput(graph).getCode(DataType.INT.typeDef()));
 					} else {
 						line.throwException("A switch statement requires an integer target.");
 					}
@@ -190,7 +229,7 @@ public class StatementContent extends AbstractContent {
 					line.throwException("An if statement requires a condition.");
 				}
 
-				l.add(ifBlock.blockBeginAdjustStackIns);
+				//l.add(ifBlock.blockBeginAdjustStackIns);
 				ifBlock.blockEndControlInstruction = graph.provider.getConditionJump(APlainOpCode.JUMP, ifBlock.getBlockHaltFullLabel());
 				break;
 			}
@@ -218,7 +257,7 @@ public class StatementContent extends AbstractContent {
 				if (statement == Statement.ELSE_IF) {
 					elseBlock.blockEndControlInstruction = graph.provider.getConditionJump(APlainOpCode.JUMP, elseBlock.getBlockHaltFullLabel());
 				}
-				l.add(elseBlock.blockBeginAdjustStackIns);
+				//l.add(elseBlock.blockBeginAdjustStackIns);
 				//The if statement jumps to the beginning to the else statement if it fails naturally.
 				//However, we also need it to jump to the end of the whole chain if it succeeds.
 				elseBlock.setChainJumpArg0(elseBlock.getBlockHaltFullLabel());
@@ -235,39 +274,40 @@ public class StatementContent extends AbstractContent {
 					line.throwException("A while statement requires a condition.");
 				}
 
-				l.add(whileBlock.blockBeginAdjustStackIns);
+				//l.add(whileBlock.blockBeginAdjustStackIns);
 				whileBlock.blockEndControlInstruction = graph.provider.getConditionJump(APlainOpCode.JUMP, whileBlock.fullBlockName);
 				break;
 			}
 			case FOR: {
-				//CompileBlock forDeclBlock = new CompileBlock(statement, graph);
+				CompileBlock forDeclBlock = new CompileBlock(statement, graph);
 				CompileBlock forBlock = new CompileBlock(statement, graph);
 				forBlock.explicitAdjustStack = false;
-				//forBlock.popNext = true;
+				forBlock.popNext = true;
 				//graph.pushBlock(forDeclBlock);
 				EffectiveLine.AnalysisState dummyState = new EffectiveLine.AnalysisState();
-				dummyState.level = EffectiveLine.AnalysisLevel.LOCAL;
+				dummyState.incrementBlock(EffectiveLine.AnalysisLevel.LOCAL);
 				if (arguments.size() == 3) {
 					boolean isLeakDecl = graph.getIsBoolPragmaEnabledSimple(CompilerPragma.LEAK_FOR_DECL);
 					if (!isLeakDecl) {
-						graph.pushBlock(forBlock);
+						graph.pushBlock(forDeclBlock);
 					}
 					DeclarationContent tryDecl = DeclarationContent.getDeclarationCnt(arguments.get(0), line, dummyState);
 					if (tryDecl != null) {
 						tryDecl.addToGraph(graph);
 					}
 					if (isLeakDecl) {
-						graph.pushBlock(forBlock);
+						graph.pushBlock(forDeclBlock);
 					}
+					graph.pushBlock(forBlock);
 					PendingLabel effectiveStart = graph.addPendingLabel("FOR_effective_start");
 					NExpression condition = getExprArg(graph, 1);
 					addCondToList(condition, l, graph.provider.getConditionJump(APlainOpCode.JUMP_IF_ZERO, forBlock.getBlockHaltFullLabel()), graph);
-					l.add(forBlock.blockBeginAdjustStackIns);
+					//l.add(forBlock.blockBeginAdjustStackIns);
 					NExpression expr = getExprArg(graph, 2);
 					if (expr != null) {
 						Throughput tp = expr.toThroughput(graph);
 						if (tp != null) {
-							forBlock.blockEndInstructions.addAll(tp.getCode(DataType.ANY));
+							forBlock.blockEndInstructions.addAll(tp.getCode(DataType.ANY.typeDef()));
 						}
 					}
 					forBlock.blockEndControlInstruction = graph.provider.getConditionJump(APlainOpCode.JUMP, effectiveStart.getFullLabel());
@@ -286,9 +326,15 @@ public class StatementContent extends AbstractContent {
 						graph.addLabelRequest(label);
 						l.add(graph.provider.getConditionJump(APlainOpCode.JUMP, label));
 					}
-				}
-				else {
+				} else {
 					line.throwException("This compiler does not support the goto statement.");
+				}
+				break;
+			}
+			case P_PRAGMA: {
+				CompilerPragma.PragmaValue val = CompilerPragma.tryIdentifyPragma(this, line);
+				if (val != null) {
+					graph.pragmata.put(val.pragma, val);
 				}
 				break;
 			}
@@ -299,8 +345,8 @@ public class StatementContent extends AbstractContent {
 	private void addCondToList(NExpression expr, List<AInstruction> l, AInstruction endJump, NCompileGraph cg) {
 		if (expr != null) {
 			Throughput tp = expr.toThroughput(cg);
-			if (tp.checkCast(DataType.BOOLEAN, line)) {
-				l.addAll(tp.getCode(DataType.BOOLEAN));
+			if (tp.checkImplicitCast(DataType.BOOLEAN.typeDef(), line)) {
+				l.addAll(tp.getCode(DataType.BOOLEAN.typeDef()));
 				l.add(endJump);
 			}
 		}
@@ -321,7 +367,7 @@ public class StatementContent extends AbstractContent {
 	}
 
 	private String getTrimmedImport(String str) {
-		int liodot = str.lastIndexOf('.');
+		int liodot = str.lastIndexOf(LangConstants.CH_PATH_SEPARATOR);
 		if (liodot != -1) {
 			str = str.substring(0, liodot);
 		}

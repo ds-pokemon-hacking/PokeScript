@@ -8,7 +8,7 @@ public class PawnFloatLib {
 
 	public static final String LIBRARY_NAME = "Float";
 
-	public static final InboundDefinition _float = new InboundDefinition("float",
+	public static final InboundDefinition _float = InboundDefinition.makeResidentNative("float",
 			new DeclarationContent.Argument[]{
 				new DeclarationContent.Argument("value", DataType.INT.typeDef())
 			},
@@ -23,7 +23,7 @@ public class PawnFloatLib {
 	2 = ceil
 	3 = toZero
 	 */
-	public static final InboundDefinition floatround = new InboundDefinition("floatround",
+	public static final InboundDefinition floatround = InboundDefinition.makeResidentNative("floatround",
 			new DeclarationContent.Argument[]{
 				new DeclarationContent.Argument("value", DataType.FLOAT.typeDef()),
 				new DeclarationContent.Argument("roundingMethod", DataType.INT.typeDef())

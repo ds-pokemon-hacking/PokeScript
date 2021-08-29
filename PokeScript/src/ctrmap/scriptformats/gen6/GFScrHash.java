@@ -24,6 +24,16 @@ public class GFScrHash {
 		return hash;
 	}
 
+	public static long getHash64(String str) {
+		long hash = 0;
+
+		for (int i = 0; i < str.length(); i++) {
+			hash = GF_FNV0_PRIME * hash ^ str.charAt(i);
+		}
+
+		return hash;
+	}
+	
 	public static int getHash(byte[] arr) {
 		int hash = 0;
 

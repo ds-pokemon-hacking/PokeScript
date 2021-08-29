@@ -86,7 +86,7 @@ public class NewItemDialog extends javax.swing.JDialog {
 
         headingLabel = new javax.swing.JLabel();
         separator = new javax.swing.JSeparator();
-        jLabel1 = new javax.swing.JLabel();
+        nameLabel = new javax.swing.JLabel();
         fileName = new javax.swing.JTextField();
         btnFinish = new javax.swing.JButton();
         btnCancel = new javax.swing.JButton();
@@ -96,9 +96,9 @@ public class NewItemDialog extends javax.swing.JDialog {
 
         headingLabel.setFont(new java.awt.Font("Consolas", 0, 24)); // NOI18N
         headingLabel.setForeground(new java.awt.Color(51, 51, 51));
-        headingLabel.setText("Add a new " + (type == IDEFileItemType.CLASS ? "class" : "package"));
+        headingLabel.setText("Add a new " + (getTypeHeaderName()));
 
-        jLabel1.setText("Name:");
+        nameLabel.setText("Name:");
 
         btnFinish.setText("Finish");
         btnFinish.setEnabled(false);
@@ -132,7 +132,7 @@ public class NewItemDialog extends javax.swing.JDialog {
                     .addGroup(layout.createSequentialGroup()
                         .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
                             .addComponent(headingLabel, javax.swing.GroupLayout.PREFERRED_SIZE, 322, javax.swing.GroupLayout.PREFERRED_SIZE)
-                            .addComponent(jLabel1))
+                            .addComponent(nameLabel))
                         .addGap(0, 79, Short.MAX_VALUE))
                     .addComponent(hintLabel, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE))
                 .addContainerGap())
@@ -145,7 +145,7 @@ public class NewItemDialog extends javax.swing.JDialog {
                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
                 .addComponent(separator, javax.swing.GroupLayout.PREFERRED_SIZE, 10, javax.swing.GroupLayout.PREFERRED_SIZE)
                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
-                .addComponent(jLabel1)
+                .addComponent(nameLabel)
                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
                 .addComponent(fileName, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
@@ -164,13 +164,42 @@ public class NewItemDialog extends javax.swing.JDialog {
 		dispose();
     }//GEN-LAST:event_btnCancelActionPerformed
 
+	private String getExtensionForType() {
+		switch (type) {
+			case CLASS:
+			case ENUM:
+				return LangConstants.LANG_SOURCE_FILE_EXTENSION;
+			case HEADER:
+				return LangConstants.LANG_GENERAL_HEADER_EXTENSION;
+			case PACKAGE:
+				return "";
+		}
+		return "";
+	}
+	
+	private String getTypeHeaderName() {
+		switch (type) {
+			case CLASS:
+				return "class";
+			case HEADER:
+				return "header";
+			case PACKAGE:
+				return "package";
+			case ENUM:
+				return "enum";
+		}
+		return "";
+	}
+	
     private void btnFinishActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_btnFinishActionPerformed
-		result = parentFile.getChild(fileName.getText() + (type == IDEFileItemType.CLASS ? LangConstants.LANG_SOURCE_FILE_EXTENSION : ""));
+		result = parentFile.getChild(fileName.getText() + getExtensionForType());
 		dispose();
     }//GEN-LAST:event_btnFinishActionPerformed
 
 	public enum IDEFileItemType {
 		CLASS,
+		ENUM,
+		HEADER,
 		PACKAGE
 	}
 
@@ -180,7 +209,7 @@ public class NewItemDialog extends javax.swing.JDialog {
     private javax.swing.JTextField fileName;
     private javax.swing.JLabel headingLabel;
     private javax.swing.JLabel hintLabel;
-    private javax.swing.JLabel jLabel1;
+    private javax.swing.JLabel nameLabel;
     private javax.swing.JSeparator separator;
     // End of variables declaration//GEN-END:variables
 }

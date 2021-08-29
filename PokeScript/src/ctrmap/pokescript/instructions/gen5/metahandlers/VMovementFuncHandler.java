@@ -64,7 +64,7 @@ public class VMovementFuncHandler implements MetaFunctionHandler {
 			if (arg.isImmediate()) {
 				imVal = arg.getImmediateValue();
 			} else {
-				l.addAll(NTRInstructionCall.compileIL(arg.getCode(DataType.INT), g));
+				l.addAll(NTRInstructionCall.compileIL(arg.getCode(DataType.INT.typeDef()), g));
 			}
 		}
 

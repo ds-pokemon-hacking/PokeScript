@@ -1,10 +1,15 @@
 package ctrmap.pokescript.ide.autocomplete.gui;
 
 import ctrmap.pokescript.ide.autocomplete.nodes.AbstractNode;
+import ctrmap.pokescript.ide.autocomplete.nodes.ClassNode;
+import ctrmap.pokescript.ide.autocomplete.nodes.MemberNode;
+import ctrmap.pokescript.ide.autocomplete.nodes.PackageNode;
+import ctrmap.pokescript.stage0.Modifier;
 import ctrmap.stdlib.math.MathEx;
 import java.awt.Color;
 import java.awt.Component;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import javax.swing.DefaultListModel;
 import javax.swing.JList;
@@ -32,6 +37,39 @@ public class ACMainWindow extends javax.swing.JWindow {
 		if (!content.isEmpty() && oldContent.containsAll(content) && content.containsAll(oldContent)){
 			return;
 		}
+		
+		List<PackageNode> packages = new ArrayList<>();
+		List<ClassNode> classes = new ArrayList<>();
+		List<MemberNode> methods = new ArrayList<>();
+		List<MemberNode> fields = new ArrayList<>();
+		for (AbstractNode n : content) {
+			if (n instanceof PackageNode) {
+				packages.add((PackageNode)n);
+			}
+			else if (n instanceof ClassNode) {
+				classes.add((ClassNode)n);
+			}
+			else if (n instanceof MemberNode) {
+				MemberNode mn = (MemberNode) n;
+				if (mn.member.hasModifier(Modifier.VARIABLE)) {
+					fields.add(mn);
+				}
+				else {
+					methods.add(mn);
+				}
+			}
+		}
+		Collections.sort(packages);
+		Collections.sort(classes);
+		Collections.sort(methods);
+		Collections.sort(fields);
+		
+		content.clear();
+		content.addAll(packages);
+		content.addAll(classes);
+		content.addAll(methods);
+		content.addAll(fields);
+		
 		oldContent = content;
 		hintModel.clear();
 		hintModel.ensureCapacity(content.size());

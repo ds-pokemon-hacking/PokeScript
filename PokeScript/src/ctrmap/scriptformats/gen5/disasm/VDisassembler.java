@@ -39,7 +39,10 @@ public class VDisassembler {
 				readScriptHeader(dis);
 
 				for (LinkPrototype p : publics) {
-					readMethod(dis, p).isPublic = true;
+					DisassembledMethod m = readMethod(dis, p);
+					if (m != null) {
+						m.isPublic = true;
+					}
 				}
 
 				dis.close();
@@ -151,6 +154,9 @@ public class VDisassembler {
 	}
 
 	private DisassembledMethod readMethod(DataIOStream dis, LinkPrototype lp) throws IOException {
+		if (findMethodByPtr(lp.targetOffset) != null) {
+			return null;
+		}
 		System.out.println("Reading method at " + Integer.toHexString(lp.targetOffset));
 		int methodPtr = lp.targetOffset;
 		dis.seek(methodPtr);
@@ -224,7 +230,8 @@ public class VDisassembler {
 						}
 						break FuncReader;
 					case JUMP:
-						jumpLinks.add(new LinkPrototype(dis, call.args[call.args.length - 1]));
+						LinkPrototype link = new LinkPrototype(dis, call.args[call.args.length - 1]);
+						jumpLinks.add(link);
 						break;
 					case MOVEMENT_JUMP:
 						movementJumps.add(new LinkPrototype(dis, call.args[call.args.length - 1]));
@@ -235,7 +242,8 @@ public class VDisassembler {
 				}
 			}
 		}
-
+		
+		System.out.println("Method end at " + Integer.toHexString(dis.getPosition()));
 		methods.add(m);
 
 		for (LinkPrototype movementCall : movementJumps) {

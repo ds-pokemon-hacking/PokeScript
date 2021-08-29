@@ -1,22 +1,19 @@
 package ctrmap.pokescript.stage0.content;
 
+import ctrmap.pokescript.LangConstants;
 import ctrmap.pokescript.stage0.BraceContent;
 import ctrmap.pokescript.stage0.CompilerAnnotation;
 import ctrmap.pokescript.stage0.EffectiveLine;
 import ctrmap.pokescript.stage0.Preprocessor;
 import ctrmap.pokescript.stage1.NCompileGraph;
+import ctrmap.stdlib.text.StringEx;
 
-/**
- *
- */
 public class AnnotationContent extends AbstractContent {
-
-	private EffectiveLine line;
 
 	public CompilerAnnotation annot;
 
 	public AnnotationContent(EffectiveLine line) {
-		this.line = line;
+		super(line);
 		String data = line.getUnterminatedData();
 
 		EffectiveLine.Word annotName = EffectiveLine.getWord(1, data);
@@ -30,11 +27,11 @@ public class AnnotationContent extends AbstractContent {
 				line.throwException("Unclosed bracket.");
 			}
 			else {
-				String[] argDefs = braceCnt.getContentInBraces().split(",");
+				String[] argDefs = StringEx.splitOnecharFast(braceCnt.getContentInBraces(), LangConstants.CH_ELEMENT_SEPARATOR);
 				
 				for (String argDef : argDefs){
 					argDef = argDef.trim();
-					int asgnIdx = argDef.indexOf('=');
+					int asgnIdx = argDef.indexOf(LangConstants.CH_ASSIGNMENT);
 					if (asgnIdx == -1){
 						line.throwException("No argument assignment.");
 					}

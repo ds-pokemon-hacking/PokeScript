@@ -2,6 +2,7 @@ package ctrmap.pokescript;
 
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -9,8 +10,8 @@ public class MemberDocumentation {
 
 	public String header;
 
-	public Map<String, String> params = new HashMap<>();
-	public Map<String, String> exceptions = new HashMap<>();
+	public Map<String, String> params = new LinkedHashMap<>();
+	public Map<String, String> exceptions = new LinkedHashMap<>();
 	public List<String> returns = new ArrayList<>();
 
 	public MemberDocumentation(String src){
@@ -38,7 +39,7 @@ public class MemberDocumentation {
 					String errDesc = streamLineComment(garbo[i].substring(getIdxAfter(garbo[i], errName)));
 					exceptions.put(errName, errDesc);
 					break;
-				case "returns":
+				case "return":
 					returns.add(streamLineComment(garbo[i].substring(getIdxAfter(garbo[i], cmd))));
 					break;
 			}

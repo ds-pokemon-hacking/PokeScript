@@ -64,7 +64,7 @@ public class VNativeCall extends ANativeCall {
 					Variable var = call.args[i].getVariable();
 					nativeArgs[i] = var.index + VConstants.VAR_START_LOCAL;
 				} else {
-					l.addAll(NTRInstructionCall.compileIL(call.args[i].getCode(DataType.ANY), g));
+					l.addAll(NTRInstructionCall.compileIL(call.args[i].getCode(DataType.ANY.typeDef()), g));
 
 					//the result is now in the primary GPR
 					int destVar = VConstants.VAR_START_LOCAL + localsCount + usedExtraLocalsNum;

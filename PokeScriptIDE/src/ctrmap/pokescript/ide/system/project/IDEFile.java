@@ -1,5 +1,7 @@
 package ctrmap.pokescript.ide.system.project;
 
+import ctrmap.pokescript.LangConstants;
+import ctrmap.pokescript.ide.FileEditorRSTA;
 import ctrmap.pokescript.stage0.Preprocessor;
 import ctrmap.stdlib.fs.FSFile;
 import ctrmap.stdlib.fs.accessors.FSFileAdapter;
@@ -30,8 +32,8 @@ public class IDEFile extends FSFileAdapter {
 	public void addIDEFileListener(IDEFileListener l) {
 		ArraysEx.addIfNotNullOrContains(listeners, l);
 	}
-	
-	public void removeIDEFileListener(IDEFileListener l){
+
+	public void removeIDEFileListener(IDEFileListener l) {
 		listeners.remove(l);
 	}
 
@@ -41,9 +43,21 @@ public class IDEFile extends FSFileAdapter {
 		}
 	}
 
-	public void saveNotify() {
-		for (IDEFileListener l : listeners) {
-			l.onSaved(this);
+	public void saveNotify(FileEditorRSTA.SaveResult result) {
+		if (source.canRead()) {
+			compiler.read(source);
+			for (IDEFileListener l : listeners) {
+				l.onSaved(this, result);
+			}
+		}
+	}
+
+	public void closeNotify() {
+		if (source.canRead()) {
+			compiler.read(source);
+			for (IDEFileListener l : listeners) {
+				l.onClosed(this);
+			}
 		}
 	}
 
@@ -87,6 +101,10 @@ public class IDEFile extends FSFileAdapter {
 			return getPath();
 		}
 		return getPathRelativeTo(project.getSourceDir());
+	}
+
+	public String getClasspathInProject() {
+		return getPathInProject().replace('/', LangConstants.CH_PATH_SEPARATOR);
 	}
 
 	public Preprocessor getCompiler() {

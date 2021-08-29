@@ -156,7 +156,7 @@ public class BS2PKS {
 		for (Map.Entry<String, List<BSFunc>> e : funcsPerPackage.entrySet()) {
 			String classPath = e.getKey().replace('.', '/');
 			String className = FSUtil.getFileName(classPath);
-			FSFile target = includesRoot.getChild(classPath + LangConstants.NATIVE_DEFINITION_EXTENSION);
+			FSFile target = includesRoot.getChild(classPath + LangConstants.LANG_GENERAL_HEADER_EXTENSION);
 
 			target.getParent().mkdirs();
 

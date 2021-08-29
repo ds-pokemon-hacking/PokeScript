@@ -41,7 +41,7 @@ public class IDEProjectManifest extends LibraryManifest {
 	}
 
 	public void setMainClass(String classPath) {
-		root.getOrCreateChildKeyByName(ProjectAttributes.AK_MAIN_CLASS).setValue(classPath);
+		root.getEnsureChildByName(ProjectAttributes.AK_MAIN_CLASS).setValue(classPath);
 		saveProjectData();
 	}
 

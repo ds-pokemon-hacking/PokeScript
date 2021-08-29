@@ -1,10 +1,11 @@
 package ctrmap.pokescript.instructions.ctr;
 
-import ctrmap.scriptformats.gen6.PawnInstruction;
 import ctrmap.pokescript.instructions.abstractcommands.ACompiledInstruction;
 import ctrmap.pokescript.instructions.abstractcommands.APlainInstruction;
 import ctrmap.pokescript.instructions.abstractcommands.APlainOpCode;
 import ctrmap.pokescript.stage1.NCompileGraph;
+import ctrmap.scriptformats.gen6.PawnInstruction;
+import ctrmap.scriptformats.gen6.PawnOpCode;
 import ctrmap.stdlib.util.ArraysEx;
 import java.util.List;
 
@@ -18,10 +19,10 @@ public class PawnPlainInstruction extends APlainInstruction {
 
 	public PawnPlainInstruction(APlainOpCode opCode, int... args) {
 		super(opCode, args);
-		PawnInstruction.Commands cmd = PokeScriptToPawnOpCode.getOpCode(opCode);
-		
+		PawnOpCode cmd = PokeScriptToPawnOpCode.getOpCode(opCode);
+
 		if (args.length != 0) {
-			ins = new PawnInstruction(cmd, args);
+			ins = new PawnInstruction(cmd, int2LongArray(args));
 		} else {
 			ins = new PawnInstruction(cmd);
 		}
@@ -34,8 +35,15 @@ public class PawnPlainInstruction extends APlainInstruction {
 
 	@Override
 	public List<? extends ACompiledInstruction> compile(NCompileGraph g) {
-		ins.argumentCells = args;
+		ins.arguments = int2LongArray(args);
 		return ArraysEx.asList(ins);
 	}
 
+	public static long[] int2LongArray(int[] ia) {
+		long[] longArr = new long[ia.length];
+		for (int i = 0; i < ia.length; i++) {
+			longArr[i] = ia[i];
+		}
+		return longArr;
+	}
 }

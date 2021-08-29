@@ -1,3 +1,5 @@
-public class %CLASSNAME% {
+package %PKGNAME%;
+
+public %CLASSTYPE% %CLASSNAME% {
 
 }

@@ -1,23 +1,23 @@
 package ctrmap.pokescript.expr;
 
 import ctrmap.pokescript.types.DataType;
-import ctrmap.scriptformats.gen6.PawnInstruction;
 import ctrmap.pokescript.instructions.abstractcommands.APlainOpCode;
+import ctrmap.pokescript.types.TypeDef;
 
 public class Equals extends CmnCompOp{
 	@Override
-	public DataType getInputTypeLHS() {
-		return DataType.ANY; //accepts any types
+	public TypeDef getInputTypeLHS() {
+		return DataType.ANY.typeDef(); //accepts any types
 	}
 	
 	@Override
-	public DataType getInputTypeRHS() {
-		return DataType.ANY; //accepts any types
+	public TypeDef getInputTypeRHS() {
+		return DataType.ANY.typeDef(); //accepts any types
 	}
 
 	@Override
-	public DataType getOutputType() {
-		return DataType.BOOLEAN;
+	public TypeDef getOutputType() {
+		return DataType.BOOLEAN.typeDef();
 	}	
 
 	@Override

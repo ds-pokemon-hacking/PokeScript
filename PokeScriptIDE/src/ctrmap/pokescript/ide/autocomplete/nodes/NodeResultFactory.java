@@ -26,7 +26,7 @@ public class NodeResultFactory {
 		NodeResult nr = new NodeResult();
 		StringBuilder sb = new StringBuilder();
 		
-		sb.append(method.name);
+		sb.append(method.getSimpleName());
 		sb.append("(");
 		int[] argOffsets = new int[method.args.length];
 		for (int i = 0; i < method.args.length; i++){

@@ -1,8 +1,10 @@
 package ctrmap.pokescript.instructions.ctr.instructions;
 
-import ctrmap.scriptformats.gen6.PawnInstruction;
 import ctrmap.pokescript.instructions.abstractcommands.ACaseTable;
+import ctrmap.pokescript.instructions.ctr.PawnPlainInstruction;
 import ctrmap.pokescript.stage1.NCompileGraph;
+import ctrmap.scriptformats.gen6.PawnInstruction;
+import ctrmap.scriptformats.gen6.PawnOpCode;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -38,7 +40,7 @@ public class PCaseTable extends ACaseTable {
 		}
 
 		List<PawnInstruction> r = new ArrayList<>();
-		r.add(new PawnInstruction(PawnInstruction.Commands.CASETBL, args));
+		r.add(new PawnInstruction(PawnOpCode.CASETBL, PawnPlainInstruction.int2LongArray(args)));
 		return r;
 	}
 

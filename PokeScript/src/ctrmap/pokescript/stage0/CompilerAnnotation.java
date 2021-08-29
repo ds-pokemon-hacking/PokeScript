@@ -22,7 +22,7 @@ public class CompilerAnnotation {
 		}
 		switch (tp){
 			case BOOLEAN:
-				return argValue.equals("false") || argValue.equals("true");
+				return argValue.equals(Boolean.FALSE.toString()) || argValue.equals(Boolean.TRUE.toString());
 			case INT:
 				try {
 					Integer.parseInt(argValue);

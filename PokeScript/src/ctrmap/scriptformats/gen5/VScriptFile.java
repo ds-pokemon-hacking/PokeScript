@@ -7,7 +7,6 @@ import ctrmap.pokescript.instructions.ntr.NTRInstructionLinkSetup;
 import ctrmap.scriptformats.gen5.disasm.VDisassembler;
 import ctrmap.stdlib.fs.FSFile;
 import ctrmap.stdlib.io.base.impl.ext.data.DataIOStream;
-import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
@@ -29,7 +28,7 @@ public class VScriptFile {
 	private FSFile source;
 
 	public List<NTRInstructionLink> publics = new ArrayList<>();
-	
+
 	public List<NTRInstructionCall> instructions = new ArrayList<>();
 	public List<NTRInstructionCall> movements = new ArrayList<>();
 
@@ -55,8 +54,8 @@ public class VScriptFile {
 			new VDisassembler(this, commandDB).disassemble();
 		}
 	}
-	
-	public FSFile getSourceFile(){
+
+	public FSFile getSourceFile() {
 		return source;
 	}
 
@@ -65,8 +64,8 @@ public class VScriptFile {
 		instructions = new ArrayList<>(scr.instructions);
 		movements = new ArrayList<>(scr.movements);
 	}
-	
-	private List<NTRInstructionCall> getAllInstructions(){
+
+	private List<NTRInstructionCall> getAllInstructions() {
 		List<NTRInstructionCall> l = new ArrayList<>();
 		l.addAll(instructions);
 		l.addAll(movements);
@@ -87,6 +86,10 @@ public class VScriptFile {
 
 	public void updateLinks() {
 		updatePtrs();
+		updateLinksWithoutPtrs();
+	}
+
+	private void updateLinksWithoutPtrs() {
 		for (NTRInstructionCall call : instructions) {
 			if (call.link != null) {
 				call.link.updateSourceArg();
@@ -113,16 +116,39 @@ public class VScriptFile {
 		}
 		return null;
 	}
-	
-	public void write(){
-		if (source != null){
+
+	public void write() {
+		if (source != null) {
 			source.setBytes(getBinaryData());
 		}
 	}
 
 	public byte[] getBinaryData() {
 		try {
-			updateLinks();
+			updatePtrs();
+
+			List<NTRInstructionCall> alignedInstructions = new ArrayList<>(getAllInstructions());
+
+			int ptr = publics.size() * Integer.BYTES + Short.BYTES;
+			for (NTRInstructionCall call : alignedInstructions) {
+				if (call.definition.opCode == 0x64) {
+					if (call.link != null && call.link.target != null) {
+						if ((call.link.target.pointer & 1) != 0) {
+							call.link.target.pointer = -1;
+						}
+					}
+				}
+
+				if (call.pointer == -1) {
+					call.pointer++; //pointer requires word-alignment
+					ptr = call.pointer;
+				}
+
+				call.pointer = ptr;
+				ptr += call.getSize();
+			}
+
+			updateLinksWithoutPtrs();
 
 			DataIOStream dos = new DataIOStream();
 
@@ -132,8 +158,13 @@ public class VScriptFile {
 
 			dos.writeShort(V_SCR_MAGIC);
 
+			int pos = dos.getPosition();
 			for (NTRInstructionCall call : getAllInstructions()) {
+				if (pos != call.pointer){
+					dos.seek(call.pointer);
+				}
 				call.write(dos);
+				pos += call.getSize();
 			}
 
 			dos.close();

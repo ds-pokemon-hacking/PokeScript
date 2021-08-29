@@ -8,4 +8,6 @@ public interface IFloatHandler {
 	
 	public void castFloatToInt(AbstractTypeHandler.CastResult cast, NCompileGraph cg);
 	public void castIntToFloat(AbstractTypeHandler.CastResult cast, NCompileGraph cg);
+	
+	public boolean isFixedPoint();
 }

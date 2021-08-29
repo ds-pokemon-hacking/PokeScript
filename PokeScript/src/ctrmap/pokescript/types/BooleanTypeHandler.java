@@ -1,6 +1,7 @@
 package ctrmap.pokescript.types;
 
 import ctrmap.pokescript.expr.Throughput;
+import ctrmap.pokescript.stage0.CompilerPragma;
 import ctrmap.pokescript.stage1.NCompileGraph;
 /**
  *
@@ -22,7 +23,7 @@ public class BooleanTypeHandler implements AbstractTypeHandler {
 	@Override
 	public CastResult getInstructionForCast(DataType castedType, NCompileGraph cg) {	
 		CastResult r = new CastResult();
-		if (castedType != DataType.BOOLEAN) {
+		if (castedType != DataType.BOOLEAN && !cg.getIsBoolPragmaEnabledSimple(CompilerPragma.ALLOW_UNSAFE_CASTS)) {
 			r.success = false;
 			r.exception = "Can not cast a boolean.";
 		}

@@ -10,11 +10,13 @@ public enum DataType {
 	BOOLEAN("boolean", new BooleanTypeHandler()),
 	INT("int", new IntegerTypeHandler(), DataTypeAttrib.NUMERIC),
 	FLOAT("float", new FloatTypeHandler(), DataTypeAttrib.NUMERIC),
-	
+	ENUM("enum", new EnumTypeHandler(), DataTypeAttrib.NUMERIC),
+
 	VAR_BOOLEAN,
 	VAR_INT(DataTypeAttrib.NUMERIC),
 	VAR_FLOAT(DataTypeAttrib.NUMERIC),
-	VAR_CLASS,//INPUT ONLY TYPE
+	VAR_CLASS,
+	VAR_ENUM(DataTypeAttrib.NUMERIC),
 
 	ANY,
 	ANY_VAR, //THROWS EXCEPTION IF CHAINED
@@ -64,15 +66,21 @@ public enum DataType {
 				return VAR_INT;
 			case FLOAT:
 				return VAR_FLOAT;
+			case CLASS:
+				return VAR_CLASS;
+			case ENUM:
+				return VAR_ENUM;
 		}
 		return this;
 	}
 	
 	public TypeDef typeDef(){
-		if (getFriendlyName() == null){
-			throw new NullPointerException("Uninstantiatable type.");
+		switch (this) {
+			case CLASS:
+			case ENUM:
+				return new TypeDef(getFriendlyName(), this == ENUM); 
 		}
-		return new TypeDef(getFriendlyName());
+		return new TypeDef(this);
 	}
 	
 	public boolean isNumber(){

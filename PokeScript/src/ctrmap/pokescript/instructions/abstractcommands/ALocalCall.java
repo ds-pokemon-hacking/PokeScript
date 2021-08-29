@@ -34,7 +34,7 @@ public abstract class ALocalCall extends AInstruction {
 	public List<AInstruction> getAllInstructions() {
 		List<AInstruction> l = ArraysEx.asList(this);
 		for (int j = 0; j < call.args.length; j++) {
-			for (AInstruction i : call.args[j].getCode(DataType.ANY)) {
+			for (AInstruction i : call.args[j].getCode(DataType.ANY.typeDef())) {
 				l.addAll(i.getAllInstructions());
 			}
 		}

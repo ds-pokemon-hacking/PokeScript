@@ -5,11 +5,14 @@ import ctrmap.pokescript.LangConstants;
 import ctrmap.pokescript.stage0.content.AbstractContent;
 import ctrmap.pokescript.stage0.content.AnnotationContent;
 import ctrmap.pokescript.stage0.content.DeclarationContent;
+import ctrmap.pokescript.stage0.content.EnumConstantDeclarationContent;
 import ctrmap.pokescript.stage0.content.ExpressionContent;
 import ctrmap.pokescript.stage0.content.LabelContent;
 import ctrmap.pokescript.stage0.content.NullContent;
 import ctrmap.pokescript.stage0.content.StatementContent;
 import ctrmap.pokescript.types.classes.ClassDefinition;
+import ctrmap.stdlib.fs.FSUtil;
+import ctrmap.stdlib.fs.accessors.DiskFile;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -87,78 +90,138 @@ public class EffectiveLine {
 			char firstChar = data.charAt(0);
 			if (firstChar == LangConstants.CH_PP_KW_IDENTIFIER) {
 				types.add(LineType.PREPROCESSOR_COMMAND);
-			} else if (firstChar == LangConstants.CH_ANNOT_KW_IDENTIFIER){
+			} else if (firstChar == LangConstants.CH_ANNOT_KW_IDENTIFIER) {
 				types.add(LineType.COMPILER_ANNOTATION);
 			}
 		}
 	}
 
 	public void analyze1(AnalysisState state) {
-		context = state.level;
-		
-		if (hasType(LineType.COMPILER_ANNOTATION)){
+		context = state.getLevel();
+
+		if (hasType(LineType.COMPILER_ANNOTATION)) {
 			trySetContent(new AnnotationContent(this));
 		}
-		
-		if (state.level == AnalysisLevel.LOCAL) {
-			//Inside a method
-			if (hasType(LineType.LABEL)) {
-				trySetContent(new LabelContent(this));
-			} else {
-				trySetContent(getStatementCnt(state));
-			}
-			if (content == null) {
-				DeclarationContent dc = DeclarationContent.getDeclarationCnt(data, this, state);
-				trySetContent(dc);
-				if (dc != null) {
-					if (dc.isMethodDeclaration()) {
-						throwException("Can not declare methods in a local context.");
-					}
-				}
-			}
-		} else if (state.level == AnalysisLevel.CLASS) {
-			//Inside a class - only declarations and preprocessor keywords are accepted
-			DeclarationContent dc = DeclarationContent.getDeclarationCnt(data, this, state);
-			trySetContent(dc);
-			if (dc != null) {
-				if (dc.isMethodDeclaration() && hasType(LineType.BLOCK_START)) {
-					types.add(LineType.METHOD_BODY_START);
-				}
-			}
-		} else {
-			//Only static methods, imports and class definitions are accepted
-			trySetContent(getStatementCnt(state));
 
-			if (content == null) {
-				DeclarationContent dc = DeclarationContent.getDeclarationCnt(data, this, state);
+		boolean allowAutoBlockIncrement = true;
 
-				if (dc != null) {
-					if (!dc.isClassDeclaration() && !dc.hasModifier(Modifier.STATIC)) {
-						throwException("Non-static members are only allowed inside classes.");
+		if (null != context) {
+			switch (context) {
+				case LOCAL: {
+					//Inside a method
+					if (hasType(LineType.LABEL)) {
+						trySetContent(new LabelContent(this));
+					} else {
+						trySetContent(getStatementCnt(state));
 					}
-					else {
-						if (dc.isMethodDeclaration() && hasType(LineType.BLOCK_START)){
-							state.incrementBlockToVirtualClass();
+					if (content == null) {
+						DeclarationContent dc = DeclarationContent.getDeclarationCnt(data, this, state);
+						trySetContent(dc);
+						if (dc != null) {
+							if (dc.isMethodDeclaration()) {
+								throwException("Can not declare methods in a local context.");
+							}
 						}
 					}
-					trySetContent(dc);
-					if (dc.isMethodDeclaration() && hasType(LineType.BLOCK_START)) {
-						types.add(LineType.METHOD_BODY_START);
-					}
+					break;
 				}
+				case CLASS: {
+					//Inside a class - only declarations and preprocessor keywords are accepted
+					trySetContent(getStatementCnt(state));
+					if (content != null && content instanceof StatementContent) {
+						StatementContent sc = (StatementContent) content;
+						if (!sc.statement.hasFlag(StatementFlags.PREPROCESSOR_STATEMENT)) {
+							throwException("Only preprocessor statements are allowed in class context.");
+						}
+					} else {
+						DeclarationContent dc = DeclarationContent.getDeclarationCnt(data, this, state);
+						trySetContent(dc);
+						if (dc != null) {
+							if (dc.isMethodDeclaration() && hasType(LineType.BLOCK_START)) {
+								types.add(LineType.METHOD_BODY_START);
+							}
+						}
+					}
+					break;
+				}
+				case ENUM: {
+					trySetContent(NullContent.checkGetNullContent(this));
+					if (content == null) {
+						StatementContent stm = getStatementCnt(state);
+						trySetContent(stm);
+						if (content == null) {
+							if (!state.allowsNormalDeclarations) {
+								EnumConstantDeclarationContent ecdc = new EnumConstantDeclarationContent(this, state);
+								content = ecdc;
+								state.allowsNormalDeclarations = true;
+							} else {
+								DeclarationContent dc = DeclarationContent.getDeclarationCnt(data, this, state);
+								trySetContent(dc);
+								if (dc != null) {
+									if (dc.isMethodDeclaration() && hasType(LineType.BLOCK_START)) {
+										types.add(LineType.METHOD_BODY_START);
+									}
+									if (!dc.hasModifier(Modifier.STATIC)) {
+										throwException("Non-static methods are not allowed inside enums!");
+									}
+								}
+							}
+						} else {
+							if (!stm.statement.hasFlag(StatementFlags.PREPROCESSOR_STATEMENT)) {
+								throwException("Only preprocessor statements are allowed inside enums!");
+							}
+						}
+					}
+					break;
+				}
+				case GLOBAL: {
+					//Only imports and class definitions are accepted
+					trySetContent(getStatementCnt(state));
+					if (content == null) {
+						DeclarationContent dc = DeclarationContent.getDeclarationCnt(data, this, state);
+
+						if (dc != null) {
+							if (!dc.isClassOrEnumDeclaration()) {
+								throwException("Members are only allowed inside classes - class or enum expected.");
+							}
+							trySetContent(dc);
+							if (dc.isMethodDeclaration() && hasType(LineType.BLOCK_START)) {
+								types.add(LineType.METHOD_BODY_START);
+							}
+							if (dc.isClassOrEnumDeclaration()) {
+								allowAutoBlockIncrement = false;
+								if (dc.isClassDeclaration()) {
+									state.incrementBlock(AnalysisLevel.CLASS);
+								} else {
+									state.incrementBlock(AnalysisLevel.ENUM);
+								}
+							}
+						}
+					} else {
+						Statement s = ((StatementContent) content).statement;
+						if (!s.isAllowedInGlobalContext()) {
+							throwException("Statement " + s + " is not allowed in a global context.");
+						}
+					}
+					break;
+				}
+				default:
+					break;
 			}
 		}
+
 		trySetContent(NullContent.checkGetNullContent(this));
-		if (content == null && state.level != AnalysisLevel.LOCAL) {
-			throwException("Expressions are not allowed in a global context. - " + data);
+		if (content == null && state.getLevel() != AnalysisLevel.LOCAL) {
+			throwException("Expressions are not allowed in " + state.getLevel() + " context. - " + data);
 			content = new NullContent(this);
 		} else {
 			trySetContent(new ExpressionContent(this)); //if everything fails, an expression is assumed
 		}
 
-
 		if (hasType(LineType.BLOCK_START)) {
-			state.incrementBlock();
+			if (allowAutoBlockIncrement) {
+				state.incrementBlock();
+			}
 		} else if (hasType(LineType.BLOCK_END)) {
 			state.decrementBlock();
 			if (state.blockLevel < 0) {
@@ -261,9 +324,9 @@ public class EffectiveLine {
 				break;
 		}
 		if (stm != null) {
-			if (state.level != AnalysisLevel.LOCAL && !stm.isAllowedInGlobalContext()) {
+			if (state.getLevel() != AnalysisLevel.LOCAL && !stm.isAllowedInGlobalContext()) {
 				throwException("Illegal statement used in a non-local context: " + statementWord.wordContent);
-			} else if (state.level == AnalysisLevel.LOCAL && stm == Statement.IMPORT) {
+			} else if (state.getLevel() == AnalysisLevel.LOCAL && stm == Statement.IMPORT) {
 				throwException("Import statement is not allowed in a local context.");
 			} else {
 				StatementContent cnt = new StatementContent(stm, this, statementContentStart);
@@ -332,57 +395,57 @@ public class EffectiveLine {
 
 	public static class AnalysisState {
 
-		public List<ClassDefinition> classDefs = new ArrayList<>();
-
-		public AnalysisLevel level = AnalysisLevel.GLOBAL;
 		private int blockLevel = 0;
 		private boolean virtualClass = false;
-		private ClassDefinition currentClass = null;
+		private boolean allowsNormalDeclarations = true;
+
+		private Stack<AnalysisLevel> stack = new Stack<>();
 
 		public void incrementBlock() {
 			blockLevel++;
-			setAnLvl();
+			stack.push(getAnLvl());
 		}
-		
-		public void incrementBlockToVirtualClass(){
+
+		public void incrementBlock(AnalysisLevel newState) {
+			blockLevel++;
+			stack.push(newState);
+			if (newState == AnalysisLevel.CLASS) {
+				allowsNormalDeclarations = true;
+			} else if (newState == AnalysisLevel.ENUM) {
+				allowsNormalDeclarations = false;
+			}
+		}
+
+		public void incrementBlockToVirtualClass() {
 			virtualClass = true;
 			blockLevel++;
-			setAnLvl();
+			stack.push(getAnLvl());
 		}
 
 		public void decrementBlock() {
 			blockLevel--;
-			setAnLvl();
-			if (level == AnalysisLevel.CLASS && virtualClass){
+			if (!stack.isEmpty()) {
+				stack.pop();
+			}
+			if (getLevel() == AnalysisLevel.CLASS && virtualClass) {
 				decrementBlock();
 				virtualClass = false;
 			}
 		}
 
-		public void setCurrentClass(String className) {
-			currentClass = getClassDef(className);
+		public AnalysisLevel getLevel() {
+			return stack.isEmpty() ? AnalysisLevel.GLOBAL : stack.peek();
 		}
 
-		public ClassDefinition getClassDef(String className) {
-			for (ClassDefinition cdef : classDefs) {
-				if (cdef.hasName(className)) {
-					return cdef;
-				}
-			}
-			return null;
-		}
-
-		private void setAnLvl() {
-			level = blockLevel == 0 ? AnalysisLevel.GLOBAL : blockLevel == 1 ? AnalysisLevel.CLASS : AnalysisLevel.LOCAL;
-			if (level != AnalysisLevel.CLASS) {
-				currentClass = null;
-			}
+		private AnalysisLevel getAnLvl() {
+			return blockLevel == 0 ? AnalysisLevel.GLOBAL : blockLevel == 1 ? AnalysisLevel.CLASS : AnalysisLevel.LOCAL;
 		}
 	}
 
 	public static enum AnalysisLevel {
 		GLOBAL,
 		CLASS,
+		ENUM,
 		LOCAL
 	}
 

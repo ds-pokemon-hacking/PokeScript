@@ -12,7 +12,9 @@ public class ClassNode extends AbstractNode {
 		super(FSUtil.getFileNameWithoutExtension(f.getName()));
 		Preprocessor reader = new Preprocessor(f, args);
 		for (NMember m : reader.getMembers(true)) {
-			addChild(new MemberNode(m));
+			if (m.isRecommendedUserAccessible()) {
+				addChild(new MemberNode(m));
+			}
 		}
 	}
 }

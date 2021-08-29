@@ -1,10 +1,10 @@
 package ctrmap.pokescript.expr;
 
 import ctrmap.pokescript.types.DataType;
-import ctrmap.pokescript.instructions.ctr.instructions.CTRInstruction;
 import ctrmap.pokescript.data.Variable;
 import ctrmap.pokescript.instructions.abstractcommands.AInstruction;
 import ctrmap.pokescript.stage1.NCompileGraph;
+import ctrmap.pokescript.types.TypeDef;
 import java.util.ArrayList;
 
 public class VariableThroughput extends Throughput {
@@ -16,25 +16,13 @@ public class VariableThroughput extends Throughput {
 		this.var = var;
 		code = new ArrayList<>();
 		code.add(var.getReadIns(cg));
-		if (var.typeDef.isClass()) {
-			type = DataType.VAR_CLASS;
-		} else {
-			switch (var.typeDef.baseType){
-				case INT:
-					type = DataType.VAR_INT;
-					break;
-				case FLOAT:
-					type = DataType.VAR_FLOAT;
-					break;
-				case BOOLEAN:
-					type = DataType.VAR_BOOLEAN;
-					break;
-			}
-		}
+
+		type = new TypeDef(var.typeDef);
+		type.baseType = type.baseType.getVarType();
 	}
 
 	public DataType getTypeDowncast() {
-		switch (type){
+		switch (type.baseType){
 			case VAR_INT:
 				return DataType.INT;
 			case VAR_CLASS:
@@ -43,8 +31,10 @@ public class VariableThroughput extends Throughput {
 				return DataType.FLOAT;
 			case VAR_BOOLEAN:
 				return DataType.BOOLEAN;
+			case VAR_ENUM:
+				return DataType.ENUM;
 		}
-		return type;
+		return type.baseType;
 	}
 
 	public AInstruction getWriteIns(NCompileGraph cg) {

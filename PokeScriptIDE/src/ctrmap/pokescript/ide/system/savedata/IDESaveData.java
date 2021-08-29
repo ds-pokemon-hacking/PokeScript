@@ -10,10 +10,12 @@ import ctrmap.pokescript.ide.system.project.tree.IDEProjectTree;
 import ctrmap.stdlib.formats.yaml.Yaml;
 import ctrmap.stdlib.formats.yaml.YamlListElement;
 import ctrmap.stdlib.formats.yaml.YamlNode;
+import ctrmap.stdlib.formats.yaml.YamlNodeName;
 import ctrmap.stdlib.formats.yaml.YamlReflectUtil;
 import ctrmap.stdlib.fs.FSFile;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 
 public class IDESaveData extends Yaml {
 
@@ -102,7 +104,7 @@ public class IDESaveData extends Yaml {
 
 		YamlNode state = getEnsureRootNodeKeyNode(KEY_PROJECT_STATE);
 
-		YamlNode openedFiles = state.getOrCreateChildKeyByName(PS_KEY_OPEN_FILES);
+		YamlNode openedFiles = state.getEnsureChildByName(PS_KEY_OPEN_FILES);
 		openedFiles.removeAllChildren();
 
 		for (IDEFileReference ref : openedFilePaths) {
@@ -157,7 +159,7 @@ public class IDESaveData extends Yaml {
 	public void removeOpenFile(IDEFile f) {
 		IDEFileReference ref = new IDEFileReference(f);
 		boolean write = false;
-		if (lastOpenedFile.equals(ref)) {
+		if (Objects.equals(lastOpenedFile, ref)) {
 			lastOpenedFile = null;
 			write = true;
 		}
@@ -173,8 +175,11 @@ public class IDESaveData extends Yaml {
 
 	public static class IDEFileReference {
 
+		@YamlNodeName("ProjectProdId")
 		public String projectProdId;
+		@YamlNodeName("Path")
 		public String path;
+		@YamlNodeName("OpenRW")
 		public boolean openRW;
 
 		public IDEFileReference() {

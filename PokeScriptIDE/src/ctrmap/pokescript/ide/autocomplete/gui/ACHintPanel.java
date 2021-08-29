@@ -27,7 +27,7 @@ public class ACHintPanel extends javax.swing.JPanel {
 		memberName.setPreferredSize(new Dimension(prefX, memberName.getPreferredSize().height));
 		
 		if (node instanceof MemberNode){
-			type.setText(((MemberNode) node).member.type.toString().toLowerCase());
+			type.setText(((MemberNode) node).member.type.toFriendliestString());
 		}
 		else {
 			type.setText(null);

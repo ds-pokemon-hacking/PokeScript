@@ -5,24 +5,25 @@ import ctrmap.pokescript.instructions.abstractcommands.AInstruction;
 import ctrmap.pokescript.instructions.abstractcommands.APlainOpCode;
 import ctrmap.pokescript.stage0.EffectiveLine;
 import ctrmap.pokescript.stage1.NCompileGraph;
+import ctrmap.pokescript.types.TypeDef;
 import java.util.ArrayList;
 import java.util.List;
 
 public class Neg extends Operator {
 
 	@Override
-	public DataType getInputTypeLHS() {
-		return DataType.VOID;
+	public TypeDef getInputTypeLHS() {
+		return DataType.VOID.typeDef();
 	}
 	
 	@Override
-	public DataType getInputTypeRHS() {
-		return DataType.INT;
+	public TypeDef getInputTypeRHS() {
+		return DataType.FLOAT.typeDef();
 	}
 
 	@Override
-	public DataType getOutputType() {
-		return DataType.INT;
+	public TypeDef getOutputType() {
+		return DataType.INT.typeDef();
 	}
 
 	@Override
@@ -36,19 +37,10 @@ public class Neg extends Operator {
 		//neg only takes one input, the parser has adjusted that to always be right
 		r.addAll(right.getCode(getInputTypeRHS()));
 
-		if (right.type == DataType.FLOAT) {
-			//float now in pri
-			r.add(cg.getPlain(APlainOpCode.PUSH_PRI));
-			r.add(cg.getPlain(APlainOpCode.CONST_ALT, 1));
-			r.add(cg.getPlain(APlainOpCode.AND));
-			r.add(cg.getPlain(APlainOpCode.NOT)); //flip the signum of the float
-			r.add(cg.getPlain(APlainOpCode.MOVE_PRI_TO_ALT));
-			r.add(cg.getPlain(APlainOpCode.POP_PRI));
-			r.add(cg.getPlain(APlainOpCode.PUSH_ALT));
-			r.add(cg.getPlain(APlainOpCode.CONST_ALT, 0xFFFFFFFE));
-			r.add(cg.getPlain(APlainOpCode.AND));
-			r.add(cg.getPlain(APlainOpCode.POP_ALT));
-			r.add(cg.getPlain(APlainOpCode.OR));
+		if (right.type.baseType == DataType.FLOAT && !cg.provider.getFloatingPointHandler().isFixedPoint()) {
+			//IEEE-754 floats have a simple sign bit
+			r.add(cg.getPlain(APlainOpCode.CONST_ALT, 0x80000000));
+			r.add(cg.getPlain(APlainOpCode.XOR));
 		} else {
 			r.add(cg.getPlain(APlainOpCode.NEGATE));
 		}

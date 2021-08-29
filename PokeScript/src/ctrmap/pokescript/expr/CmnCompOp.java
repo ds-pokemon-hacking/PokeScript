@@ -4,6 +4,7 @@ import ctrmap.pokescript.types.DataType;
 import ctrmap.pokescript.instructions.abstractcommands.AInstruction;
 import ctrmap.pokescript.instructions.abstractcommands.APlainOpCode;
 import ctrmap.pokescript.stage1.NCompileGraph;
+import ctrmap.pokescript.types.TypeDef;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -12,18 +13,18 @@ public abstract class CmnCompOp extends Operator {
 	public abstract APlainOpCode getSimpleComparisonCommand();
 	
 	@Override
-	public DataType getInputTypeLHS() {
-		return DataType.INT;
+	public TypeDef getInputTypeLHS() {
+		return DataType.INT.typeDef();
 	}
 	
 	@Override
-	public DataType getInputTypeRHS() {
-		return DataType.INT;
+	public TypeDef getInputTypeRHS() {
+		return DataType.INT.typeDef();
 	}
 
 	@Override
-	public DataType getOutputType() {
-		return DataType.BOOLEAN;
+	public TypeDef getOutputType() {
+		return DataType.BOOLEAN.typeDef();
 	}
 	
 	@Override

@@ -1,7 +1,6 @@
 package ctrmap.pokescript.ide;
 
 import ctrmap.pokescript.CompilerExceptionData;
-import ctrmap.pokescript.LangCompiler;
 import ctrmap.pokescript.LangConstants;
 import ctrmap.pokescript.stage0.Preprocessor;
 import ctrmap.pokescript.ide.autocomplete.AutoComplete;
@@ -60,16 +59,20 @@ public class PSIDE extends javax.swing.JFrame {
 	private List<FileEditorRSTA> fileEditors = new ArrayList<>();
 	private List<PSIDEListener> listeners = new ArrayList<>();
 
+	private boolean standalone = false;
+
 	public static final String PSIDE_ERR_COLUMN_ID_FILE = "File";
 	public static final String PSIDE_ERR_COLUMN_ID_LINE = "Line";
 	public static final String PSIDE_ERR_COLUMN_ID_CAUSE = "Cause";
 
 	public PSIDE() {
 		this(DEFAULT_SETUP_RESOURCE);
+		standalone = true;
 	}
-	
+
 	public PSIDE(IDEResourceReference setup) {
 		IDEResources.load();
+		standalone = false;
 
 		initComponents();
 		projectTree.attachIDE(this);
@@ -82,7 +85,8 @@ public class PSIDE extends javax.swing.JFrame {
 
 		loadSetup(DEFAULT_SETUP_RESOURCE);
 
-		errorTable.getColumn(PSIDE_ERR_COLUMN_ID_FILE).setMaxWidth(250);
+		errorTable.getColumn(PSIDE_ERR_COLUMN_ID_FILE).setWidth(200);
+		errorTable.getColumn(PSIDE_ERR_COLUMN_ID_FILE).setMaxWidth(400);
 		errorTable.getColumn(PSIDE_ERR_COLUMN_ID_LINE).setMaxWidth(35);
 
 		ac = new AutoComplete();
@@ -116,14 +120,7 @@ public class PSIDE extends javax.swing.JFrame {
 		fileTabs.addChangeListener(new ChangeListener() {
 			@Override
 			public void stateChanged(ChangeEvent e) {
-				if (context.isAvailable()) {
-					FileEditorRSTA edt = getSelectedFileEditor();
-					if (edt != null) {
-						ac.attachTextArea(edt);
-						context.getWorkspace().saveData.setLastOpenedFile(edt.getEditedFile());
-						edt.publishErrorTable();
-					}
-				}
+				changeToSelectedEditor();
 			}
 		});
 
@@ -131,15 +128,23 @@ public class PSIDE extends javax.swing.JFrame {
 			@Override
 			public boolean onTabIsRemoving(TabbedPaneTab tab) {
 				FileEditorRSTA rsta = (FileEditorRSTA) ((RTextScrollPane) tab.getComponent()).getTextArea();
-				rsta.getEditedFile().getProject().caretPosCache.storeCaretPositionOfEditor(rsta);
-				return rsta.saveTextToFile(true) != FileEditorRSTA.SaveResult.CANCELLED;
+				if (!rsta.getEditedFile().exists() || !rsta.getEditedFile().canWrite()) {
+					return true;
+				} else {
+					rsta.getEditedFile().getProject().caretPosCache.storeCaretPositionOfEditor(rsta);
+					return rsta.saveTextToFile(true) != FileEditorRSTA.SaveResult.CANCELLED;
+				}
 			}
 
 			@Override
 			public void onTabRemoved(TabbedPaneTab tab) {
 				FileEditorRSTA editor = fileEditors.remove(tab.getIndex());
 				if (context.getWorkspace() != null) {
-					context.getWorkspace().saveData.removeOpenFile(editor.getEditedFile());
+					IDEFile f = editor.getEditedFile();
+					if (f != null) {
+						context.getWorkspace().saveData.removeOpenFile(f);
+						f.closeNotify();
+					}
 				}
 			}
 		});
@@ -153,9 +158,31 @@ public class PSIDE extends javax.swing.JFrame {
 		listeners.remove(listener);
 	}
 
-	private void callSaveListeners() {
+	public void closeFileTab(FileEditorRSTA editor) {
+		int index = fileEditors.indexOf(editor);
+		if (index >= 0 && index < fileTabs.getTabCount()) {
+			fileTabs.remove(index);
+		}
+	}
+
+	public void changeToSelectedEditor() {
+		if (context.isAvailable()) {
+			FileEditorRSTA edt = getSelectedFileEditor();
+			if (edt != null) {
+				System.out.println("Change to " + edt.getEditedFile());
+				ac.attachTextArea(edt);
+				edt.forceReparsing();
+				context.getWorkspace().saveData.setLastOpenedFile(edt.getEditedFile());
+				edt.publishErrorTable();
+			}
+		} else {
+			System.out.println("Requested editor change, but context not available!");
+		}
+	}
+
+	private void callSaveListeners(FileEditorRSTA.SaveResult saveResult) {
 		for (PSIDEListener l : listeners) {
-			l.onSaved();
+			l.onSaved(saveResult);
 		}
 	}
 
@@ -233,6 +260,8 @@ public class PSIDE extends javax.swing.JFrame {
 
 		makeTree();
 		ws.saveData.loadTreeExpansionState(projectTree);
+
+		changeToSelectedEditor();
 	}
 
 	private IDEFile resolveIDEFileReference(IDESaveData.IDEFileReference ref) {
@@ -246,8 +275,8 @@ public class PSIDE extends javax.swing.JFrame {
 		}
 		return null;
 	}
-	
-	public boolean saveWorkspace(){
+
+	public boolean saveWorkspace() {
 		for (FileEditorRSTA editor : fileEditors) {
 			if (editor.saveTextToFile(true) == FileEditorRSTA.SaveResult.CANCELLED) {
 				return false;
@@ -264,10 +293,10 @@ public class PSIDE extends javax.swing.JFrame {
 	}
 
 	public boolean closeWorkspace() {
-		if (!saveWorkspace()){
+		if (!saveWorkspace()) {
 			return false;
 		}
-		
+
 		context.loadWorkspace(null);
 
 		fileTabs.removeAll();
@@ -279,11 +308,11 @@ public class PSIDE extends javax.swing.JFrame {
 	public boolean isIDEFileOpened(IDEFile f) {
 		return getOpenedFiles().contains(f);
 	}
-	
-	public IDEFile getAlreadyOpenedFile(IDEFile f){
+
+	public IDEFile getAlreadyOpenedFile(IDEFile f) {
 		List<IDEFile> opened = getOpenedFiles();
 		int index = opened.indexOf(f);
-		if (index != -1){
+		if (index != -1) {
 			return opened.get(index);
 		}
 		return null;
@@ -301,7 +330,7 @@ public class PSIDE extends javax.swing.JFrame {
 	public void openFile(IDEFile f) {
 		openFile(f, false);
 	}
-	
+
 	public void openFile(IDEFile f, boolean forceReload) {
 		if (!isIDEFileOpened(f)) {
 			FileEditorRSTA editor = new FileEditorRSTA(this, f);
@@ -311,22 +340,24 @@ public class PSIDE extends javax.swing.JFrame {
 			context.getWorkspace().saveData.putOpenFile(f, true);
 			editor.requestFocus();
 			fileTabs.setSelectedComponent(getOpenedFileTabEditor(f).getScrollPane());
-		}
-		else {
+		} else {
 			f.transferListenersTo(getAlreadyOpenedFile(f));
 			FileEditorRSTA edt = getOpenedFileTabEditor(f);
-			if (forceReload){
+			if (forceReload) {
 				edt.reloadFromFile();
 			}
 			fileTabs.setSelectedComponent(edt.getScrollPane());
-			ac.attachTextArea(edt);
+			changeToSelectedEditor();
 		}
 	}
 
 	public void setFileTabModified(FileEditorRSTA editor, boolean bln) {
-		TabbedPaneTab tab = fileTabs.getTab(fileEditors.indexOf(editor));
-		Font f = tab.getHeaderFont();
-		tab.setHeaderFont(f.deriveFont(bln ? f.getStyle() | Font.BOLD : f.getStyle() & ~Font.BOLD));
+		int index = fileEditors.indexOf(editor);
+		if (index != -1) {
+			TabbedPaneTab tab = fileTabs.getTab(index);
+			Font f = tab.getHeaderFont();
+			tab.setHeaderFont(f.deriveFont(bln ? f.getStyle() | Font.BOLD : f.getStyle() & ~Font.BOLD));
+		}
 	}
 
 	private static final ImageIcon DEFAULT_FILE_ICON = new ImageIcon(ResourceAccess.getByteArray("scripting/ui/tabs/sourcefile.png"));
@@ -356,7 +387,7 @@ public class PSIDE extends javax.swing.JFrame {
 	public static String getTemplateDataStr(String templateName, PSIDETemplateVar... vars) {
 		return new String(getTemplateData(templateName, vars));
 	}
-	
+
 	public static byte[] getTemplateData(String templateName, PSIDETemplateVar... vars) {
 		byte[] data = ResourceAccess.getByteArray("scripting/template/" + templateName);
 		String str = new String(data, StandardCharsets.UTF_8);
@@ -371,7 +402,7 @@ public class PSIDE extends javax.swing.JFrame {
 	}
 
 	public void openProject(IDEProject prj, boolean makeTree) {
-		if (context.hasOpenedProjectByPath(prj)){
+		if (context.hasOpenedProjectByPath(prj)) {
 			return;
 		}
 		if (findLoadedProjectByProdId(prj.getManifest().getProductId()) != null) {
@@ -461,7 +492,7 @@ public class PSIDE extends javax.swing.JFrame {
 	public void buildErrorTable(Preprocessor pp) {
 		DefaultTableModel tblModel = (DefaultTableModel) errorTable.getModel();
 		tblModel.setRowCount(0);
-		if (pp != null) {	
+		if (pp != null) {
 			for (CompilerExceptionData d : pp.collectExceptions()) {
 				tblModel.addRow(new String[]{d.fileName, String.valueOf(d.lineNumberStart), d.text});
 			}
@@ -645,7 +676,7 @@ public class PSIDE extends javax.swing.JFrame {
     }// </editor-fold>//GEN-END:initComponents
 
     private void btnOpenActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_btnOpenActionPerformed
-		File f = CMFileDialog.openFileDialog(LangConstants.LANG_SOURCE_FILE_EXTENSION_FILTER, LangConstants.LANG_NATIVE_DEFINITION_EXTENSION_FILTER);
+		File f = CMFileDialog.openFileDialog(LangConstants.LANG_SOURCE_FILE_EXTENSION_FILTER, LangConstants.LANG_HEADER_EXTENSION_FILTER);
 		if (f != null) {
 		}
     }//GEN-LAST:event_btnOpenActionPerformed
@@ -654,9 +685,7 @@ public class PSIDE extends javax.swing.JFrame {
 		FileEditorRSTA editor = getSelectedFileEditor();
 
 		if (editor != null) {
-			if (editor.saveTextToFile(false) == FileEditorRSTA.SaveResult.SAVED) {
-				callSaveListeners();
-			}
+			callSaveListeners(editor.saveTextToFile(false));
 		}
     }//GEN-LAST:event_btnSaveActionPerformed
 
@@ -681,7 +710,11 @@ public class PSIDE extends javax.swing.JFrame {
 
     private void formWindowClosing(java.awt.event.WindowEvent evt) {//GEN-FIRST:event_formWindowClosing
 		if (saveWorkspace()) {
-			dispose();
+			if (standalone) {
+				System.exit(0);
+			} else {
+				setVisible(false);
+			}
 		}
     }//GEN-LAST:event_formWindowClosing
 
@@ -712,11 +745,11 @@ public class PSIDE extends javax.swing.JFrame {
 
     private void btnSaveAllActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_btnSaveAllActionPerformed
 		boolean callListeners = false;
-		for (FileEditorRSTA editor : fileEditors){
+		for (FileEditorRSTA editor : fileEditors) {
 			callListeners |= editor.saveTextToFile(false) == FileEditorRSTA.SaveResult.SAVED;
 		}
-		if (callListeners){
-			callSaveListeners();
+		if (callListeners) {
+			callSaveListeners(FileEditorRSTA.SaveResult.SAVED);
 		}
     }//GEN-LAST:event_btnSaveAllActionPerformed
 

@@ -5,6 +5,7 @@ import ctrmap.pokescript.instructions.abstractcommands.AInstruction;
 import ctrmap.pokescript.instructions.abstractcommands.APlainOpCode;
 import ctrmap.pokescript.stage0.EffectiveLine;
 import ctrmap.pokescript.stage1.NCompileGraph;
+import ctrmap.pokescript.types.TypeDef;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -24,18 +25,18 @@ public abstract class CmnMathOp extends Operator {
 	}
 
 	@Override
-	public DataType getInputTypeLHS() {
-		return isSetTo ? DataType.VAR_INT : DataType.INT;
+	public TypeDef getInputTypeLHS() {
+		return isSetTo ? DataType.VAR_INT.typeDef() : DataType.INT.typeDef();
 	}
 
 	@Override
-	public DataType getInputTypeRHS() {
-		return isDoubleOp ? DataType.VOID : DataType.INT;
+	public TypeDef getInputTypeRHS() {
+		return isDoubleOp ? DataType.VOID.typeDef() : DataType.INT.typeDef();
 	}
 
 	@Override
-	public DataType getOutputType() {
-		return DataType.INT;
+	public TypeDef getOutputType() {
+		return DataType.INT.typeDef();
 	}
 
 	@Override

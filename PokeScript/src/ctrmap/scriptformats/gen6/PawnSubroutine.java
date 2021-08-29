@@ -1,5 +1,6 @@
 package ctrmap.scriptformats.gen6;
 
+import ctrmap.stdlib.text.StringEx;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
@@ -11,6 +12,7 @@ public class PawnSubroutine {
 
 	public String name;
 	public int originalPtr;
+	public int lastPtr;
 	public List<PawnInstruction> instructions = new ArrayList<>();
 
 	public GFLPawnScript parent;
@@ -20,15 +22,19 @@ public class PawnSubroutine {
 		originalPtr = startingInstruction;
 		name = "sub_" + Integer.toHexString(source.get(startingInstruction).pointer).toUpperCase();
 		int ins = startingInstruction;
+		boolean hasBegun = false;
 		MainLoop:
 		for (; ins < source.size();) {
 			PawnInstruction instruction = source.get(ins);
-			switch (instruction.getCommand()) {
-				case 0x2F:
-				case 0x30:
-					//return, finalize subroutine
-					instructions.add(instruction);
-					break MainLoop;
+			switch (instruction.opCode) {
+				case PROC:
+					if (!hasBegun) {
+						hasBegun = true;
+						//fall through
+					} else {
+						break MainLoop;
+						//return, finalize subroutine
+					}
 				default:
 					instructions.add(instruction);
 					ins++;
@@ -42,49 +48,51 @@ public class PawnSubroutine {
 		this.originalPtr = ptr;
 	}
 
-	public static PawnSubroutine fromCode(int pointer, Scanner code) {
-		return fromCode(pointer, code, true);
+	public static PawnSubroutine fromCode(int pointer, int cellSize, LineReader code) {
+		return fromCode(pointer, cellSize, code, true);
 	}
 
-	public static PawnSubroutine fromCode(int pointer, Scanner code, boolean doOutput) {
+	public static PawnSubroutine fromCode(int pointer, int cellSize, LineReader code, boolean doOutput) {
 		PawnSubroutine ret = new PawnSubroutine(pointer);
 		ret.originalPtr = pointer;
 		String line;
 		int ptr = ret.originalPtr;
-		while (code.hasNextLine() && !code.nextLine().replaceAll("\t", "").equals("{")) {
+		while (code.hasNextLine() && !StringEx.deleteAllChars(code.nextLine(), '\t').equals("{")) {
 			//await subroutine beginning
 		}
-		if (!code.hasNextLine()){
+		if (!code.hasNextLine()) {
 			return null;
 		}
 		if (doOutput) {
 			System.out.println("[INFO] Found code, parsing instructions.");
 		}
-		while (code.hasNextLine() && !(line = code.nextLine().replaceAll("\t", "")).equals("}")) {
+		while (code.hasNextLine() && !(line = StringEx.deleteAllChars(code.nextLine(), '\t')).equals("}")) {
 			if (line.length() == 0) {
 				continue;
 			}
 			PawnInstruction newIns = PawnInstruction.fromString(ptr, line, doOutput);
 			newIns.checkJmpConvertArgs();
-			if (newIns.getCommand() == 0x82) {
+			if (newIns.opCode == PawnOpCode.CASETBL) {
 				newIns = caseTblFromString(newIns.pointer, code);
 			}
-			if (newIns.cellValue != -1) {
+			if (newIns.opCode != PawnOpCode.NONE) {
 				ret.instructions.add(newIns);
-				if (!newIns.hasCompressedArgument) {
-					ptr += newIns.getArgumentCount() * 4;
+				if (!newIns.opCode.packed) {
+					ptr += newIns.getArgumentCount() * cellSize;
 				}
-				ptr += 4;
+				ptr += cellSize;
 			}
 		}
+		ret.lastPtr = ptr;
 		if (doOutput) {
 			System.out.println("[INFO] Done parsing instructions for " + ret.name + ", found " + ret.instructions.size() + " valid instructions.");
 		}
 		return ret;
 	}
 
-	public static PawnInstruction caseTblFromString(int ptr, Scanner code) {
-		PawnInstruction newIns = new PawnInstruction(ptr, 0x82, "");
+	public static PawnInstruction caseTblFromString(int ptr, LineReader code) {
+		PawnInstruction newIns = new PawnInstruction(PawnOpCode.CASETBL);
+		newIns.pointer = ptr;
 		while (!code.nextLine().replaceAll("\t", "").equals("{")) {
 			//await casetbl beginning
 		}
@@ -115,39 +123,21 @@ public class PawnSubroutine {
 		List<Map.Entry<Integer, Integer>> l = new ArrayList<>();
 		l.addAll(cases.entrySet());
 		Collections.sort(l, (Map.Entry<Integer, Integer> o1, Map.Entry<Integer, Integer> o2) -> o1.getKey() - o2.getKey());
-		
-		newIns.argumentCells = new int[cases.size() * 2 + 2];
-		newIns.argumentCells[0] = cases.size();
+
+		newIns.arguments = new long[cases.size() * 2 + 2];
+		newIns.arguments[0] = cases.size();
 		int idx = 2;
 		for (Map.Entry e : l) {
-			newIns.argumentCells[idx + 1] = (Integer) e.getValue() - (ptr + idx * 4) - 4;
-			newIns.argumentCells[idx] = (Integer) e.getKey();
+			newIns.arguments[idx + 1] = (Integer) e.getValue() - (ptr + idx * 4) - 4;
+			newIns.arguments[idx] = (Integer) e.getKey();
 			idx += 2;
 		}
-		newIns.argumentCells[1] = defaultCaseJmp - (ptr + 4);
+		newIns.arguments[1] = defaultCaseJmp - (ptr + 4);
 		return newIns;
 	}
 
 	public int getInstructionCount() {
 		return instructions.size();
-	}
-
-	public int getFinalRelativePointer() {
-		int ptr = 0;
-		for (int i = 0; i < instructions.size(); i++) {
-			ptr += 4;
-			PawnInstruction ins = instructions.get(i);
-			if (!ins.hasCompressedArgument) {
-				ptr += ins.getArgumentCount() * 4;
-			}
-		}
-		return ptr;
-	}
-
-	public void updateDisassembly() {
-		for (int i = 0; i < instructions.size(); i++) {
-			instructions.get(i).updateDisassembly();
-		}
 	}
 
 	public List<String> getAllInstructionStrings(int indentLevel) {
@@ -161,7 +151,7 @@ public class PawnSubroutine {
 				}
 			}
 			sb.append(indentator);
-			sb.append(instructions.get(i).stringValue.replaceAll("\n", "\n" + indentator.toString()));
+			sb.append(instructions.get(i).toString().replaceAll("\n", "\n" + indentator.toString()));
 			ret.add(sb.toString());
 		}
 		return ret;

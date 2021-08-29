@@ -3,14 +3,16 @@ package ctrmap.pokescript;
 import ctrmap.pokescript.types.DataType;
 import ctrmap.pokescript.expr.Throughput;
 import ctrmap.pokescript.stage0.CompilerAnnotation;
+import ctrmap.pokescript.stage0.IModifiable;
 import ctrmap.pokescript.stage0.Modifier;
 import ctrmap.pokescript.stage0.content.DeclarationContent;
 import ctrmap.pokescript.types.TypeDef;
+import ctrmap.stdlib.util.ArraysEx;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
-public class InboundDefinition {
+public class InboundDefinition implements IModifiable {
 
 	public String name;
 	public String extendsBase;
@@ -21,57 +23,64 @@ public class InboundDefinition {
 	public DeclarationContent.Argument[] args;
 	public TypeDef retnType;
 
+	public final boolean isResident;
 	public int timesUsed = 0; //increased by the compiler every time this definition is requested
-
-	public InboundDefinition(String name, DeclarationContent.Argument[] args, TypeDef retnType) {
-		this(name, args, retnType, new ArrayList<>());
+	
+	public static InboundDefinition makeResidentNative(String name, DeclarationContent.Argument[] args, TypeDef retnType) {
+		return new InboundDefinition(name, args, retnType, ArraysEx.asList(Modifier.NATIVE, Modifier.STATIC), true);
 	}
 
 	public InboundDefinition(String name, DeclarationContent.Argument[] args, TypeDef retnType, List<Modifier> modifiers) {
+		this(name, args, retnType, modifiers, false);
+	}
+	
+	public InboundDefinition(String name, DeclarationContent.Argument[] args, TypeDef retnType, List<Modifier> modifiers, boolean isResident) {
 		this.name = name;
 		this.args = args;
 		this.retnType = retnType;
 		this.modifiers = modifiers;
+		this.isResident = isResident;
 	}
 
 	public OutboundDefinition createDummyOutbound() {
 		OutboundDefinition od = new OutboundDefinition(name, new Throughput[args.length]);
 		for (int i = 0; i < args.length; i++) {
-			od.args[i] = new Throughput(args[i].typeDef.baseType, new ArrayList<>());
+			od.args[i] = new Throughput(args[i].typeDef, new ArrayList<>());
 		}
 		return od;
 	}
-	
-	public boolean hasAnnotation(String name){
-		for (CompilerAnnotation a : annotations){
-			if (a.name.equals(name)){
+
+	public boolean hasAnnotation(String name) {
+		for (CompilerAnnotation a : annotations) {
+			if (a.name.equals(name)) {
 				return true;
 			}
 		}
 		return false;
 	}
 
-	public CompilerAnnotation getAnnotation(String name){
-		for (CompilerAnnotation a : annotations){
-			if (a.name.equals(name)){
+	public CompilerAnnotation getAnnotation(String name) {
+		for (CompilerAnnotation a : annotations) {
+			if (a.name.equals(name)) {
 				return a;
 			}
 		}
 		return null;
 	}
-	
-	public List<CompilerAnnotation> getAnnotations(String name){
+
+	public List<CompilerAnnotation> getAnnotations(String name) {
 		List<CompilerAnnotation> l = new ArrayList<>();
-		for (CompilerAnnotation a : annotations){
-			if (a.name.equals(name)){
+		for (CompilerAnnotation a : annotations) {
+			if (a.name.equals(name)) {
 				l.add(a);
 			}
 		}
 		return l;
 	}
-	
-	public boolean hasModifier(Modifier m) {
-		return modifiers.contains(m);
+
+	@Override
+	public List<Modifier> getModifiers() {
+		return modifiers;
 	}
 
 	public boolean hasName(String name) {
@@ -116,7 +125,7 @@ public class InboundDefinition {
 
 	public boolean checkNameMatchesWithoutNamespace(InboundDefinition i) {
 		return i.name.substring(i.name.lastIndexOf(".") + 1).equals(name.substring(name.lastIndexOf(".") + 1))
-				&& i.retnType == retnType && Arrays.equals(i.args, args);
+			&& i.retnType == retnType && Arrays.equals(i.args, args);
 	}
 
 	public boolean accepts(OutboundDefinition out) {
@@ -125,24 +134,35 @@ public class InboundDefinition {
 		}
 
 		for (int i = 0; i < out.args.length; i++) {
-			if (out.args == null || out.args[i] == null){
+			if (out.args == null || out.args[i] == null) {
 				return false;
 			}
-			if (args[i].requestedModifiers.contains(Modifier.FINAL)){
-				if (!out.args[i].isImmediate()){
+			if (args[i].requestedModifiers.contains(Modifier.FINAL)) {
+				if (!out.args[i].isImmediate()) {
 					return false;
 				}
 			}
-			DataType incomingType = out.args[i].type;
-			DataType reqType = args[i].typeDef.baseType;
-			if (incomingType != reqType && incomingType.getBaseType() != reqType) {
-				if (args[i].typeDef.baseType == DataType.FLOAT && possiblyDowncast(out.args[i].type) == DataType.INT) {
-					continue;
+			TypeDef incomingType = out.args[i].type;
+			TypeDef reqType = args[i].typeDef;
+			if (!incomingType.equals(reqType)) {
+				if (reqType.isClass() || possiblyDowncast(incomingType.baseType) != getCompatEnumType(reqType.baseType)) {
+					if (args[i].typeDef.baseType == DataType.FLOAT && possiblyDowncast(incomingType.baseType) == DataType.INT) {
+						continue;
+					}
+					return false;
 				}
-				return false;
 			}
 		}
 		return true;
+	}
+	
+	public static DataType getCompatEnumType(DataType t) {
+		switch (t) {
+			case ENUM:
+			case VAR_ENUM:
+				return DataType.INT;
+		}
+		return t;
 	}
 
 	public static DataType possiblyDowncast(DataType t) {
@@ -150,6 +170,8 @@ public class InboundDefinition {
 			case VAR_BOOLEAN:
 				return DataType.BOOLEAN;
 			case VAR_INT:
+			case VAR_ENUM:
+			case ENUM:
 				return DataType.INT;
 			case VAR_FLOAT:
 				return DataType.FLOAT;

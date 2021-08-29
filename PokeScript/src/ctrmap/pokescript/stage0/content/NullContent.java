@@ -7,10 +7,9 @@ import ctrmap.pokescript.stage1.CompileBlock;
 import ctrmap.pokescript.stage1.NCompileGraph;
 
 public class NullContent extends AbstractContent{
-	private EffectiveLine line;
 	
 	public NullContent(EffectiveLine l){
-		line = l;
+		super(l);
 	}
 	
 	public static NullContent checkGetNullContent(EffectiveLine line){
@@ -34,7 +33,7 @@ public class NullContent extends AbstractContent{
 
 	@Override
 	public void addToGraph(NCompileGraph graph) {
-		if (line.hasType(EffectiveLine.LineType.BLOCK_START)){
+		if (line.hasType(EffectiveLine.LineType.BLOCK_START) && line.context == EffectiveLine.AnalysisLevel.LOCAL){
 			graph.pushBlock(new CompileBlock(graph));
 		}
 	}

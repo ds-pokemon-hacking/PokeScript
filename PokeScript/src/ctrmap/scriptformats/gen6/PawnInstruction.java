@@ -1,116 +1,141 @@
 package ctrmap.scriptformats.gen6;
 
 import ctrmap.pokescript.instructions.abstractcommands.ACompiledInstruction;
+import ctrmap.stdlib.math.BitMath;
+import ctrmap.stdlib.text.StringEx;
+import java.io.DataInput;
+import java.io.DataOutput;
+import java.io.IOException;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
 public class PawnInstruction extends ACompiledInstruction {
 
-	/*
-	Largely based on PKNX
-	 */
-	public int cellValue;
-	public boolean hasCompressedArgument;
-	public int[] argumentCells;
+	public PawnOpCode opCode;
+	public long[] arguments;
+	public int cellSize = 4;
 
-	public String stringValue;
 	public int line;
 
 	public List<JumpListener> jmpListeners = new ArrayList<>();
 
-	public static List<Commands> cmdList = Arrays.asList(Commands.values());
+	public GFLPawnScript script;
 
-	public GFLPawnScript parent;
-
-	public PawnInstruction(Commands cmd) {
+	public PawnInstruction(PawnOpCode cmd) {
 		this(cmd, true);
 	}
 
-	public PawnInstruction(Commands cmd, boolean optimizePacked) {
+	public PawnInstruction(PawnOpCode cmd, boolean optimizePacked) {
 		pointer = 0;
-		cellValue = cmd.ordinal();
-		hasCompressedArgument = getHasCompressedArg(getCommand());
-		argumentCells = getArguments(this, null, true);
+		opCode = cmd;
+		arguments = new long[opCode.argumentCount];
 		if (optimizePacked) {
 			optimizePacked();
 		}
 	}
 
+	private PawnInstruction(int ptr, PawnOpCode cmd) {
+		pointer = ptr;
+		opCode = cmd;
+		arguments = new long[cmd.argumentCount];
+	}
+
 	public void optimizePacked() {
-		PawnInstruction.Commands cmd = getCommandE();
-		if (argumentCells.length == 1 && (short) argumentCells[0] == argumentCells[0]) {
-			cmd = getPackedEquiv(cmd);
-
-			cellValue = cmd.ordinal();
-
-			hasCompressedArgument = getHasCompressedArg(cmd.ordinal());
+		if (arguments.length == 1 && (short) arguments[0] == arguments[0]) {
+			opCode = opCode.getPackedEquivalent();
 		}
 	}
 
-	public PawnInstruction(int dataCell) {
-		pointer = 0;
-		cellValue = dataCell;
-		hasCompressedArgument = false;
-		argumentCells = new int[0];
-	}
-
-	public PawnInstruction(Commands cmd, int... args) {
-		cellValue = cmd.ordinal();
-		hasCompressedArgument = getHasCompressedArg(cmd.ordinal());
-
-		if (hasCompressedArgument) {
-			cellValue |= args[0] << 16;
-		}
-		argumentCells = new int[args.length];
-		System.arraycopy(args, 0, argumentCells, 0, argumentCells.length);
+	public PawnInstruction(PawnOpCode cmd, long... args) {
+		opCode = cmd;
+		arguments = args;
 		optimizePacked();
 	}
 
-	public PawnInstruction(int ptr, int[] allCommands, GFLPawnScript parent) {
-		try {
-			this.parent = parent;
-			pointer = ptr;
-			int dataLen = (allCommands[ptr / 4] & 0x7FFF) == 0x82 ? (allCommands[ptr / 4 + 1] * 2 + 2) : getRequiredDataLength(allCommands[ptr / 4]);
-			setValuesFromDataShared(Arrays.copyOfRange(allCommands, ptr / 4, ptr / 4 + dataLen + 1));
-		} catch (Exception e) {
-			e.printStackTrace();
+	public PawnInstruction(long singleValue) {
+		arguments = new long[]{singleValue};
+	}
+
+	public PawnInstruction(DataInput in, int ptr, int cellSize) throws IOException {
+		this.cellSize = cellSize;
+		this.pointer = ptr;
+
+		long op = readCell(in, cellSize);
+		opCode = PawnOpCode.OPCODES[(int) (op & BitMath.makeMask(cellSize * 4))];
+
+		if (opCode.packed) {
+			arguments = new long[]{op >> cellSize * 4};
+		} else {
+			if (opCode == PawnOpCode.CASETBL) {
+				long caseCount = readCell(in, cellSize);
+				arguments = new long[(int) (caseCount * 2 + 2)];
+				arguments[0] = caseCount;
+				arguments[1] = readCell(in, cellSize); //default case
+
+				for (int i = 0; i < caseCount * 2; i++) {
+					arguments[2 + i] = readCell(in, cellSize);
+				}
+			} else {
+				arguments = new long[opCode.argumentCount];
+
+				for (int i = 0; i < arguments.length; i++) {
+					arguments[i] = readCell(in, cellSize);
+				}
+			}
 		}
 	}
 
-	public PawnInstruction(int ptr, int cmd, String blankInstructionDummy) {
-		pointer = ptr;
-		cellValue = cmd;
-		hasCompressedArgument = getHasCompressedArg(cmd);
-		stringValue = blankInstructionDummy;
-		argumentCells = getArguments(this, null, true);
+	public void write(DataOutput out) throws IOException {
+		if (opCode.packed) {
+			writeCell(out, cellSize, opCode.ordinal() | (arguments.length > 0 ? (arguments[0] << 4 * cellSize) : 0));
+		} else {
+			writeCell(out, cellSize, opCode.ordinal());
+			for (int i = 0; i < arguments.length; i++) {
+				writeCell(out, cellSize, arguments[i]);
+			}
+		}
 	}
 
-	public PawnInstruction(int ptr, int[] data) {
-		pointer = ptr;
-		setValuesFromDataShared(data);
+	public static long readCell(DataInput in, int cellSize) throws IOException {
+		switch (cellSize) {
+			case Integer.BYTES:
+				return in.readInt();
+			case Long.BYTES:
+				return in.readLong();
+			case Short.BYTES:
+				return in.readShort();
+		}
+		throw new IllegalArgumentException("Bad cell size");
+	}
+
+	public static void writeCell(DataOutput out, int cellSize, long cell) throws IOException {
+		switch (cellSize) {
+			case Integer.BYTES:
+				out.writeInt((int) cell);
+				break;
+			case Long.BYTES:
+				out.writeLong(cell);
+				break;
+			case Short.BYTES:
+				out.writeShort((short) cell);
+				break;
+		}
 	}
 
 	public int getArgumentCount() {
-		return argumentCells.length;
+		return arguments.length;
 	}
 
+	@Override
 	public int getSize() {
-		int size = 4; //cell size
-		if (!hasCompressedArgument) {
-			size += argumentCells.length * 4;
+		int size = cellSize;
+		if (!opCode.packed) {
+			size += arguments.length * cellSize;
 		}
 		return size;
-	}
-
-	private void setValuesFromDataShared(int[] data) {
-		cellValue = data[0];
-		hasCompressedArgument = getHasCompressedArg(cellValue & 0x7FFF);
-		argumentCells = getArguments(this, data, false);
-
-		stringValue = getDisassembly(this);
 	}
 
 	public static PawnInstruction fromString(int ptr, String instruction) {
@@ -119,7 +144,7 @@ public class PawnInstruction extends ACompiledInstruction {
 
 	public static PawnInstruction fromString(int ptr, String instruction, boolean doOutput) {
 		PawnInstruction ret = null;
-		int lastJunk = instruction.lastIndexOf(":");
+		int lastJunk = instruction.lastIndexOf(':');
 		int idx = lastJunk + 1;
 		while (idx < instruction.length() && instruction.charAt(idx) == ' ') {
 			idx++;
@@ -134,21 +159,21 @@ public class PawnInstruction extends ACompiledInstruction {
 				output.append(character);
 			}
 		}
-		String finalCmd = output.toString().toUpperCase().replaceAll("_", "");
-		for (int i = 0; i < cmdList.size(); i++) {
-			if (cmdList.get(i).toString().replaceAll("_", "").equals(finalCmd)) {
-				ret = new PawnInstruction(ptr, i, instruction);
+		String finalCmd = StringEx.deleteAllChars(output.toString().toUpperCase(), '_');
+		for (int i = 0; i < PawnOpCode.OPCODES.length; i++) {
+			if (PawnOpCode.OPCODES[i].compactName.equals(finalCmd)) {
+				ret = new PawnInstruction(ptr, PawnOpCode.OPCODES[i]);
 				break;
 			}
 		}
 
-		if (ret != null && ret.getCommand() == 0x82) { //CASETBL
+		if (ret != null && ret.opCode == PawnOpCode.CASETBL) { //CASETBL
 			return ret; //the subroutine disassembler will handle the rest
 		}
 
-		if (ret == null || !(instruction.contains("=>") || instruction.contains("("))) {
+		if (ret == null) {
 			//syntax error or invalid instruction
-			return new PawnInstruction(ptr, -1, instruction);
+			return new PawnInstruction(ptr, PawnOpCode.NONE);
 		}
 
 		while (idx < instruction.length() && instruction.charAt(idx) == ' ') {
@@ -164,9 +189,9 @@ public class PawnInstruction extends ACompiledInstruction {
 				jmpBldr.append(character);
 				idx++;
 			}
-			if (PawnInstruction.checkJmp(ret.getCommand()) && ret.argumentCells.length == 1 && jmpBldr.toString().length() > 0) {
+			if (ret.opCode.isJump() && ret.arguments.length == 1 && jmpBldr.toString().length() > 0) {
 				try {
-					ret.argumentCells[0] = Integer.parseInt(jmpBldr.toString().replaceAll("0x", ""), 16);
+					ret.arguments[0] = Integer.parseInt(StringEx.deleteAllString(jmpBldr.toString(), "0x"), 16);
 				} catch (NumberFormatException ex) {
 					if (doOutput) {
 						System.err.println("[ERR] 0x" + Integer.toHexString(ptr).toUpperCase() + " : " + "Argument is not a number.");
@@ -176,349 +201,126 @@ public class PawnInstruction extends ACompiledInstruction {
 				System.err.println("[ERR] 0x" + Integer.toHexString(ptr).toUpperCase() + " : " + "Jump instruction syntax on incompatible instruction.");
 			}
 		} else if (instruction.substring(idx).startsWith("(")) {
-			String allArgs = instruction.substring(idx + 1).replaceAll(" ", "").replace(")", "");
-			String[] argsUnparsed = allArgs.split(",");
-			if (argsUnparsed.length == ret.getArgumentCount()) {
-				for (int i = 0; i < argsUnparsed.length; i++) {
-					try {
-						if (PawnInstruction.checkFlt(ret)) {
-							ret.argumentCells[i] = Float.floatToIntBits(Float.parseFloat(argsUnparsed[i].replaceAll("f", "")));
-						} else {
-							ret.argumentCells[i] = Integer.parseInt(argsUnparsed[i]);
-						}
-					} catch (NumberFormatException e) {
-						if (doOutput) {
-							System.err.println("[ERR] 0x" + Integer.toHexString(ptr).toUpperCase() + " : " + "Argument " + i + " is not a number.");
-						}
+			String allArgs = StringEx.deleteAllChars(instruction.substring(idx + 1), ' ', ')').trim();
+			if (allArgs.isEmpty()) {
+				if (ret.getArgumentCount() != 0) {
+					if (doOutput) {
+						System.err.println("[ERR] 0x" + Integer.toHexString(ptr).toUpperCase() + " : " + ret + " : Expected arguments, got none.");
 					}
 				}
-			} else if (doOutput) {
-				System.err.println("[ERR] 0x" + Integer.toHexString(ptr).toUpperCase() + " : " + ret.stringValue + " : " + "Source argument count doesn't match its command.");
+			} else {
+				String[] argsUnparsed = StringEx.splitOnecharFast(allArgs, ',');
+				if (argsUnparsed.length == ret.getArgumentCount()) {
+					for (int i = 0; i < argsUnparsed.length; i++) {
+						String src = argsUnparsed[i];
+						try {
+							if (src.endsWith("f")) {
+								ret.arguments[i] = Float.floatToIntBits(Float.parseFloat(src.substring(0, src.length() - 1)));
+								//System.out.println("floatarg " + src + " at " + Integer.toHexString(ptr));
+							} else {
+								ret.arguments[i] = Integer.parseInt(argsUnparsed[i]);
+							}
+						} catch (NumberFormatException e) {
+							if (doOutput) {
+								System.err.println("[ERR] 0x" + Integer.toHexString(ptr).toUpperCase() + " : " + "Argument " + i + " is not a number.");
+							}
+						}
+					}
+				} else if (doOutput) {
+					System.err.println("[ERR] 0x" + Integer.toHexString(ptr).toUpperCase() + " : " + ret + " : " + "Source argument count doesn't match its command.");
+				}
 			}
-		} else if (doOutput) {
-			System.err.println("[ERR] 0x" + Integer.toHexString(ptr).toUpperCase() + " : " + ret.stringValue + " : " + "Expected arguments but none found.");
-		}
-
-		return ret;
-	}
-
-	public int getArgument(int num) {
-		return argumentCells[num];
-	}
-
-	public static int[] getBlankDataForCmd(int cmd) {
-		int[] ret = new int[getRequiredDataLength(cmd) + 1];
-		ret[0] = cmd;
-		return ret;
-	}
-
-	public static Commands getPackedEquiv(Commands cmd) {
-		switch (cmd) {
-			case PUSH:
-				cmd = Commands.PUSH_P;
-				break;
-			case PUSH_S:
-				cmd = Commands.PUSH_P_S;
-				break;
-			case PUSH_C:
-				cmd = Commands.PUSH_P_C;
-				break;
-			case HALT:
-				cmd = Commands.HALT_P;
-				break;
-			case ADD_C:
-				cmd = Commands.ADD_P_C;
-				break;
-			case ZERO:
-				cmd = Commands.ZERO_P;
-				break;
-			case ZERO_S:
-				cmd = Commands.ZERO_P_S;
-				break;
-			case BOUNDS:
-				cmd = Commands.BOUNDS_P;
-				break;
-			case ADDR_ALT:
-				cmd = Commands.ADDR_P_ALT;
-				break;
-			case ADDR_PRI:
-				cmd = Commands.ADDR_P_PRI;
-				break;
-			case ALIGN_ALT:
-				cmd = Commands.ALIGN_P_ALT;
-				break;
-			case ALIGN_PRI:
-				cmd = Commands.ALIGN_P_PRI;
-				break;
-			case CMPS:
-				cmd = Commands.CMPS_P;
-				break;
-			case CONST_ALT:
-				cmd = Commands.CONST_P_ALT;
-				break;
-			case CONST_PRI:
-				cmd = Commands.CONST_P_PRI;
-				break;
-			case LOAD_ALT:
-				cmd = Commands.LOAD_P_ALT;
-				break;
-			case LOAD_PRI:
-				cmd = Commands.LOAD_P_PRI;
-				break;
-			case LOAD_S_ALT:
-				cmd = Commands.LOAD_P_S_ALT;
-				break;
-			case LOAD_S_PRI:
-				cmd = Commands.LOAD_P_S_PRI;
-				break;
-			case DEC:
-				cmd = Commands.DEC_P;
-				break;
-			case DEC_S:
-				cmd = Commands.DEC_S;
-				break;
-			case INC:
-				cmd = Commands.INC_P;
-				break;
-			case INC_S:
-				cmd = Commands.INC_P_S;
-				break;
-			case FILL:
-				cmd = Commands.FILL_P;
-				break;
-			case EQ_C_ALT:
-				cmd = Commands.EQ_P_C_ALT;
-				break;
-			case EQ_C_PRI:
-				cmd = Commands.EQ_P_C_PRI;
-				break;
-			case HEAP:
-				cmd = Commands.HEAP_P;
-				break;
-			case IDXADDR_B:
-				cmd = Commands.IDXADDR_P_B;
-				break;
-			case LIDX_B:
-				cmd = Commands.LIDX_P_B;
-				break;
-			case LODB_I:
-				cmd = Commands.LODB_P_I;
-				break;
-			case LREF_ALT:
-				cmd = Commands.LREF_P_ALT;
-				break;
-			case LREF_PRI:
-				cmd = Commands.LREF_P_PRI;
-				break;
-			case LREF_S_ALT:
-				cmd = Commands.LREF_P_S_ALT;
-				break;
-			case LREF_S_PRI:
-				cmd = Commands.LREF_P_S_PRI;
-				break;
-			case MOVS:
-				cmd = Commands.MOVS_P;
-				break;
-			case PUSH_ADR:
-				cmd = Commands.PUSH_P_ADR;
-				break;
-			case SHL_C_ALT:
-				cmd = Commands.SHL_P_C_ALT;
-				break;
-			case SHL_C_PRI:
-				cmd = Commands.SHL_P_C_PRI;
-				break;
-			case SHR_C_ALT:
-				cmd = Commands.SHL_P_C_ALT;
-				break;
-			case SHR_C_PRI:
-				cmd = Commands.SHL_P_C_PRI;
-				break;
-			case SMUL_C:
-				cmd = Commands.SMUL_P_C;
-				break;
-			case STACK:
-				cmd = Commands.STACK_P;
-				break;
-			case STRB_I:
-				cmd = Commands.STRB_P_I;
-				break;
-			case STOR_ALT:
-				cmd = Commands.STOR_P_ALT;
-				break;
-			case STOR_PRI:
-				cmd = Commands.STOR_P_PRI;
-				break;
-			case STOR_S_ALT:
-				cmd = Commands.STOR_P_S_ALT;
-				break;
-			case STOR_S_PRI:
-				cmd = Commands.STOR_P_S_PRI;
-				break;
-			case SREF_ALT:
-				cmd = Commands.SREF_P_ALT;
-				break;
-			case SREF_PRI:
-				cmd = Commands.SREF_P_PRI;
-				break;
-			case SREF_S_ALT:
-				cmd = Commands.SREF_P_S_ALT;
-				break;
-			case SREF_S_PRI:
-				cmd = Commands.SREF_P_S_PRI;
-				break;
-		}
-		return cmd;
-	}
-
-	public static int getRequiredDataLength(int cmd) {
-		switch (cmd & 0x7FFF) {
-			case 0x01:
-			case 0x02:
-			case 0x05:
-			case 0x06:
-			case 0x0F:
-			case 0x10:
-			case 0x13:
-			case 0x14:
-			case 0x6D:
-			case 0x72:
-			case 0x03:
-			case 0x04:
-			case 0x07:
-			case 0x08:
-			case 0x11:
-			case 0x12:
-			case 0x15:
-			case 0x16:
-			case 0x6E:
-			case 0x9E:
-			case 0x73:
-			case 0x0A:
-			case 0x0B:
-			case 0x0C:
-			case 0x0D:
-			case 0x0E:
-			case 0x18:
-			case 0x1A:
-			case 0x1C:
-			case 0x1D:
-			case 0x1E:
-			case 0x1F:
-			case 0x20:
-			case 0x26:
-			case 0x27: // PushConst
-			case 0x28:
-			case 0x29:
-			case 0x2C:
-			case 0x2D:
-			case 0x34:
-			case 0x44:
-			case 0x45:
-			case 0x46:
-			case 0x47:
-			case 0x57:
-			case 0x58:
-			case 0x5B:
-			case 0x5C:
-			case 0x69:
-			case 0x6A:
-			case 0x75:
-			case 0x76:
-			case 0x77:
-			case 0x78:
-			case 0x79:
-			case 0x85:
-			case 0x31: // CallFunc
-			case 0x33:
-			case 0x35: // Jump!=
-			case 0x36: // Jump==
-			case 0x37:
-			case 0x38:
-			case 0x39:
-			case 0x3A:
-			case 0x3B:
-			case 0x3C:
-			case 0x3D:
-			case 0x3E:
-			case 0x3F:
-			case 0x40:
-			case 0x81:
-			case 0x7B:
-				return 1;
-			case 0x87:
-			case 0x8B:
-			case 0x8C:
-			case 0x8D:
-			case 0x9A:
-			case 0x9B:
-			case 0x9C:
-			case 0x9D:
-			case 0x8A:
-				return 2;
-			case 0x8E:
-			case 0x8F:
-			case 0x90:
-			case 0x91:
-				return 3;
-			case 0x92:
-			case 0x93:
-			case 0x94:
-			case 0x95:
-				return 4;
-			case 0x96: // float
-			case 0x97:
-			case 0x98:
-			case 0x99:
-				return 5;
-			default:
-				return 0;
-		}
-	}
-
-	public void updateDisassembly() {
-		stringValue = getDisassembly(this);
-	}
-
-	public int getCommand() {
-		return cellValue & 0x7FFF;
-	}
-
-	public PawnInstruction.Commands getCommandE() {
-		return cmdList.get(getCommand());
-	}
-
-	public int[] getRaw() {
-		int cmd = cellValue;
-		if (hasCompressedArgument) {
-			cmd &= 0x7FFF;
-			if (argumentCells.length > 0) {
-				cmd |= argumentCells[0] << 16;
-			}
-			return new int[]{cmd};
 		} else {
-			int[] out = new int[getArgumentCount() + 1];
-			out[0] = cmd;
-			System.arraycopy(argumentCells, 0, out, 1, getArgumentCount());
-			return out;
+			if (doOutput) {
+				System.err.println("[ERR] 0x" + Integer.toHexString(ptr).toUpperCase() + " : " + ret + " : " + "Expected arguments but none found.");
+			}
+			ret.opCode = PawnOpCode.NONE;
 		}
+
+		return ret;
+	}
+
+	public long getArgument(int num) {
+		return arguments[num];
+	}
+
+	public int getArgumentInt(int num) {
+		return (int) arguments[num];
+	}
+
+	@Override
+	public String toString() {
+		StringBuilder sb = new StringBuilder();
+		sb.append(opCode);
+		if (arguments.length > 0) {
+			if (opCode.isJump()) {
+				sb.append(" => 0x");
+				sb.append(Long.toHexString(pointer + arguments[0]));
+			} else if (opCode.isCasetbl()) {
+				sb.append("\n{\n");
+
+				long count = arguments[0];
+
+				Map<String, Long> jumpCases = new LinkedHashMap<>();
+
+				jumpCases.put("*", arguments[1] + pointer + cellSize);
+
+				for (int i = 0; i < count; i++) {
+					int index = (i + 1) * 2;
+					jumpCases.put(String.valueOf(arguments[index]), arguments[index + 1] + pointer + cellSize * (index + 1));
+				}
+
+				for (Map.Entry<String, Long> jc : jumpCases.entrySet()) {
+					sb.append("\t");
+					sb.append(jc.getKey());
+					sb.append(" => 0x");
+					sb.append(Long.toHexString(jc.getValue()));
+					sb.append("\n");
+				}
+
+				sb.append("}");
+			} else {
+				sb.append("(");
+				for (int i = 0; i < arguments.length; i++) {
+					if (i != 0) {
+						sb.append(",");
+					}
+					long floatTest = arguments[i];
+					if (floatTest < 0) {
+						floatTest = -floatTest;
+					}
+					if (floatTest > 0xFFFFFFL) {
+						sb.append(Float.intBitsToFloat((int) arguments[i]));
+						sb.append("f");
+					} else {
+						sb.append(arguments[i]);
+					}
+				}
+				sb.append(")");
+			}
+		} else {
+			sb.append("()");
+		}
+
+		return sb.toString();
 	}
 
 	public void chkAddJumpListener() {
 		jmpListeners.clear();
-		if (checkJmp(this.getCommand()) && parent != null) {
+		if (opCode.isJump() && script != null) {
 			JumpListener jl = new JumpListener(this);
-			jl.setParent(parent.lookupInstructionByPtr(argumentCells[0] + pointer));
+			jl.setParent(script.lookupInstructionByPtr(arguments[0] + pointer));
 			jmpListeners.add(jl);
 		}
-		if (getCommand() == 0x82 && parent != null) {
-			CaseListener cl = new CaseListener(this, parent);
+		if (opCode.isCasetbl() && script != null) {
+			CaseListener cl = new CaseListener(this, script);
 			jmpListeners.add(cl);
 		}
 	}
 
 	public void setParent(GFLPawnScript parent) {
-		this.parent = parent;
+		this.script = parent;
+		this.cellSize = parent.getCellSize();
 		chkAddJumpListener();
 	}
 
@@ -529,16 +331,17 @@ public class PawnInstruction extends ACompiledInstruction {
 	}
 
 	public boolean setArgsFromString(String str) {
-		if (!checkJmp(this.getCommand())) {
-			String allArgs = str.replace("(", "").replace(")", "").replaceAll(" ", "");
-			String[] argsUnparsed = allArgs.split(",");
+		if (!opCode.isJump()) {
+			String allArgs = StringEx.deleteAllChars(str, '(', ')', ' ');
+			String[] argsUnparsed = StringEx.splitOnecharFast(allArgs, ',');
 			if (argsUnparsed.length == getArgumentCount()) {
 				for (int i = 0; i < argsUnparsed.length; i++) {
 					try {
-						if (PawnInstruction.checkFlt(this)) {
-							argumentCells[i] = Float.floatToIntBits(Float.parseFloat(argsUnparsed[i].replaceAll("f", "")));
+						String src = argsUnparsed[i];
+						if (src.endsWith("f")) {
+							arguments[i] = Float.floatToIntBits(Float.parseFloat(StringEx.deleteAllChars(src, 'f')));
 						} else {
-							argumentCells[i] = Integer.parseInt(argsUnparsed[i]);
+							arguments[i] = Integer.parseInt(argsUnparsed[i]);
 						}
 					} catch (NumberFormatException e) {
 						return false;
@@ -548,9 +351,9 @@ public class PawnInstruction extends ACompiledInstruction {
 				return false;
 			}
 		} else {
-			String jumpOnly = str.replaceAll("=>", "").replaceAll(" ", "").replace("0x", "").replace("\n", "");
+			String jumpOnly = StringEx.deleteAllString(StringEx.deleteAllString(StringEx.deleteAllChars(str, ' ', 'n'), "=>"), "0x");
 			try {
-				argumentCells[0] = Integer.parseInt(jumpOnly, 16) - pointer;
+				arguments[0] = Integer.parseInt(jumpOnly.trim(), 16) - pointer;
 				jmpListeners.clear();
 				chkAddJumpListener();
 			} catch (NumberFormatException e) {
@@ -560,522 +363,10 @@ public class PawnInstruction extends ACompiledInstruction {
 		return true;
 	}
 
-	public static boolean getHasCompressedArg(int command) {
-		switch (command) {
-			case 0x09:
-			case 0x17:
-			case 0x19:
-			case 0x1B:
-			case 0x21:
-			case 0x22:
-			case 0x23:
-			case 0x24:
-			case 0x25:
-			case 0x2A:
-			case 0x2B:
-			case 0x2E: // Begin
-			case 0x2F:
-			case 0x30: // Return
-			case 0x41:
-			case 0x42:
-			case 0x43:
-			case 0x48:
-			case 0x49:
-			case 0x4A:
-			case 0x4B:
-			case 0x4C:
-			case 0x4D:
-			case 0x4E: // Add?
-			case 0x4F:
-			case 0x50:
-			case 0x51: // Cmp?
-			case 0x52:
-			case 0x53:
-			case 0x54:
-			case 0x55:
-			case 0x56:
-			case 0x59: // ClearAll
-			case 0x5A:
-			case 0x5D:
-			case 0x5E:
-			case 0x5F:
-			case 0x60:
-			case 0x61:
-			case 0x62:
-			case 0x63:
-			case 0x64:
-			case 0x65:
-			case 0x66:
-			case 0x67:
-			case 0x68:
-			case 0x6B:
-			case 0x6C:
-			case 0x6F:
-			case 0x70:
-			case 0x71:
-			case 0x74:
-			case 0x7A:
-			case 0x83:
-			case 0x84:
-			case 0x86:
-			case 0x89: // LineNo?
-			case 0xAA:
-			case 0xAB: // PushConst2
-			case 0xAC: // CmpConst2
-			case 0xAD:
-			case 0xAE:
-			case 0xB7:
-			case 0xB8:
-			case 0xB9:
-			case 0xBA:
-			case 0xBB:
-			case 0xBC: // PushConst
-			case 0xBD:
-			case 0xBE:
-			case 0xBF: // AdjustStack
-			case 0xC0:
-			case 0xC1:
-			case 0xC2:
-			case 0xC3:
-			case 0xC4:
-			case 0xC5:
-			case 0xC6:
-			case 0xC7:
-			case 0xC8:
-			case 0xC9:
-			case 0xCA:
-			case 0xCF:
-			case 0xD0:
-			case 0xD1:
-			case 0xD2:
-			case 0xD3:
-			case 0xD4:
-			case 0xA1:
-			case 0xA2:
-			case 0xA3:
-			case 0xA6:
-			case 0xA7:
-			case 0xAF:
-			case 0xB0:
-			case 0xB3:
-			case 0xB4:
-			case 0xCB:
-			case 0xCD:
-			case 0xA4:
-			case 0xA5:
-			case 0xA8:
-			case 0xA9:
-			case 0xB1:
-			case 0xB2:
-			case 0xB5:
-			case 0xB6:
-			case 0xCC:
-			case 0xCE:
-				return true;
-			default:
-				return false;
-		}
-	}
-
 	public void checkJmpConvertArgs() {
-		if (checkJmp(this.getCommand())) {
-			argumentCells[0] = argumentCells[0] - pointer;
+		if (opCode.isJump()) {
+			arguments[0] = arguments[0] - pointer;
 		}
-	}
-
-	public static boolean checkJmp(int cmd) {
-		switch (cmd) {
-			case 0x31: // CallFunc
-			case 0x33:
-			case 0x35: // Jump!=
-			case 0x36: // Jump==
-			case 0x37:
-			case 0x38:
-			case 0x39:
-			case 0x3A:
-			case 0x3B:
-			case 0x3C:
-			case 0x3D:
-			case 0x3E:
-			case 0x3F:
-			case 0x40:
-			case 0x81: // Jump
-				return true;
-		}
-		return false;
-	}
-
-	public static boolean checkFlt(PawnInstruction chk) {
-		switch (chk.getCommand()) {
-			case 0x8A:
-			case 0x8E:
-			case 0x8F:
-			case 0x90:
-			case 0x91:
-			case 0x96: // float
-			case 0x97:
-			case 0x98:
-			case 0x99:
-				return true;
-		}
-		return false;
-	}
-
-	public static int[] getArguments(PawnInstruction ins, int[] data, boolean getBlank) {
-		int next = getRequiredDataLength(ins.getCommand());
-		switch (ins.getCommand()) {
-			case 0x82: // JumpIfElse
-			{
-				if (!getBlank) {
-					next = data[1];
-					int[] argumentCells = new int[next * 2 + 2];
-					argumentCells[0] = next;
-					System.arraycopy(data, 2, argumentCells, 1, next * 2 + 1);
-					return argumentCells;
-				}
-			}
-		}
-		if (!getBlank) {
-			if (ins.hasCompressedArgument) {
-				if (ins.getCommand() != 0xA1) {
-					return new int[]{ins.cellValue >> 16};
-				} else {
-					return new int[]{ins.pointer / 4 + (int) (1 + (2 * (ins.cellValue / 4)) + 1)};
-				}
-			}
-			int[] argumentCells = new int[next];
-			System.arraycopy(data, 1, argumentCells, 0, next);
-			return argumentCells;
-		} else {
-			if (ins.hasCompressedArgument) {
-				return new int[1];
-			} else {
-				return new int[next];
-			}
-		}
-	}
-
-	public static String getDisassembly(PawnInstruction ins) {
-		int c = ins.cellValue;
-		String op;
-		switch (c & 0x7FFF) {
-			default:
-				System.out.println("Invalid Command ID " + (c & 0x7FFF));
-			case 0x01:
-			case 0x02:
-			case 0x05:
-			case 0x06:
-			case 0x0F:
-			case 0x10:
-			case 0x13:
-			case 0x14:
-			case 0x6D:
-			case 0x72: {
-				op = eA(ins);
-				break;
-			}
-			case 0x03:
-			case 0x04:
-			case 0x07:
-			case 0x08:
-			case 0x11:
-			case 0x12:
-			case 0x15:
-			case 0x16:
-			case 0x6E:
-			case 0x73: {
-				op = eA(ins);
-				break;
-			}
-			case 0x09:
-			case 0x17:
-			case 0x19:
-			case 0x1B:
-			case 0x21:
-			case 0x22:
-			case 0x23:
-			case 0x24:
-			case 0x25:
-			case 0x2A:
-			case 0x2B:
-			case 0x2E: // Begin
-			case 0x2F:
-			case 0x30: // Return
-			case 0x41:
-			case 0x42:
-			case 0x43:
-			case 0x48:
-			case 0x49:
-			case 0x4A:
-			case 0x4B:
-			case 0x4C:
-			case 0x4D:
-			case 0x4E:
-			case 0x4F:
-			case 0x50:
-			case 0x51:
-			case 0x52:
-			case 0x53:
-			case 0x54:
-			case 0x55:
-			case 0x56:
-			case 0x59:
-			case 0x5A:
-			case 0x5D:
-			case 0x5E:
-			case 0x5F:
-			case 0x60:
-			case 0x61:
-			case 0x62:
-			case 0x63:
-			case 0x64:
-			case 0x65:
-			case 0x66:
-			case 0x67:
-			case 0x68:
-			case 0x6B:
-			case 0x6C:
-			case 0x6F:
-			case 0x70:
-			case 0x71:
-			case 0x74:
-			case 0x7A:
-			case 0x83:
-			case 0x84:
-			case 0x86:
-			case 0x89:
-			case 0xAA:
-			case 0xAB:
-			case 0xAC:
-			case 0xAD:
-			case 0xAE:
-			case 0xB7:
-			case 0xB8:
-			case 0xB9:
-			case 0xBA:
-			case 0xBB:
-			case 0xBC: // PushConst
-			case 0xBD:
-			case 0xBE:
-			case 0xBF:
-			case 0xC0:
-			case 0xC1:
-			case 0xC2:
-			case 0xC3:
-			case 0xC4:
-			case 0xC5:
-			case 0xC6:
-			case 0xC7:
-			case 0xC8:
-			case 0xC9:
-			case 0xCA:
-			case 0xCF:
-			case 0xD0:
-			case 0xD1:
-			case 0xD2:
-			case 0xD3:
-			case 0xD4: {
-				op = eA(c & 0xFF, ins);
-				break;
-			}
-			case 0x0A:
-			case 0x0B:
-			case 0x0C:
-			case 0x0D:
-			case 0x0E:
-			case 0x18:
-			case 0x1A:
-			case 0x1C:
-			case 0x1D:
-			case 0x1E:
-			case 0x1F:
-			case 0x20:
-			case 0x26:
-			case 0x27: // PushConst
-			case 0x28:
-			case 0x29:
-			case 0x2C:
-			case 0x2D:
-			case 0x34:
-			case 0x44:
-			case 0x45:
-			case 0x46:
-			case 0x47:
-			case 0x57:
-			case 0x58:
-			case 0x5B:
-			case 0x5C:
-			case 0x69:
-			case 0x6A:
-			case 0x75:
-			case 0x76:
-			case 0x77:
-			case 0x78:
-			case 0x79:
-			case 0x85: {
-				op = eA(ins);
-				break;
-			}
-
-			case 0x31: // CallFunc
-			case 0x33:
-			case 0x35: // Jump!=
-			case 0x36: // Jump==
-			case 0x37:
-			case 0x38:
-			case 0x39:
-			case 0x3A:
-			case 0x3B:
-			case 0x3C:
-			case 0x3D:
-			case 0x3E:
-			case 0x3F:
-			case 0x40:
-			case 0x81: // Jump
-			{
-				int newOfs = ins.pointer + ins.argumentCells[0];
-				op = Commands.values()[c].toString() + " => 0x" + Integer.toHexString(newOfs);
-				break;
-			}
-			case 0x7B: {
-				op = eA(c, ins);
-				break;
-			}
-			case 0x82: // JumpIfElse
-			{
-				List<String> tree = new ArrayList<>();
-
-				{
-					int jmp = (int) ins.argumentCells[1];
-					int toOffset = ins.pointer + 4 + jmp;
-					tree.add("\t" + "*" + " => 0x" + Integer.toHexString(toOffset));
-				}
-				for (int j = 2; j < ins.argumentCells.length; j += 2) {
-					int jmp = (int) ins.argumentCells[j + 1];
-					int toOffset = (ins.pointer + j * 4) + jmp + 4;
-					int ifValue = (int) ins.argumentCells[j];
-					tree.add("\t" + ifValue + " => 0x" + Integer.toHexString(toOffset));
-				}
-
-				op = Commands.values()[c].toString() + "\n{\n" + String.join("\n", tree) + "\n}";
-				break;
-			}
-			case 0x87: {
-				op = eA(ins);
-				break;
-			}
-
-			case 0x8B:
-			case 0x8C:
-			case 0x8D:
-			case 0x9C:
-			case 0x9D: {
-				op = eA(ins);
-				break;
-			}
-			case 0x8A: {
-				op = eF(ins);
-				break;
-			}
-			case 0x8E:
-			case 0x8F:
-			case 0x90:
-			case 0x91: {
-				op = eF(ins);
-				break;
-			}
-
-			case 0x92:
-			case 0x93:
-			case 0x94:
-			case 0x95: {
-				op = eA(ins);
-				break;
-			}
-
-			case 0x96: // float
-			case 0x97:
-			case 0x98:
-			case 0x99: {
-				op = eF(ins);
-				break;
-			}
-
-			case 0x9A:
-			case 0x9B: // Copy
-			{
-				op = eA(ins);
-				break;
-			}
-			case 0x9E: {
-				op = eA(ins);
-				break;
-			}
-			case 0x9F: {
-				op = eA(ins);
-				break;
-			}
-
-			case 0xA1: // Goto
-			{
-				op = eA(ins);
-				break;
-			}
-
-			case 0xA2:
-			case 0xA3:
-			case 0xA6:
-			case 0xA7:
-			case 0xAF:
-			case 0xB0:
-			case 0xB3:
-			case 0xB4:
-			case 0xCB:
-			case 0xCD: {
-				op = eA(c & 0xFF, ins);
-				break;
-			}
-			case 0xA4:
-			case 0xA5:
-			case 0xA8:
-			case 0xA9:
-			case 0xB1:
-			case 0xB2:
-			case 0xB5:
-			case 0xB6:
-			case 0xCC:
-			case 0xCE: {
-				op = eA(c & 0xFF, ins);
-				break;
-			}
-		}
-		return op;
-	}
-
-	private static String eA(PawnInstruction ins) {
-		return eA(ins.getCommand(), ins);
-	}
-
-	private static String eA(int customCommand, PawnInstruction ins) {
-		String cmd = Commands.values()[customCommand].toString();
-		StringBuilder params = new StringBuilder();
-		params.append("(");
-		for (int i = 0; i < ins.getArgumentCount(); i++) {
-			params.append(ins.argumentCells[i]).append((i != ins.getArgumentCount() - 1) ? "," : "");
-		}
-		params.append(")");
-		return cmd + params.toString();
-	}
-
-	private static String eF(PawnInstruction ins) {
-		String cmd = Commands.values()[ins.getCommand()].toString();
-		StringBuilder params = new StringBuilder();
-		params.append("(");
-		for (int i = 0; i < ins.getArgumentCount(); i++) {
-			params.append(Float.intBitsToFloat(ins.argumentCells[i])).append("f").append((i != ins.getArgumentCount() - 1) ? "," : "");
-		}
-		params.append(")");
-		return cmd + params.toString();
 	}
 
 	public static class JumpListener {
@@ -1097,9 +388,9 @@ public class PawnInstruction extends ACompiledInstruction {
 
 		public void onAddressChange() {
 			try {
-				src.argumentCells[0] = target.pointer - src.pointer;
+				src.arguments[0] = target.pointer - src.pointer;
 			} catch (NullPointerException e) {
-				src.argumentCells[0] = -src.pointer;
+				src.arguments[0] = -src.pointer;
 			}
 		}
 	}
@@ -1107,7 +398,7 @@ public class PawnInstruction extends ACompiledInstruction {
 	public static class CaseListener extends JumpListener {
 
 		private final PawnInstruction src;
-		public Map<Integer, PawnInstruction> targets = new HashMap<>();
+		public Map<Long, PawnInstruction> targets = new HashMap<>();
 		public PawnInstruction defaultTarget;
 
 		private GFLPawnScript instlib;
@@ -1116,251 +407,30 @@ public class PawnInstruction extends ACompiledInstruction {
 			super(jumpSource);
 			this.instlib = instlib;
 			src = jumpSource;
-			for (int i = 2; i < src.argumentCells.length; i += 2) {
-				int ptr = (src.pointer + i * 4) + src.argumentCells[i + 1] + 4;
-				targets.put(src.argumentCells[i], instlib.lookupInstructionByPtr(ptr));
+			for (int i = 2; i < src.arguments.length; i += 2) {
+				long ptr = (src.pointer + i * src.cellSize) + src.arguments[i + 1] + src.cellSize;
+				targets.put(src.arguments[i], instlib.lookupInstructionByPtr(ptr));
 			}
-			defaultTarget = instlib.lookupInstructionByPtr((src.pointer + 4) + src.argumentCells[1]);
+			defaultTarget = instlib.lookupInstructionByPtr((src.pointer + src.cellSize) + src.arguments[1]);
 		}
 
 		@Override
 		public void onAddressChange() {
-			for (int i = 2; i < src.argumentCells.length; i += 2) {
-				if (targets.get(src.argumentCells[i]) != null) {
+			for (int i = 2; i < src.arguments.length; i += 2) {
+				if (targets.get(src.arguments[i]) != null) {
 					try {
-						src.argumentCells[i + 1] = targets.get(src.argumentCells[i]).pointer - (src.pointer + i * 4) - 4;
+						src.arguments[i + 1] = targets.get(src.arguments[i]).pointer - (src.pointer + i * src.cellSize) - src.cellSize;
 					} catch (NullPointerException e) {
 						//invalid ptr
 					}
 				}
 			}
 			try {
-				src.argumentCells[1] = defaultTarget.pointer - (src.pointer + 4);
+				src.arguments[1] = defaultTarget.pointer - (src.pointer + src.cellSize);
 			} catch (NullPointerException e) {
 
 			}
-			src.updateDisassembly();
 		}
 	}
 
-	public enum Commands {
-		NONE,
-		LOAD_PRI,
-		LOAD_ALT,
-		LOAD_S_PRI,
-		LOAD_S_ALT,
-		LREF_PRI,
-		LREF_ALT,
-		LREF_S_PRI,
-		LREF_S_ALT,
-		LOAD_I,
-		LODB_I,
-		CONST_PRI,
-		CONST_ALT,
-		ADDR_PRI,
-		ADDR_ALT,
-		STOR_PRI,
-		STOR_ALT,
-		STOR_S_PRI,
-		STOR_S_ALT,
-		SREF_PRI,
-		SREF_ALT,
-		SREF_S_PRI,
-		SREF_S_ALT,
-		STOR_I,
-		STRB_I,
-		LIDX,
-		LIDX_B,
-		IDXADDR,
-		IDXADDR_B,
-		ALIGN_PRI,
-		ALIGN_ALT,
-		LCTRL,
-		SCTRL,
-		MOVE_PRI,
-		MOVE_ALT,
-		XCHG,
-		PUSH_PRI,
-		PUSH_ALT,
-		PICK,
-		PUSH_C,
-		PUSH,
-		PUSH_S,
-		PPRI,
-		PALT,
-		STACK,
-		HEAP,
-		PROC,
-		RET,
-		RETN,
-		CALL,
-		CALL_PRI,
-		JUMP,
-		JREL,
-		JZER,
-		JNZ,
-		JEQ,
-		JNEQ,
-		JLESS,
-		JLEQ,
-		JGRTR,
-		JGEQ,
-		JSLESS,
-		JSLEQ,
-		JSGRTR,
-		JSGEQ,
-		SHL,
-		SHR,
-		SSHR,
-		SHL_C_PRI,
-		SHL_C_ALT,
-		SHR_C_PRI,
-		SHR_C_ALT,
-		SMUL,
-		SDIV,
-		SDIV_ALT,
-		UMUL,
-		UDIV,
-		UDIV_ALT,
-		ADD,
-		SUB,
-		SUB_ALT,
-		AND,
-		OR,
-		XOR,
-		NOT,
-		NEG,
-		INVERT,
-		ADD_C,
-		SMUL_C,
-		ZERO_PRI,
-		ZERO_ALT,
-		ZERO,
-		ZERO_S,
-		SIGN_PRI,
-		SIGN_ALT,
-		EQ,
-		NEQ,
-		LESS,
-		LEQ,
-		GRTR,
-		GEQ,
-		SLESS,
-		SLEQ,
-		SGRTR,
-		SGEQ,
-		EQ_C_PRI,
-		EQ_C_ALT,
-		INC_PRI,
-		INC_ALT,
-		INC,
-		INC_S,
-		INC_I,
-		DEC_PRI,
-		DEC_ALT,
-		DEC,
-		DEC_S,
-		DEC_I,
-		MOVS,
-		CMPS,
-		FILL,
-		HALT,
-		BOUNDS,
-		SYSREQ_PRI,
-		SYSREQ_C,
-		FILE,
-		LINE,
-		SYMBOL,
-		SRANGE,
-		JUMP_PRI,
-		SWITCH,
-		CASETBL,
-		SWAP_PRI,
-		SWAP_ALT,
-		PUSH_ADR,
-		NOP,
-		SYSREQ_N,
-		SYMTAG,
-		BREAK,
-		PUSH2_C,
-		PUSH2,
-		PUSH2_S,
-		PUSH2_ADR,
-		PUSH3_C,
-		PUSH3,
-		PUSH3_S,
-		PUSH3_ADR,
-		PUSH4_C,
-		PUSH4,
-		PUSH4_S,
-		PUSH4_ADR,
-		PUSH5_C,
-		PUSH5,
-		PUSH5_S,
-		PUSH5_ADR,
-		LOAD_BOTH,
-		LOAD_S_BOTH,
-		CONST,
-		CONST_S,
-		/* overlay instructions */
-		ICALL,
-		IRETN,
-		ISWITCH,
-		ICASETBL,
-		/* packed instructions */
-		LOAD_P_PRI,
-		LOAD_P_ALT,
-		LOAD_P_S_PRI,
-		LOAD_P_S_ALT,
-		LREF_P_PRI,
-		LREF_P_ALT,
-		LREF_P_S_PRI,
-		LREF_P_S_ALT,
-		LODB_P_I,
-		CONST_P_PRI,
-		CONST_P_ALT,
-		ADDR_P_PRI,
-		ADDR_P_ALT,
-		STOR_P_PRI,
-		STOR_P_ALT,
-		STOR_P_S_PRI,
-		STOR_P_S_ALT,
-		SREF_P_PRI,
-		SREF_P_ALT,
-		SREF_P_S_PRI,
-		SREF_P_S_ALT,
-		STRB_P_I,
-		LIDX_P_B,
-		IDXADDR_P_B,
-		ALIGN_P_PRI,
-		ALIGN_P_ALT,
-		PUSH_P_C,
-		PUSH_P,
-		PUSH_P_S,
-		STACK_P,
-		HEAP_P,
-		SHL_P_C_PRI,
-		SHL_P_C_ALT,
-		SHR_P_C_PRI,
-		SHR_P_C_ALT,
-		ADD_P_C,
-		SMUL_P_C,
-		ZERO_P,
-		ZERO_P_S,
-		EQ_P_C_PRI,
-		EQ_P_C_ALT,
-		INC_P,
-		INC_P_S,
-		DEC_P,
-		DEC_P_S,
-		MOVS_P,
-		CMPS_P,
-		FILL_P,
-		HALT_P,
-		BOUNDS_P,
-		PUSH_P_ADR,
-		SYSREQ_D,
-		SYSREQ_ND,
-		NUM_OPCODES,
-	}
 }

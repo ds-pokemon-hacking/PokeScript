@@ -32,7 +32,7 @@ public class IDEProject {
 	private FSFile libDir;
 
 	public ListenableList<IInclude> includes = new ListenableList<>();
-	
+
 	public ProjectFileCaretPosCache caretPosCache;
 
 	public IDEProject(FSFile projectFile) {
@@ -61,15 +61,15 @@ public class IDEProject {
 		if (manifest.isMultirelease()) {
 			throw new UnsupportedOperationException("Projects can not be multi-release!");
 		}
-		
+
 		caretPosCache = new ProjectFileCaretPosCache(this);
 	}
-	
-	public void saveCacheData(){
+
+	public void saveCacheData() {
 		caretPosCache.write();
 	}
-	
-	public IDEFile getExistingFile(IDESaveData.IDEFileReference ref){
+
+	public IDEFile getExistingFile(IDESaveData.IDEFileReference ref) {
 		IDEFile f = getExistingFile(ref.path);
 		f.readOnly = !ref.openRW;
 		return f;
@@ -78,16 +78,16 @@ public class IDEProject {
 	public IDEFile getClassFile(String path) {
 		return getFile(path + LangConstants.LANG_SOURCE_FILE_EXTENSION);
 	}
-	
+
 	public IDEFile getFile(String path) {
 		return new IDEFile(this, getSourceDir().getChild(path));
 	}
-	
+
 	public IDEFile getExistingFile(String path) {
 		FSFile fsf = getSourceDir().getChild(path);
-		if (!fsf.exists()){
+		if (!fsf.exists()) {
 			DiskFile df = new DiskFile(path);
-			if (df.exists()){
+			if (df.exists()) {
 				fsf = df;
 			}
 		}
@@ -107,22 +107,27 @@ public class IDEProject {
 		List<Dependency> l = manifest.getProjectDependencies();
 		includes.clear();
 		for (Dependency d : l) {
-			FSFile file = resolvePath(d, ctx);
-
-			if (file == null) {
-				includes.add(new InvalidInclude(d.ref.path));
-			} else {
-				switch (d.type) {
-					case DIRECTORY:
-						includes.add(new SimpleInclude(file));
-						break;
-					case LIBRARY:
-						includes.add(new LibraryInclude(new LibraryFile(file)));
-						break;
-					case PROJECT:
-						includes.add(new ProjectInclude(ctx.getLoadedProject(file)));
-						break;
+			FSFile file = null;
+			try {
+				file = resolvePath(d, ctx);
+				
+				if (file == null) {
+					includes.add(new InvalidInclude(d.ref.path));
+				} else {
+					switch (d.type) {
+						case DIRECTORY:
+							includes.add(new SimpleInclude(file));
+							break;
+						case LIBRARY:
+							includes.add(new LibraryInclude(new LibraryFile(file)));
+							break;
+						case PROJECT:
+							includes.add(new ProjectInclude(ctx.getLoadedProject(file)));
+							break;
+					}
 				}
+			} catch (Exception ex) {
+				includes.add(new InvalidInclude(d.ref.path));
 			}
 		}
 	}
@@ -131,16 +136,17 @@ public class IDEProject {
 		return projectRoot;
 	}
 
-	public FSFile getCacheDir(){
+	public FSFile getCacheDir() {
 		return cacheDir;
 	}
-	
+
 	public List<FSFile> getAllIncludeFiles() {
 		List<FSFile> l = new ArrayList<>();
 		LangPlatform plaf = manifest.getSinglereleaseTargetPlatform();
 		for (IInclude inc : includes) {
 			l.addAll(inc.getIncludeSources(plaf));
 		}
+		l.add(getSourceDirForPlatform(plaf));
 		return l;
 	}
 
@@ -151,12 +157,12 @@ public class IDEProject {
 	public IDEProjectManifest getManifest() {
 		return manifest;
 	}
-	
-	public IDEFile getMainClass(){
+
+	public IDEFile getMainClass() {
 		String mcPath = manifest.getMainClass();
-		if (mcPath != null){
+		if (mcPath != null) {
 			IDEFile cls = getClassFile(mcPath);
-			if (cls.isFile()){
+			if (cls.isFile()) {
 				return cls;
 			}
 		}

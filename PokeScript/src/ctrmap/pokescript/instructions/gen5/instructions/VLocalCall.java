@@ -1,18 +1,14 @@
 package ctrmap.pokescript.instructions.gen5.instructions;
 
-import ctrmap.scriptformats.gen6.PawnInstruction;
 import ctrmap.pokescript.OutboundDefinition;
 import ctrmap.pokescript.data.LocalDataGraph;
-import ctrmap.pokescript.data.Variable;
 import ctrmap.pokescript.instructions.abstractcommands.ACompiledInstruction;
-import ctrmap.pokescript.instructions.abstractcommands.AInstruction;
 import ctrmap.pokescript.instructions.abstractcommands.ALocalCall;
 import ctrmap.pokescript.instructions.gen5.VConstants;
 import ctrmap.pokescript.instructions.gen5.VOpCode;
 import ctrmap.pokescript.instructions.ntr.NTRInstructionCall;
 import ctrmap.pokescript.stage1.NCompileGraph;
 import ctrmap.pokescript.types.DataType;
-import ctrmap.stdlib.util.ArraysEx;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -49,7 +45,7 @@ public class VLocalCall extends ALocalCall {
 
 		//Compile the input and store it onto the stack
 		for (int i = 0; i < getArgCount(); i++) {
-			l.addAll(NTRInstructionCall.compileIL(call.args[i].getCode(DataType.ANY), g));
+			l.addAll(NTRInstructionCall.compileIL(call.args[i].getCode(DataType.ANY.typeDef()), g));
 
 			//the result is now in the primary GPR
 			l.add(VOpCode.PushVar.createCall(VConstants.GP_REG_PRI));

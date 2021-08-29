@@ -1,30 +1,29 @@
 package ctrmap.pokescript.expr;
 
 import ctrmap.pokescript.types.DataType;
-import ctrmap.scriptformats.gen6.PawnInstruction;
-import ctrmap.pokescript.instructions.ctr.instructions.CTRInstruction;
 import ctrmap.pokescript.instructions.abstractcommands.AInstruction;
 import ctrmap.pokescript.instructions.abstractcommands.APlainOpCode;
 import ctrmap.pokescript.stage0.EffectiveLine;
 import ctrmap.pokescript.stage1.NCompileGraph;
+import ctrmap.pokescript.types.TypeDef;
 import java.util.ArrayList;
 import java.util.List;
 
 public class Not extends Operator{
 	
 	@Override
-	public DataType getInputTypeLHS() {
-		return DataType.VOID;
+	public TypeDef getInputTypeLHS() {
+		return DataType.VOID.typeDef();
 	}
 	
 	@Override
-	public DataType getInputTypeRHS() {
-		return DataType.BOOLEAN;
+	public TypeDef getInputTypeRHS() {
+		return DataType.BOOLEAN.typeDef();
 	}
 
 	@Override
-	public DataType getOutputType() {
-		return DataType.BOOLEAN;
+	public TypeDef getOutputType() {
+		return DataType.BOOLEAN.typeDef();
 	}
 
 	@Override

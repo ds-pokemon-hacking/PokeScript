@@ -6,6 +6,7 @@ import ctrmap.pokescript.ide.system.project.IDEFile;
 import ctrmap.pokescript.stage0.Preprocessor;
 import ctrmap.pokescript.stage1.NCompileGraph;
 import ctrmap.stdlib.gui.DialogUtils;
+import ctrmap.stdlib.gui.components.CaretMotion;
 import ctrmap.stdlib.io.base.impl.InputStreamReadable;
 import java.awt.Color;
 import java.awt.Graphics;
@@ -13,6 +14,7 @@ import java.awt.Rectangle;
 import java.awt.event.ActionEvent;
 import java.awt.event.KeyEvent;
 import java.io.ByteArrayInputStream;
+import java.lang.reflect.InvocationTargetException;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
@@ -21,6 +23,7 @@ import java.util.logging.Logger;
 import javax.swing.AbstractAction;
 import javax.swing.JOptionPane;
 import javax.swing.KeyStroke;
+import javax.swing.SwingUtilities;
 import javax.swing.event.CaretEvent;
 import javax.swing.event.CaretListener;
 import javax.swing.text.BadLocationException;
@@ -72,8 +75,9 @@ public class FileEditorRSTA extends RSyntaxTextArea {
 			@Override
 			public void actionPerformed(ActionEvent e) {
 				if (ac.isBoundToArea(FileEditorRSTA.this)) {
+					forceReparsing();
 					ac.updateByArea();
-					ac.attachWindowLayoutToNameAndOpen();
+					ac.attachWindowLayoutToNameAndOpen(CaretMotion.NONE);
 				}
 			}
 		});
@@ -83,6 +87,23 @@ public class FileEditorRSTA extends RSyntaxTextArea {
 			@Override
 			public void actionPerformed(ActionEvent e) {
 				ac.closeAndInvalidate();
+			}
+		});
+
+		getInputMap().put(KeyStroke.getKeyStroke("F5"), "ReloadACHotKey");
+		getActionMap().put("ReloadACHotKey", new AbstractAction() {
+			@Override
+			public void actionPerformed(ActionEvent e) {
+				ac.closeAndInvalidate();
+				ac.reloadProject();
+			}
+		});
+
+		getInputMap().put(KeyStroke.getKeyStroke(KeyEvent.VK_W, KeyEvent.CTRL_DOWN_MASK), "CloseFileHotKey");
+		getActionMap().put("CloseFileHotKey", new AbstractAction() {
+			@Override
+			public void actionPerformed(ActionEvent e) {
+				ide.closeFileTab(FileEditorRSTA.this);
 			}
 		});
 
@@ -101,7 +122,13 @@ public class FileEditorRSTA extends RSyntaxTextArea {
 		reloadFromFile();
 	}
 
+	public void forceReparsing() {
+		forceReparsing(parser);
+	}
+
 	public SaveResult saveTextToFile(boolean dialog) {
+		waitFinishCompilers();
+		parser.disable();
 		String text = getText();
 		if (!text.equals(lastSavedContent)) {
 			int rsl = JOptionPane.YES_OPTION;
@@ -111,8 +138,12 @@ public class FileEditorRSTA extends RSyntaxTextArea {
 
 			switch (rsl) {
 				case JOptionPane.NO_OPTION:
+					file.saveNotify(SaveResult.NO_CHANGES);
+					parser.enable();
 					return SaveResult.NO_CHANGES;
 				case JOptionPane.CANCEL_OPTION:
+					file.saveNotify(SaveResult.CANCELLED);
+					parser.enable();
 					return SaveResult.CANCELLED;
 			}
 
@@ -121,18 +152,28 @@ public class FileEditorRSTA extends RSyntaxTextArea {
 			lastSavedContent = text;
 			ide.setFileTabModified(this, false);
 
-			file.saveNotify();
-
+			file.saveNotify(SaveResult.SAVED);
+			parser.enable();
 			return SaveResult.SAVED;
 		}
+		file.saveNotify(SaveResult.NO_CHANGES);
+		parser.enable();
 		return SaveResult.NO_CHANGES;
+	}
+
+	public void waitFinishCompilers() {
+		try {
+			parser.currentCompilerThread.join();
+		} catch (InterruptedException ex) {
+			Logger.getLogger(FileEditorRSTA.class.getName()).log(Level.SEVERE, null, ex);
+		}
 	}
 
 	public void reloadFromFile() {
 		lastSavedContent = new String(file.getBytes());
 
 		setText(lastSavedContent);
-		
+
 		discardAllEdits();
 	}
 
@@ -213,23 +254,51 @@ public class FileEditorRSTA extends RSyntaxTextArea {
 	public class PPParser extends AbstractParser {
 
 		public Preprocessor pp;
+		
+		private boolean enabled = true;
+
+		public class CompilerThread extends Thread {
+
+			@Override
+			public void run() {
+				pp = file.getCompiler();
+				pp.read(new InputStreamReadable(new ByteArrayInputStream(getText().getBytes())));
+				NCompileGraph cg = pp.getCompileGraph();
+
+				if (ac.isBoundToArea(FileEditorRSTA.this)) {
+					ac.rebuildNodeTree(pp);
+					SwingUtilities.invokeLater((() -> {
+						ide.buildErrorTable(pp);
+					}));
+				}
+			}
+		};
+		
+		public void enable() {
+			enabled = true;
+		}
+		
+		public void disable() {
+			enabled = false;
+		}
+
+		CompilerThread currentCompilerThread = null;
 
 		@Override
 		public ParseResult parse(RSyntaxDocument doc, String style) {
+			if (!enabled) {
+				return new DefaultParseResult(this);
+			}
 			if (/*file.canWrite()*/true) {
 				String text = getText();
 
 				boolean modified = !text.equals(lastSavedContent);
 				ide.setFileTabModified(FileEditorRSTA.this, modified);
 
-				pp = file.getCompiler();
-				pp.read(new InputStreamReadable(new ByteArrayInputStream(text.getBytes())));
-				NCompileGraph cg = pp.getCompileGraph();
-
-				if (cg != null) {
-					ac.rebuildNodeTree(pp);
+				if (currentCompilerThread == null || (!currentCompilerThread.isAlive())) {
+					currentCompilerThread = new CompilerThread();
+					currentCompilerThread.start();
 				}
-				ide.buildErrorTable(pp);
 			} else {
 				ide.buildErrorTable(null);
 			}

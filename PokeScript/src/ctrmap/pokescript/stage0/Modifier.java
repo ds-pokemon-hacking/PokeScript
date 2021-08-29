@@ -4,20 +4,25 @@ package ctrmap.pokescript.stage0;
  *
  */
 public enum Modifier {
-	PUBLIC("public", ModifierTarget.METHOD, ModifierTarget.VAR),
+	PUBLIC("public", ModifierTarget.METHOD, ModifierTarget.VAR, ModifierTarget.CLASS, ModifierTarget.ENUM),
+	INTERNAL("internal", ModifierTarget.METHOD, ModifierTarget.VAR),
 	NATIVE("native", ModifierTarget.METHOD),
 	STATIC("static", ModifierTarget.METHOD, ModifierTarget.VAR),
 	FINAL("final", ModifierTarget.METHOD, ModifierTarget.VAR, ModifierTarget.ARG),
 	META("meta", ModifierTarget.METHOD),
 	VAR("var", ModifierTarget.ARG),
+	BITFLAG("bitflags", ModifierTarget.ENUM),
+	
+	//internal metamodifiers
 	VARIABLE,
-	CLASSDEF;
+	CLASSDEF,
+	ENUMDEF;
 
 	public final String name;
 	private ModifierTarget[] targets;
 
 	private Modifier() {
-		this(null, ModifierTarget.ARG, ModifierTarget.METHOD, ModifierTarget.VAR);
+		this(null, ModifierTarget.ARG, ModifierTarget.METHOD, ModifierTarget.VAR, ModifierTarget.CLASS, ModifierTarget.ENUM);
 	}
 
 	private Modifier(String name, ModifierTarget... targets) {
@@ -47,5 +52,7 @@ public enum Modifier {
 		METHOD,
 		VAR,
 		ARG,
+		CLASS,
+		ENUM
 	}
 }

@@ -6,7 +6,7 @@ public class MemberNode extends AbstractNode{
 	public NMember member;
 	
 	public MemberNode(NMember m){
-		super(m.name);
+		super(m.getSimpleName());
 		member = m;
 	}
 	

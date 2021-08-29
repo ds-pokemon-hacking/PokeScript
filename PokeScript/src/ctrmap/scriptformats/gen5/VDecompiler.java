@@ -366,6 +366,7 @@ public class VDecompiler {
 			case FX16:
 			case FX32:
 				out.print(val / 4096f);
+				out.print("f");
 				break;
 		}
 	}

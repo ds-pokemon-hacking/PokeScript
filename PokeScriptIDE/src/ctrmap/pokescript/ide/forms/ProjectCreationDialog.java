@@ -203,7 +203,9 @@ public class ProjectCreationDialog extends javax.swing.JDialog {
 		if (btnIsCreateMainClass.isSelected()) {
 			FSUtil.writeBytesToFile(
 					result.getClassFile(mainClass.getText()),
-					PSIDE.getTemplateData("MainClass.pks", new PSIDETemplateVar("CLASSNAME", mainClass.getText()))
+					PSIDE.getTemplateData("MainClass.pks", 
+						new PSIDETemplateVar("CLASSNAME", mainClass.getText())
+					)
 			);
 			result.getManifest().setMainClass(mainClass.getText());
 		}

@@ -1,22 +1,15 @@
 package ctrmap.pokescript.stage1;
 
-import ctrmap.scriptformats.gen6.PawnInstruction;
 import ctrmap.pokescript.data.Variable;
 import ctrmap.pokescript.instructions.ctr.instructions.PConditionJump;
-import ctrmap.pokescript.instructions.ctr.instructions.CTRInstruction;
 import ctrmap.pokescript.instructions.abstractcommands.AInstruction;
 import ctrmap.pokescript.instructions.abstractcommands.APlainInstruction;
 import ctrmap.pokescript.instructions.abstractcommands.APlainOpCode;
-import ctrmap.pokescript.stage0.EffectiveLine;
 import ctrmap.pokescript.stage0.Statement;
 import java.security.SecureRandom;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.UUID;
 
-/**
- *
- */
 public class CompileBlock {
 
 	public NCompileGraph graph;
@@ -118,7 +111,7 @@ public class CompileBlock {
 	}
 	
 	public void updateBlockStackIns(){
-		blockBeginAdjustStackIns.args[0] = localsOfThisBlock.size() * -graph.provider.getMemoryInfo().getStackIndexingStep();
+		blockBeginAdjustStackIns.args[0] = localsOfThisBlock.size() * graph.provider.getMemoryInfo().getStackIndexingStep();
 	}
 
 	public static enum BlockAttribute {

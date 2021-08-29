@@ -1,15 +1,14 @@
 package ctrmap.pokescript.expr;
 
 import ctrmap.pokescript.types.DataType;
-import ctrmap.scriptformats.gen6.PawnInstruction;
 import ctrmap.pokescript.data.Variable;
-import ctrmap.pokescript.instructions.abstractcommands.AAccessGlobal;
 import ctrmap.pokescript.instructions.abstractcommands.AInstruction;
 import ctrmap.pokescript.instructions.abstractcommands.APlainInstruction;
 import ctrmap.pokescript.instructions.abstractcommands.APlainOpCode;
 import ctrmap.pokescript.stage0.EffectiveLine;
 import ctrmap.pokescript.stage0.Modifier;
 import ctrmap.pokescript.stage1.NCompileGraph;
+import ctrmap.pokescript.types.TypeDef;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -17,21 +16,21 @@ public class Throughput {
 
 	//specifies the data interchanged between operators
 	//gets exported from a child expression to a parent with all previous instructions
-	public DataType type;
-	protected List<AInstruction> code;
+	public TypeDef type;
+	protected List<AInstruction> code = new ArrayList<>();
 
-	public Throughput(DataType t, List<AInstruction> code) {
+	public Throughput(TypeDef t, List<AInstruction> code) {
 		type = t;
 		this.code = code;
 	}
 
 	public Throughput(int immediateValue, NCompileGraph cg) {
-		type = DataType.INT;
+		type = DataType.INT.typeDef();
 		makeConst(immediateValue, cg);
 	}
 
 	public Throughput(float immediateValue, NCompileGraph cg) {
-		type = DataType.FLOAT;
+		type = DataType.FLOAT.typeDef();
 		makeConst(Float.floatToIntBits(immediateValue), cg);
 	}
 
@@ -48,17 +47,14 @@ public class Throughput {
 
 	public Throughput(boolean immediateValue, NCompileGraph cg) {
 		makeConst(immediateValue ? 1 : 0, cg);
-		type = DataType.BOOLEAN;
+		type = DataType.BOOLEAN.typeDef();
 	}
 
 	public Throughput() {
-		type = DataType.ANY;
+		type = DataType.ANY.typeDef();
 	}
-
-	public boolean isImmediate() {
-		if (code.isEmpty()) {
-			return true; //uninitialized
-		}
+	
+	public boolean isImmediateConstant() {
 		if (code.size() == 1) {
 			AInstruction ins = code.get(0);
 			if (ins instanceof APlainInstruction) {
@@ -67,6 +63,16 @@ public class Throughput {
 					return true;
 				}
 			}
+		}
+		return false;
+	}
+
+	public boolean isImmediate() {
+		if (code.isEmpty()) {
+			return true; //uninitialized
+		}
+		if (isImmediateConstant()) {
+			return true;
 		}
 		if (isVariable()) {
 			Variable var = getVariable();
@@ -91,6 +97,20 @@ public class Throughput {
 		}
 		return null;
 	}
+	
+	public void setImmediateConstantValue(int val) {
+		if (code.size() == 1) {
+			AInstruction ins = code.get(0);
+			if (ins instanceof APlainInstruction) {
+				APlainOpCode cmd = ((APlainInstruction) ins).opCode;
+				if (cmd == APlainOpCode.CONST_PRI) {
+					((APlainInstruction)ins).args[0] = val;
+					return;
+				}
+			}
+		}
+		throw new RuntimeException("Not a constant!!");
+	}
 
 	public int getImmediateValue() {
 		if (isImmediate()) {
@@ -109,29 +129,47 @@ public class Throughput {
 		return 0;
 	}
 
-	public List<AInstruction> getCode(DataType input) {
+	public List<AInstruction> getCode(TypeDef input) {
 		checkCast(input);
 		return code;
 	}
 
-	public void checkCast(DataType input) {
-		checkCast(input, null);
+	public void checkCast(TypeDef input) {
+		checkImplicitCast(input, (EffectiveLine)null);
 	}
 
-	public boolean checkCast(DataType input, EffectiveLine line) {
+	public boolean checkImplicitCast(TypeDef input, EffectiveLine line) {
+		boolean val = checkImplicitCast(input, type);
+		if (!val) {
+			if (line == null) {
+				//throw new CompileGraph.CompileException("Invalid operand: " + input + " expected, got " + type);
+			} else {
+				line.throwException("Invalid operand: " + input + " expected, got " + type);
+			}
+		}
+		return val;
+	}
+	
+	public static boolean checkImplicitCast(TypeDef input, TypeDef output) {
 		boolean allow = false;
-		switch (input) {
+		
+		DataType type = output.baseType;
+		
+		switch (input.baseType) {
 			case ANY:
 				allow = true;
 				break;
 			case ANY_VAR:
-				allow = type == DataType.VAR_BOOLEAN || type == DataType.VAR_INT || type == DataType.VAR_FLOAT;
+				allow = type == DataType.VAR_BOOLEAN || type == DataType.VAR_INT || type == DataType.VAR_FLOAT || type == DataType.VAR_CLASS || type == DataType.VAR_ENUM;
 				break;
 			case BOOLEAN:
 				allow = type == DataType.BOOLEAN || type == DataType.VAR_BOOLEAN;
 				break;
 			case INT:
-				allow = type == DataType.INT || type == DataType.VAR_INT;
+				allow = type == DataType.INT || type == DataType.VAR_INT || type == DataType.ENUM || type == DataType.VAR_ENUM;
+				break;
+			case ENUM:
+				allow = type == DataType.INT || type == DataType.VAR_INT || output.equals(input);
 				break;
 			case FLOAT:
 				allow = type == DataType.FLOAT || type == DataType.VAR_FLOAT || type == DataType.INT || type == DataType.VAR_INT;
@@ -139,15 +177,14 @@ public class Throughput {
 			case VAR_BOOLEAN:
 			case VAR_INT:
 			case VAR_FLOAT:
-				allow = type == input;
+				allow = type == input.baseType;
 				break;
-		}
-		if (!allow) {
-			if (line == null) {
-				//throw new CompileGraph.CompileException("Invalid operand: " + input + " expected, got " + type);
-			} else {
-				line.throwException("Invalid operand: " + input + " expected, got " + type);
-			}
+			case VAR_CLASS:
+				allow = type == DataType.VAR_CLASS && input.equals(output);
+				break;
+			case VAR_ENUM:
+				allow = type == DataType.VAR_ENUM && input.equals(output);
+				break;
 		}
 		return allow;
 	}

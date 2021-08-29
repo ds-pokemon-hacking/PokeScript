@@ -231,6 +231,14 @@ public class AutoComplete {
 		}
 	}
 
+	public void reloadProject() {
+		if (currentProject != null) {
+			IDEProject p = currentProject;
+			currentProject = null;
+			loadProject(p);
+		}
+	}
+
 	public void addInclude(FSFile f, IDEProject proj) {
 		LangCompiler.CompilerArguments cfg = proj.getCompilerArguments();
 		if (f.isDirectory()) {
@@ -260,7 +268,9 @@ public class AutoComplete {
 		acRoot.children.removeAll(localNodes);
 		localNodes.clear();
 		for (NMember member : script.getMembers()) {
-			localNodes.add(new MemberNode(member));
+			if (member.isRecommendedUserAccessible()) {
+				localNodes.add(new MemberNode(member));
+			}
 		}
 		for (AbstractNode n : localNodes) {
 			acRoot.addChildUnbound(n);
@@ -305,12 +315,7 @@ public class AutoComplete {
 
 	public void updateByArea(CaretMotion motion) {
 		if (area != null) {
-			int caretPos = area.getCaretPosition();
-			if (motion == CaretMotion.FORWARD) {
-				caretPos++;
-			} else if (motion == CaretMotion.BACKWARD) {
-				caretPos -= 2;
-			}
+			int caretPos = area.getCaretPosition() + getCaretMotIncrement(motion);
 			if (caretPos < 0) {
 				return;
 			}
@@ -363,10 +368,20 @@ public class AutoComplete {
 		return "";
 	}
 
-	public void attachWindowLayoutToNameAndOpen() {
+	public static int getCaretMotIncrement(CaretMotion motion) {
+		int caretPos = 0;
+		if (motion == CaretMotion.FORWARD) {
+			caretPos++;
+		} else if (motion == CaretMotion.BACKWARD) {
+			caretPos -= 2;
+		}
+		return caretPos;
+	}
+
+	public void attachWindowLayoutToNameAndOpen(CaretMotion caretMotion) {
 		//Scroll back through the text until a nonalphanumeric character or non_ is found (including dots, yeah)
 		String text = area.getText();
-		int idx = Math.min(text.length() - 1, area.getCaretPosition() - 1);
+		int idx = Math.min(text.length() - 1, area.getCaretPosition() - 1 + getCaretMotIncrement(caretMotion));
 		for (; idx >= 0; idx--) {
 			char c = text.charAt(idx);
 			if (!(Character.isAlphabetic(c) || c == '_')) {
@@ -381,7 +396,7 @@ public class AutoComplete {
 
 	public void updateACContentsAndLocation() {
 		updateAutocomplete(area.getCaretPosition());
-		attachWindowLayoutToNameAndOpen();
+		attachWindowLayoutToNameAndOpen(CaretMotion.NONE);
 	}
 
 	private Point getOSLOfChar(int charIndex) {
@@ -463,7 +478,7 @@ public class AutoComplete {
 				String text = e.getDocument().getText(e.getOffset(), e.getLength());
 				if (text.endsWith(".")) {
 					updateByArea(CaretMotion.FORWARD);
-					attachWindowLayoutToNameAndOpen();
+					attachWindowLayoutToNameAndOpen(CaretMotion.FORWARD);
 				}
 				if (isVisible()) {
 					updateByArea(CaretMotion.FORWARD);

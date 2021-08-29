@@ -8,8 +8,11 @@ import ctrmap.pokescript.LangConstants;
 import ctrmap.pokescript.MemberDocumentation;
 import ctrmap.pokescript.stage0.content.AbstractContent;
 import ctrmap.pokescript.stage0.content.DeclarationContent;
+import ctrmap.pokescript.stage0.content.EnumConstantDeclarationContent;
 import ctrmap.pokescript.stage1.NCompilableMethod;
 import ctrmap.pokescript.stage1.NCompileGraph;
+import ctrmap.pokescript.types.DataType;
+import ctrmap.pokescript.types.declarers.DeclarerController;
 import ctrmap.stdlib.fs.FSFile;
 import ctrmap.stdlib.io.base.iface.ReadableStream;
 import ctrmap.stdlib.util.ArraysEx;
@@ -19,7 +22,9 @@ import java.io.InputStreamReader;
 import java.io.Reader;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -27,6 +32,7 @@ public class Preprocessor {
 
 	private List<EffectiveLine> lines = new ArrayList<>();
 	private List<CommentDump> comments = new ArrayList<>();
+
 	public List<FSFile> include = new ArrayList<>();
 
 	private CompilerLogger log;
@@ -52,12 +58,12 @@ public class Preprocessor {
 		this.args = args;
 		read(stream);
 	}
-	
-	public LangCompiler.CompilerArguments getArgs(){
+
+	public LangCompiler.CompilerArguments getArgs() {
 		return args;
 	}
-	
-	public void read(FSFile fsf){
+
+	public void read(FSFile fsf) {
 		read(fsf.getInputStream());
 	}
 
@@ -72,7 +78,7 @@ public class Preprocessor {
 			ppState.defined = args.preprocessorDefinitions;
 
 			while (reader.ready()) {
-				EffectiveLine l = readLine(line, reader, LangConstants.COMMON_LINE_TERM);
+				EffectiveLine l = readLine(line, reader, ppState, state, false, LangConstants.COMMON_LINE_TERM);
 				//System.out.print(l.data);
 				line += l.newLineCount;
 				l.trim();
@@ -94,7 +100,6 @@ public class Preprocessor {
 					lines.get(lines.size() - 1).throwException("Unclosed preprocessor condition. (Count: " + ppState.ppStack.size() + ")");
 				}
 			}
-			args.pragmata.putAll(ppState.pragmata);
 		} catch (IOException ex) {
 			Logger.getLogger(Preprocessor.class.getName()).log(Level.SEVERE, null, ex);
 		}
@@ -113,26 +118,34 @@ public class Preprocessor {
 		EffectiveLine lastLine = null;
 		int lmax = -1;
 		for (EffectiveLine l : lines) {
-			int endl = l.startingLine;
-			if (endl < line) {
-				if (endl < lmax) {
-					continue;
+			if (!l.hasType(EffectiveLine.LineType.PREPROCESSOR_COMMAND)) {
+				int endl = l.startingLine;
+				if (endl < line) {
+					if (endl < lmax) {
+						continue;
+					}
+					lmax = endl;
+					lastLine = l;
+				} else {
+					break;
 				}
-				lmax = endl;
-				lastLine = l;
-			} else {
-				break;
 			}
 		}
 		int lineReq = lastLine != null ? lmax : line - 1;
 		//System.err.println(contextName);
 		//System.err.println("req " + lineReq + ", " + line);
+		CommentDump current = null;
 		for (CommentDump cd : comments) {
 			if (cd.endLine >= lineReq && cd.endLine <= line) {
-				return cd;
+				if (current == null) {
+					current = cd;
+				}
+				else if (cd.endLine > current.endLine) {
+					current = cd;
+				}
 			}
 		}
-		return null;
+		return current;
 	}
 
 	public List<NMember> getMembers() {
@@ -140,40 +153,64 @@ public class Preprocessor {
 	}
 
 	public List<NMember> getMembers(boolean localOnly) {
+		if (cg == null) {
+			getCompileGraph();
+		}
 		if (!localOnly) {
-			if (cg == null) {
-				getCompileGraph();
-			}
 			if (cg == null) {
 				return new ArrayList<>();
 			}
 		}
 		List<NMember> members = new ArrayList<>();
 		for (EffectiveLine el : lines) {
-			if (el.content.getContentType() == AbstractContent.CompilerContentType.DECLARATION && el.context != EffectiveLine.AnalysisLevel.LOCAL) {
-				DeclarationContent decCnt = (DeclarationContent) el.content;
-				CommentDump cmt = getCommentBeforeLine(el.startingLine);
-				NMember n = new NMember();
-				n.modifiers = decCnt.declaredModifiers;
-				n.type = decCnt.declaredType;
-				n.doc = cmt != null ? new MemberDocumentation(cmt.contents) : null;
-				if (decCnt.isMethodDeclaration()) {
-					NCompilableMethod m = decCnt.getMethod();
+			if (el.content.getContentType() == AbstractContent.CompilerContentType.DECLARATION_ENMCONST || (el.content.getContentType() == AbstractContent.CompilerContentType.DECLARATION && el.context != EffectiveLine.AnalysisLevel.LOCAL)) {
+				if (el.content.getContentType() == AbstractContent.CompilerContentType.DECLARATION_ENMCONST) {
+					EnumConstantDeclarationContent ecdc = (EnumConstantDeclarationContent) el.content;
 
-					if (localOnly) {
-						n.name = m.def.name;
-					} else {
-						n.name = cg.appliedNamespace == null ? m.def.name : cg.appliedNamespace + "." + m.def.name;
+					for (EnumConstantDeclarationContent.EnumConstant c : ecdc.constants) {
+						NMember m = new NMember();
+						CommentDump cmt = getCommentBeforeLine(c.line);
+						if (c.type != null) {
+							m.type = c.type;
+						} else if (cg != null && cg.currentClass != null) {
+							m.type = cg.currentClass.getTypeDef();
+						} else {
+							m.type = DataType.ENUM.typeDef();
+						}
+						m.doc = cmt != null ? new MemberDocumentation(cmt.contents) : null;
+						if (localOnly) {
+							m.name = c.name;
+						} else {
+							m.name = (cg != null && cg.currentClass != null) ? c.name : LangConstants.makePath(cg.packageName, cg.currentClass.className, c.name);
+						}
+						m.modifiers = ArraysEx.asList(Modifier.VARIABLE, Modifier.STATIC, Modifier.FINAL);
+						members.add(m);
 					}
-					n.args = m.def.args;
 				} else {
-					if (localOnly) {
-						n.name = decCnt.declaredName;
+					DeclarationContent decCnt = (DeclarationContent) el.content;
+					CommentDump cmt = getCommentBeforeLine(el.startingLine);
+					NMember n = new NMember();
+					n.modifiers = decCnt.declaredModifiers;
+					n.type = decCnt.declaredType;
+					n.doc = cmt != null ? new MemberDocumentation(cmt.contents) : null;
+					if (decCnt.isMethodDeclaration()) {
+						NCompilableMethod m = decCnt.getMethod();
+
+						if (localOnly) {
+							n.name = m.def.name;
+						} else {
+							n.name = (cg.currentClass != null) ? m.def.name : LangConstants.makePath(cg.packageName, cg.currentClass.className, m.def.name);
+						}
+						n.args = m.def.args;
 					} else {
-						n.name = cg.appliedNamespace == null ? decCnt.declaredName : cg.appliedNamespace + "." + decCnt.declaredName;
+						if (localOnly) {
+							n.name = decCnt.declaredName;
+						} else {
+							n.name = (cg.currentClass != null) ? decCnt.declaredName : LangConstants.makePath(cg.packageName, cg.currentClass.className, decCnt.declaredName);
+						}
 					}
+					members.add(n);
 				}
-				members.add(n);
 			}
 		}
 
@@ -220,10 +257,20 @@ public class Preprocessor {
 		}
 		cg.includePaths = include;
 
-		cg.methodHeaders = getDeclaredMethods();
+		DeclarerController declarer = new DeclarerController(cg);
+
+		List<EffectiveLine> l = new ArrayList<>(lines);
+		
+		for (EffectiveLine line : l) {
+			cg.currentCompiledLine = line;
+			if (line.exceptions.isEmpty() && line.content != null) {
+				line.content.declareToGraph(cg, declarer);
+			}
+		}
+
 		List<CompilerExceptionData> exc;
 
-		for (EffectiveLine line : lines) {
+		for (EffectiveLine line : l) {
 			cg.currentCompiledLine = line;
 			if (line.exceptions.isEmpty() && line.content != null) {
 				line.content.addToGraph(cg);
@@ -232,9 +279,9 @@ public class Preprocessor {
 				}
 			}
 		}
-		
+
 		cg.finishCompileLoad();
-		
+
 		exc = collectExceptions();
 
 		for (CompilerExceptionData d : exc) {
@@ -249,15 +296,15 @@ public class Preprocessor {
 
 	public List<CompilerExceptionData> collectExceptions() {
 		List<CompilerExceptionData> d = new ArrayList<>();
-		for (EffectiveLine l : lines) {
+		for (EffectiveLine l : new ArrayList<>(lines)) {
 			d.addAll(l.getExceptionData());
 		}
 		return d;
 	}
-	
-	public boolean isCompileSuccessful(){
+
+	public boolean isCompileSuccessful() {
 		for (EffectiveLine l : lines) {
-			if (!l.exceptions.isEmpty()){
+			if (!l.exceptions.isEmpty()) {
 				return false;
 			}
 		}
@@ -283,7 +330,12 @@ public class Preprocessor {
 	}
 
 	public static BraceContent getContentInBraces(String source, int firstBraceIndex) {
-		int braceLevel = 0;
+		return getContentInBraces(source, firstBraceIndex, false);
+	}
+
+	public static BraceContent getContentInBraces(String source, int firstBraceIndex, boolean noNeedBraceStartEnd) {
+		int braceLevel = noNeedBraceStartEnd ? 1 : 0;
+		int maxIdx = source.length() - 1;
 		StringBuilder sb = new StringBuilder();
 		BraceContent cnt = new BraceContent();
 		for (int idx = firstBraceIndex; idx < source.length(); idx++) {
@@ -294,7 +346,7 @@ public class Preprocessor {
 				braceLevel--;
 			}
 			sb.append(c);
-			if (braceLevel == 0) {
+			if (braceLevel == 0 || braceLevel == 1 && idx == maxIdx) {
 				cnt.hasIntegrity = true;
 				cnt.endIndex = idx + 1;
 				break;
@@ -321,7 +373,7 @@ public class Preprocessor {
 		return 0;
 	}
 
-	private EffectiveLine readLine(int line, Reader reader, Character... terminators) throws IOException {
+	private EffectiveLine readLine(int line, Reader reader, EffectiveLine.PreprocessorState ppState, EffectiveLine.AnalysisState anlState, boolean isPreprocessor, Character... terminators) throws IOException {
 		List<Character> termList = ArraysEx.asList(terminators);
 		char c;
 		StringBuilder unfiltered = new StringBuilder();
@@ -341,33 +393,61 @@ public class Preprocessor {
 		int blevel = 0;
 		int charIndex = -1;
 
+		EffectiveLine l = new EffectiveLine();
+
 		while (reader.ready()) {
 			c = (char) reader.read();
 
 			if (!isInComment && !notifyNextComment && firstChar) {
 				if (c == LangConstants.CH_PP_KW_IDENTIFIER || c == LangConstants.CH_ANNOT_KW_IDENTIFIER) {
 					termList.add('\n');
+					isPreprocessor = true;
 				}
-				if (!Character.isWhitespace(c) && c != '/') { //forbid comments
+				if (!Character.isWhitespace(c) && c != LangConstants.CH_COMMENT_START_CAND) { //forbid comments
 					firstChar = false;
 				}
+			} else if (c == LangConstants.CH_PP_KW_IDENTIFIER) {
+				boolean allow = true;
+				if (isInComment) {
+					allow = false;
+					for (int i = commentSB.length() - 1; i >= 0; i--) {
+						char c2 = commentSB.charAt(i);
+						if (c2 == '\n') {
+							allow = true;
+							break;
+						} else if (!Character.isWhitespace(c2)) {
+							break;
+						}
+					}
+				}
+				if (allow) {
+					EffectiveLine ppLine = readLine(line + lineAccumulator, reader, ppState, anlState, true, '\n');
+					ppLine.data = LangConstants.CH_PP_KW_IDENTIFIER + ppLine.data;
+					ppLine.analyze0(anlState);
+					ppLine.analyze1(anlState);
+					new TextPreprocessorCommandReader(ppLine, log).processState(ppState);
+					l.exceptions.addAll(ppLine.exceptions);
+					lineAccumulator += ppLine.newLineCount;
+					continue;
+				}
 			}
+
 			if (!firstChar) {
 				charIndex++;
 			}
 			if (notifyNextComment) {
 				switch (c) {
-					case '*':
-						commentTerm = "*/";
+					case LangConstants.CH_COMMENT_BLOCK:
+						commentTerm = LangConstants.CHSEQ_COMMENT_TERM_BLOCK;
 						isInComment = true;
 						break;
-					case '/':
-						commentTerm = "\n";
+					case LangConstants.CH_COMMENT_ONELINE:
+						commentTerm = LangConstants.CHSEQ_COMMENT_TERM_ONELINE;
 						isInComment = true;
 						break;
 				}
 			}
-			if (notifyNextComment && isInComment) {
+			if (notifyNextComment && isInComment && ppState.getIsCodePassthroughEnabled()) {
 				if (charIndex <= 1) {
 					isCommentBegin = true;
 				}
@@ -391,7 +471,7 @@ public class Preprocessor {
 					case ')':
 						blevel--;
 						break;
-					case '/':
+					case LangConstants.CH_COMMENT_START_CAND:
 						notifyNextComment = true;
 						break;
 					default:
@@ -412,14 +492,16 @@ public class Preprocessor {
 				}
 			}
 			if (!isInComment) {
-				sb.append(c);
+				if (ppState.getIsCodePassthroughEnabled() || isPreprocessor) {
+					sb.append(c);
+				}
 			} else {
 				commentSB.append(c);
 			}
 
 			unfiltered.append(c);
 
-			if (c == ':') {
+			if (c == LangConstants.CH_METHOD_EXTENDS_IDENT) {
 				//might be part of a method declaration - scan back for a bracket
 				boolean allowDDBreak = true;
 				for (int i = sb.length() - 2; i >= 0; i--) {
@@ -441,7 +523,6 @@ public class Preprocessor {
 				break;
 			}
 		}
-		EffectiveLine l = new EffectiveLine();
 		l.startingLine = line;
 		l.startingLine += beginCommentLines;
 		l.fileName = contextName;

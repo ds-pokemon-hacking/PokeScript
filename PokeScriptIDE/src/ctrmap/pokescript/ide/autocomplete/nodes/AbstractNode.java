@@ -1,10 +1,11 @@
 package ctrmap.pokescript.ide.autocomplete.nodes;
 
+import ctrmap.pokescript.LangConstants;
 import ctrmap.pokescript.ide.autocomplete.gui.ACHintPanel;
 import java.util.ArrayList;
 import java.util.List;
 
-public class AbstractNode {
+public class AbstractNode implements Comparable<AbstractNode> {
 
 	public String name;
 	public List<String> aliases = new ArrayList<>();
@@ -17,11 +18,11 @@ public class AbstractNode {
 	}
 
 	public final String getFullName() {
-		return parent != null ? parent.getFullName() + "." + name : name;
+		return parent != null ? LangConstants.makePath(parent.getFullName(), name) : name;
 	}
 
 	public String getPrintableShortName(){
-		return name;
+		return LangConstants.getLastPathElem(name);
 	}
 	
 	public final void addAlias(String alias) {
@@ -39,10 +40,12 @@ public class AbstractNode {
 	public final void addChild(AbstractNode n) {
 		n.setParent(this);
 		children.add(n);
+		//System.out.println("add child " + n.getFullName());
 	}
 
 	public final void addChildUnbound(AbstractNode n) {
 		children.add(n);
+		//System.out.println("add child unbound " + n.getFullName());
 	}
 
 	public List<AbstractNode> getRecommendations(String query) {
@@ -95,7 +98,7 @@ public class AbstractNode {
 					matchingAlias = a;
 				}
 			}
-			for (AbstractNode n : children) {
+			for (AbstractNode n : new ArrayList<>(children)) {
 				r.addAll(n.getRecommendations(query, matchingAlias));
 			}
 		}
@@ -133,5 +136,10 @@ public class AbstractNode {
 			hintPanel = new ACHintPanel(this);
 		}
 		return hintPanel;
+	}
+
+	@Override
+	public int compareTo(AbstractNode o) {
+		return getPrintableShortName().compareTo(o.getPrintableShortName());
 	}
 }

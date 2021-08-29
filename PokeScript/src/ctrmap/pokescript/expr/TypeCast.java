@@ -1,11 +1,11 @@
 package ctrmap.pokescript.expr;
 
-import ctrmap.pokescript.instructions.ctr.instructions.CTRInstruction;
 import ctrmap.pokescript.instructions.abstractcommands.AInstruction;
 import ctrmap.pokescript.stage0.EffectiveLine;
 import ctrmap.pokescript.stage1.NCompileGraph;
 import ctrmap.pokescript.types.AbstractTypeHandler;
 import ctrmap.pokescript.types.DataType;
+import ctrmap.pokescript.types.TypeDef;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -14,24 +14,24 @@ import java.util.List;
  */
 public class TypeCast extends Operator {
 
-	public DataType targetType;
+	public TypeDef targetType;
 
-	public TypeCast(DataType target) {
+	public TypeCast(TypeDef target) {
 		targetType = target;
 	}
 
 	@Override
-	public DataType getInputTypeLHS() {
-		return DataType.ANY;
+	public TypeDef getInputTypeLHS() {
+		return DataType.ANY.typeDef();
 	}
 
 	@Override
-	public DataType getInputTypeRHS() {
-		return DataType.ANY;
+	public TypeDef getInputTypeRHS() {
+		return DataType.ANY.typeDef();
 	}
 
 	@Override
-	public DataType getOutputType() {
+	public TypeDef getOutputType() {
 		return targetType;
 	}
 	
@@ -39,7 +39,7 @@ public class TypeCast extends Operator {
 	public List<AInstruction> getOperation(Throughput left, Throughput right, EffectiveLine line, NCompileGraph cg) {
 		//only accepts the right throughput
 		Throughput toCast = right;
-		AbstractTypeHandler.CastResult rsl = toCast.type.getBaseType().requestHandler().getInstructionForCast(targetType, cg);
+		AbstractTypeHandler.CastResult rsl = toCast.type.baseType.requestHandler().getInstructionForCast(targetType.baseType, cg);
 		List<AInstruction> l = new ArrayList<>();
 		if (rsl.success) {
 			l.addAll(right.getCode(right.type));

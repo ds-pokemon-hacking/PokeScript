@@ -1,29 +1,29 @@
 package ctrmap.pokescript.expr;
 
 import ctrmap.pokescript.types.DataType;
-import ctrmap.scriptformats.gen6.PawnInstruction;
 import ctrmap.pokescript.instructions.abstractcommands.AInstruction;
 import ctrmap.pokescript.instructions.abstractcommands.APlainOpCode;
 import ctrmap.pokescript.stage0.EffectiveLine;
 import ctrmap.pokescript.stage1.NCompileGraph;
+import ctrmap.pokescript.types.TypeDef;
 import java.util.ArrayList;
 import java.util.List;
 
 public abstract class Operator {
 
 	public boolean getHasOnlyRHS() {
-		return getInputTypeLHS() == DataType.VOID;
+		return getInputTypeLHS().baseType == DataType.VOID;
 	}
 
 	public boolean getHasOnlyLHS() {
-		return getInputTypeRHS() == DataType.VOID;
+		return getInputTypeRHS().baseType == DataType.VOID;
 	}
 
-	public abstract DataType getInputTypeLHS();
+	public abstract TypeDef getInputTypeLHS();
 
-	public abstract DataType getInputTypeRHS();
+	public abstract TypeDef getInputTypeRHS();
 
-	public abstract DataType getOutputType();
+	public abstract TypeDef getOutputType();
 
 	public abstract Priority getPriority();
 
@@ -32,10 +32,10 @@ public abstract class Operator {
 	public boolean checkCast(Throughput left, Throughput right, EffectiveLine line){
 		boolean b = true;
 		if (left != null){
-			b &= left.checkCast(getInputTypeLHS(), line);
+			b &= left.checkImplicitCast(getInputTypeLHS(), line);
 		}
 		if (right != null){
-			b &= right.checkCast(getInputTypeRHS(), line);
+			b &= right.checkImplicitCast(getInputTypeRHS(), line);
 		}
 		return b;
 	}
@@ -158,10 +158,11 @@ public abstract class Operator {
 	}
 
 	public static enum Priority {
+		ASSIGNMENT,
 		BOOLOPS,
 		COMPARE,
 		NORMAL,
 		ALG_MULT,
-		NEGATE
+		NEGATE,
 	}
 }

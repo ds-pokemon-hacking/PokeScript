@@ -8,7 +8,8 @@ import ctrmap.pokescript.stage0.content.StatementContent;
 public enum CompilerPragma {
 	OPTIMIZE_COUNT("optimize_count", PragmaType.INT),
 	LEAK_FOR_DECL("leak_for_declaration", PragmaType.BOOLEAN),
-	FUNCARG_BYTES_DEFAULT("funcarg_bytes_default", PragmaType.INT);
+	FUNCARG_BYTES_DEFAULT("funcarg_bytes_default", PragmaType.INT),
+	ALLOW_UNSAFE_CASTS("unsafe_casts", PragmaType.BOOLEAN);
 
 	public final String tag;
 	public final PragmaType type;

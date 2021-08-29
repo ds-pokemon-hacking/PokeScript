@@ -27,9 +27,10 @@ public class TextPreprocessorCommandReader {
 	}
 
 	public void processState(EffectiveLine.PreprocessorState state) {
-		if (cnt == null){
+		if (cnt == null) {
 			return;
 		}
+		//System.out.println("PPCODE " + cnt.statement);
 		switch (cnt.statement) {
 			case P_DEFINE:
 				state.defined.add(cnt.arguments.get(0));
@@ -50,22 +51,28 @@ public class TextPreprocessorCommandReader {
 			case P_ELSE_IF:
 				state.ppStack.pop();
 			case P_IFDEF:
-				state.ppStack.push(state.defined.contains(cnt.arguments.get(0)));
+				if (!cnt.arguments.isEmpty()) {
+					state.ppStack.push(state.defined.contains(cnt.arguments.get(0)));
+				} else {
+					l.throwException("Definition expected.");
+				}
 				break;
 			case P_IFNDEF:
-				state.ppStack.push(!state.defined.contains(cnt.arguments.get(0)));
+				if (!cnt.arguments.isEmpty()) {
+					state.ppStack.push(!state.defined.contains(cnt.arguments.get(0)));
+				} else {
+					l.throwException("Definition expected.");
+				}
 				break;
 			case P_ECHO:
-				log.println(CompilerLogger.LogLevel.INFO, cnt.arguments.get(0));
+				if (!cnt.arguments.isEmpty()) {
+					log.println(CompilerLogger.LogLevel.INFO, cnt.arguments.get(0));
+				} else {
+					l.throwException("Echo text expected.");
+				}
 				break;
 			case P_ERROR:
 				l.throwException(cnt.arguments.get(0));
-				break;
-			case P_PRAGMA:
-				CompilerPragma.PragmaValue val = CompilerPragma.tryIdentifyPragma(cnt, l);
-				if (val != null){
-					state.pragmata.put(val.pragma, val);
-				}
 				break;
 		}
 	}

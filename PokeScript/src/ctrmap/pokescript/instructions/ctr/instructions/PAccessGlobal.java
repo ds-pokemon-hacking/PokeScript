@@ -1,9 +1,10 @@
 package ctrmap.pokescript.instructions.ctr.instructions;
 
-import ctrmap.scriptformats.gen6.PawnInstruction;
 import ctrmap.pokescript.instructions.abstractcommands.AAccessGlobal;
 import ctrmap.pokescript.instructions.abstractcommands.AInstruction;
 import ctrmap.pokescript.stage1.NCompileGraph;
+import ctrmap.scriptformats.gen6.PawnInstruction;
+import ctrmap.scriptformats.gen6.PawnOpCode;
 import ctrmap.stdlib.util.ArraysEx;
 import java.util.List;
 
@@ -38,7 +39,7 @@ public abstract class PAccessGlobal extends AAccessGlobal {
 
 		@Override
 		public PawnInstruction getAccessIns(NCompileGraph g) {
-			return new PawnInstruction(PawnInstruction.Commands.STOR_PRI, g.globals.getVariable(gName).getPointer(g));
+			return new PawnInstruction(PawnOpCode.STOR_PRI, g.globals.getVariable(gName).getPointer(g));
 		}
 	}
 
@@ -50,7 +51,7 @@ public abstract class PAccessGlobal extends AAccessGlobal {
 
 		@Override
 		public PawnInstruction getAccessIns(NCompileGraph g) {
-			return new PawnInstruction(PawnInstruction.Commands.LOAD_PRI, g.globals.getVariable(gName).getPointer(g));
+			return new PawnInstruction(PawnOpCode.LOAD_PRI, g.globals.getVariable(gName).getPointer(g));
 		}
 	}
 }

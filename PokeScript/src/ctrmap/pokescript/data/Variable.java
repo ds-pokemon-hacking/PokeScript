@@ -1,30 +1,25 @@
 package ctrmap.pokescript.data;
 
-import ctrmap.scriptformats.gen6.PawnInstruction;
-import ctrmap.pokescript.types.DataType;
-import ctrmap.pokescript.instructions.ctr.instructions.CTRInstruction;
 import ctrmap.pokescript.expr.Throughput;
-import ctrmap.pokescript.instructions.ctr.instructions.PAccessGlobal;
 import ctrmap.pokescript.instructions.abstractcommands.AInstruction;
 import ctrmap.pokescript.instructions.abstractcommands.APlainInstruction;
 import ctrmap.pokescript.instructions.abstractcommands.APlainOpCode;
 import ctrmap.pokescript.stage0.CompilerAnnotation;
+import ctrmap.pokescript.stage0.IModifiable;
 import ctrmap.pokescript.stage0.Modifier;
 import ctrmap.pokescript.stage1.NCompileGraph;
 import ctrmap.pokescript.stage1.NExpression;
 import ctrmap.pokescript.types.TypeDef;
-import ctrmap.pokescript.types.classes.ClassDefinition;
 import java.util.ArrayList;
 import java.util.List;
 
-public abstract class Variable {
+public abstract class Variable implements IModifiable {
 
 	public String name;
 	public boolean isNameAbsolute;
 	public List<String> aliases = new ArrayList<>();
 	public List<Modifier> modifiers = new ArrayList<>();
 	public TypeDef typeDef;
-	public ClassDefinition typeClass;
 	public int index;
 
 	public int timesUsed = 0;
@@ -39,28 +34,30 @@ public abstract class Variable {
 		this.name = name;
 		this.modifiers = modifiers;
 		this.typeDef = type;
-		if (typeDef.isClass()) {
-			typeClass = cg.getClassByName(typeDef.getClassName());
-		}
+		//System.out.println(typeDef);
 	}
 
 	public boolean hasName(String name) {
 		return this.name.equals(name) || aliases.contains(name);
 	}
 
-	public boolean hasModifier(Modifier mod) {
-		return modifiers.contains(mod);
+	@Override
+	public List<Modifier> getModifiers() {
+		return modifiers;
 	}
 
 	public void setNumeric(int n) {
 		index = n;
 	}
 
-	public int getSizeOf(NCompileGraph g) {
-		if (typeDef.isClass()) {
-			return typeClass.sizeOf();
-		}
+	public int getSizeOf(NCompileGraph cg) {
+		//Classes will always be stored on heap
 		return 1;
+	}
+	
+	@Override
+	public String toString() {
+		return typeDef + " " + name;
 	}
 
 	public int getPointer(NCompileGraph g) {
@@ -84,9 +81,17 @@ public abstract class Variable {
 		public Global(String name, List<Modifier> modifiers, TypeDef type, NExpression init_from, NCompileGraph cg) {
 			super(name, modifiers, type, cg);
 			if (init_from != null) {
-				this.init_from.addAll(init_from.toThroughput(cg).getCode(type.baseType));
-				optimizeInitFrom(cg);
+				Throughput iptp = init_from.toThroughput(cg);
+				if (iptp != null) {
+					this.init_from.addAll(iptp.getCode(type));
+					optimizeInitFrom(cg);
+				}
 			}
+		}
+
+		public Global(String name, List<Modifier> modifiers, TypeDef type, NCompileGraph cg, int value) {
+			super(name, modifiers, type, cg);
+			init_from.add(cg.getPlain(APlainOpCode.CONST_PRI, value));
 		}
 
 		public final void optimizeInitFrom(NCompileGraph cg) {
