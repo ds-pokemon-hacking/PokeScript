@@ -1,0 +1,3 @@
+[submodule "PokeScriptIDE/submodules/RSyntaxTextArea"]
+	path = PokeScriptIDE/submodules/RSyntaxTextArea
+	url = https://github.com/HelloOO7/RSyntaxTextArea

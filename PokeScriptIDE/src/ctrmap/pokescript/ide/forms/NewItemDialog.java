@@ -167,9 +167,9 @@ public class NewItemDialog extends javax.swing.JDialog {
 	private String getExtensionForType() {
 		switch (type) {
 			case CLASS:
-			case ENUM:
 				return LangConstants.LANG_SOURCE_FILE_EXTENSION;
 			case HEADER:
+			case ENUM:
 				return LangConstants.LANG_GENERAL_HEADER_EXTENSION;
 			case PACKAGE:
 				return "";

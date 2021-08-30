@@ -70,4 +70,31 @@
     nbproject/build-impl.xml file. 
 
     -->
+    <property name="store.jar.name" value="PokeScriptIDE"/>
+    <property name="store.dir" value="store"/>
+    <property name="srconly.jar" value="dist/PokeScriptIDE.jar"/>
+    <property name="store.jar" value="${store.dir}/${store.jar.name}.jar"/>
+
+    <target name="package-for-store" depends="jar">
+        <echo message="Packaging ${application.title} into a single JAR at ${store.jar}"/>
+        <delete dir="${store.dir}"/>
+        <mkdir dir="${store.dir}"/>
+        <jar destfile="${store.dir}/temp_final.jar" filesetmanifest="skip">
+          <zipfileset src="${srconly.jar}" excludes="META-INF/*.SF, META-INF/*.DSA, META-INF/*.RSA"/>
+          <zipgroupfileset dir="../../CTRMapStandardLibrary/lib" includes="*.jar"/>
+          <zipgroupfileset dir="../../CTRMapStandardLibrary/dist" includes="*.jar"/>
+          <zipgroupfileset dir="../PokeScript/dist" includes="*.jar"/>
+          <zipgroupfileset dir="submodules/RSyntaxTextArea/RSyntaxTextArea/build/libs" includes="*.jar"/>
+          <manifest>
+            <attribute name="Main-Class" value="${main.class}"/>
+          </manifest>
+        </jar>
+
+        <zip destfile="${store.jar}">
+            <zipfileset src="${store.dir}/temp_final.jar"
+                        excludes="META-INF/*.SF, META-INF/*.DSA, META-INF/*.RSA"/>
+        </zip>
+        <delete file="${store.dir}/temp_final.jar"/>
+        <delete file="${srconly.jar}"/>
+    </target>
 </project>

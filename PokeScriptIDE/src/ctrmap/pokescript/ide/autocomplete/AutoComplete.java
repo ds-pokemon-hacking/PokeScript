@@ -86,6 +86,8 @@ public class AutoComplete {
 				rslHandlerHighLights.addAll(getCurrentRslHandler().getHighLights());
 				area.addAllCustomHighlights(rslHandlerHighLights);
 			}
+			
+			area.repaint();
 		}
 	}
 
@@ -100,6 +102,9 @@ public class AutoComplete {
 		if (isVisible()) {
 			commitAutocompleteFromList();
 		} else if (isHandlingResult()) {
+			if (!isCaretInACLine()) {
+				return false;
+			}
 			if (!cancelResultHandlerIfMarksInvalidated()) {
 				incrementLink();
 			} else {
@@ -436,6 +441,24 @@ public class AutoComplete {
 
 	public boolean isVisible() {
 		return acMainWindow.isVisible();
+	}
+	
+	public boolean isCaretInACLine() {
+		if (area != null) {
+			int caretLineNo = area.getCaretLineNumber();
+			NodeResult.Handler hnd = getCurrentRslHandler();
+			if (hnd != null) {
+				int off = hnd.getFirstOffset();
+				if (off != -1) {
+					try {
+						return area.getLineOfOffset(off) == caretLineNo;
+					} catch (BadLocationException ex) {
+						return false;
+					}
+				}
+			}
+		}
+		return false;
 	}
 
 	public static String doBackwardsScanUntilNonName(String s, int index) {

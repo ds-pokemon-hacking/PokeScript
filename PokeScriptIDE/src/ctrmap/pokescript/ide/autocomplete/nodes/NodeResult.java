@@ -140,6 +140,14 @@ public class NodeResult {
 			return nr.links.get(currentLink);
 		}
 		
+		public int getFirstOffset() {
+			Link l = getCurrentLink();
+			if (l != null) {
+				return l.offset.getPosition();
+			}
+			return -1;
+		}
+		
 		public List<FileEditorRSTA.CustomHighLight> getHighLights(){
 			List<FileEditorRSTA.CustomHighLight> l = new ArrayList<>();
 			for (Link link : nr.links){

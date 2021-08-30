@@ -135,7 +135,7 @@ public class TextAreaMarkManager implements DocumentListener {
 				last.update(e);
 			}
 			if (!frozen) {
-				if (isSingleMark() | position != e.offs) {
+				if (isSingleMark() || position != e.offs) {
 					if (sensitive && focused) {
 						if (e.offs < position || e.offs > last.getPosition()) {
 							discard();
