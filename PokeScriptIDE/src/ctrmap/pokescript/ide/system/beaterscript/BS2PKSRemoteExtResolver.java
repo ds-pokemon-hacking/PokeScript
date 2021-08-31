@@ -11,6 +11,7 @@ import ctrmap.stdlib.fs.accessors.MemoryFile;
 import ctrmap.stdlib.gui.DialogUtils;
 import ctrmap.stdlib.gui.LoadingDialog;
 import ctrmap.stdlib.net.FileDownloader;
+import java.awt.Frame;
 import javax.swing.SwingWorker;
 
 public class BS2PKSRemoteExtResolver implements IRemoteExtResolver {
@@ -37,7 +38,7 @@ public class BS2PKSRemoteExtResolver implements IRemoteExtResolver {
 				return libraryRoot;
 			}
 
-			LoadingDialog dlg = new LoadingDialog(null, true);
+			LoadingDialog dlg = new LoadingDialog((Frame)null, true);
 			dlg.setAlwaysOnTop(true);
 			dlg.setProgressTitle("Resolving " + friendlyName + "...");
 
