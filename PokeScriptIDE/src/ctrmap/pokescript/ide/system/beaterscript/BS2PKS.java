@@ -13,6 +13,7 @@ import ctrmap.stdlib.fs.FSUtil;
 import ctrmap.stdlib.fs.accessors.DiskFile;
 import ctrmap.stdlib.text.FormattingUtils;
 import ctrmap.stdlib.net.FileDownloader;
+import ctrmap.stdlib.text.StringEx;
 import ctrmap.stdlib.util.ArraysEx;
 import java.io.File;
 import java.io.PrintStream;
@@ -29,8 +30,8 @@ public class BS2PKS {
 	public static final String BSYML_URL_FORMAT = "https://raw.githubusercontent.com/PlatinumMaster/BeaterScript/master/%s.yml";
 
 	private static final ArgumentPattern[] BS2PKS_ARGS = new ArgumentPattern[]{
-		new ArgumentPattern("input", "An input file or the name of the source YAML in BeaterScript.", ArgumentType.STRING, "C:\\Users\\Čeněk\\eclipse-workspace\\BsYmlGen\\B2W2.yml", "-i, --input"),
-		new ArgumentPattern("root", "A root directory for the output packages.", ArgumentType.STRING, "include", "-r, --output-root")
+		new ArgumentPattern("input", "An input file or the name of the source YAML in BeaterScript.", ArgumentType.STRING, "C:\\Users\\Čeněk\\eclipse-workspace\\BsYmlGen\\B2W2\\Base.yml", "-i, --input"),
+		new ArgumentPattern("root", "A root directory for the output packages.", ArgumentType.STRING, "include", "-r", "--output-root")
 	};
 
 	public static void main(String[] args) {
@@ -50,99 +51,81 @@ public class BS2PKS {
 			yaml = new Yaml(new DiskFile(inFile));
 		}
 
-		makePKSIncludes(yaml, new DiskFile(incRoot));
+		makePKSIncludes(new DiskFile(incRoot), yaml);
 	}
 
-	public static void makePKSIncludes(Yaml beaterScriptYml, FSFile includesRoot) {
+	public static void makePKSIncludes(FSFile includesRoot, Yaml... ymls) {
 		List<BSFunc> funcs = new ArrayList<>();
+
+		Map<BSFunc, String> sourceFiles = new HashMap<>();
 
 		/*
 		Read the YAML into a function list
 		 */
+		for (Yaml beaterScriptYml : ymls) {
+			for (YamlNode funcNode : beaterScriptYml.root.children) {
+				int op = funcNode.getKeyInt();
 
-		for (YamlNode funcNode : beaterScriptYml.root.children) {
-			int op = funcNode.getKeyInt();
+				String name = funcNode.getChildByName("Name").getValue();
+				String className = FSUtil.getFileNameWithoutExtension(beaterScriptYml.documentName);
+				List<BSFunc.BSArgument> args = new ArrayList<>();
 
-			String name = funcNode.getChildByName("Name").getValue();
-			String className = FSUtil.getFileNameWithoutExtension(beaterScriptYml.documentName);
-			List<String> paramTypes = new ArrayList<>();
-			List<String> paramNames = new ArrayList<>();
+				YamlNode params = funcNode.getChildByName("Parameters");
+				if (params != null) {
+					int paramIdx = 1;
+					for (YamlNode param : params.children) {
+						BSFunc.BSArgument arg = new BSFunc.BSArgument();
 
-			YamlNode params = funcNode.getChildByName("Parameters");
-			if (params != null) {
-				for (YamlNode param : params.children) {
-					paramTypes.add(param.getValue());
+						arg.name = param.getChildValue("Name");
+						arg.type = parseNTRDT(param.getChildValue("Type"));
+						arg.isReturn = param.getChildBoolValue("IsReturn");
+						if (arg.isReturn) {
+							arg.returnType = parseNTRDT(param.getChildValue("ReturnType"));
+						}
+						if (arg.type == null) {
+							arg.type = NTRDataType.FLEX;
+						}
+						if (arg.name == null) {
+							arg.name = "a" + paramIdx;
+						}
+						paramIdx++;
+						args.add(arg);
+					}
 				}
-			}
 
-			YamlNode paramNamesNode = funcNode.getChildByName("ParamNames");
-			if (paramNamesNode != null) {
-				for (YamlNode paramName : paramNamesNode.children) {
-					paramNames.add(paramName.getValue());
+				YamlNode pksName = funcNode.getChildByName("PSName");
+				if (pksName != null) {
+					name = pksName.getValue();
 				}
-			}
 
-			List<String> returnParamNames = new ArrayList<>();
-			List<NTRDataType> pksReturnTypes = new ArrayList<>();
-			YamlNode returnParams = funcNode.getChildByName("ReturnParams");
-			if (returnParams != null) {
-				for (YamlNode ch : returnParams.children) {
-					returnParamNames.add(ch.getValue());
+				String brief = null;
+
+				YamlNode briefNode = funcNode.getChildByName("Brief");
+				if (briefNode != null) {
+					brief = briefNode.getValue();
 				}
-			}
-			YamlNode returnParamTypes = funcNode.getChildByName("ReturnTypes");
-			if (returnParamTypes != null) {
-				for (YamlNode ch : returnParamTypes.children) {
-					pksReturnTypes.add(parseNTRDT(ch.getValue()));
+
+				YamlNode pksPackageAndClass = funcNode.getChildByName("PSPackage");
+				if (pksPackageAndClass != null) {
+					className = pksPackageAndClass.getValue();
 				}
-			}
 
-			YamlNode pksName = funcNode.getChildByName("PSName");
-			if (pksName != null) {
-				name = pksName.getValue();
-			}
-			
-			String brief = null;
-			
-			YamlNode briefNode = funcNode.getChildByName("Brief");
-			if (briefNode != null) {
-				brief = briefNode.getValue();
-			}
-
-			YamlNode pksPackageAndClass = funcNode.getChildByName("PSPackage");
-			if (pksPackageAndClass != null) {
-				className = pksPackageAndClass.getValue();
-			}
-
-			BSFunc f = new BSFunc();
-			f.opCode = op;
-			if (name == null) {
-				name = "CMD_" + Integer.toHexString(op).toUpperCase();
-			}
-			f.names = name.split("/");
-			f.packageAndClass = className;
-			f.returnTypes = pksReturnTypes;
-			f.returnArgNames = returnParamNames;
-			f.brief = brief;
-			f.args = new NTRArgument[paramTypes.size()];
-			f.argNames = new String[paramTypes.size()];
-			for (int i = 0; i < paramTypes.size(); i++) {
-				if (i < paramNames.size()) {
-					f.argNames[i] = paramNames.get(i);
-				} else {
-					f.argNames[i] = "a" + (i + 1);
+				BSFunc f = new BSFunc();
+				f.opCode = op;
+				if (name == null) {
+					name = "CMD_" + Integer.toHexString(op).toUpperCase();
 				}
-				NTRArgument arg = new NTRArgument(parseNTRDT(paramTypes.get(i)), returnParamNames.contains(f.argNames[i]) ? 0 : -1);
-				f.args[i] = arg;
+				f.names = name.split("/");
+				f.packageAndClass = className;
+				f.args = args;
+				f.brief = brief;
+				funcs.add(f);
+				sourceFiles.put(f, beaterScriptYml.documentName);
 			}
-			if (f.returnTypes.isEmpty()) {
-				f.returnTypes.add(NTRDataType.VOID);
-			}
-			funcs.add(f);
 		}
 
 		/*
-		Splits the functions into lists per package/class
+			Splits the functions into lists per package/class
 		 */
 		Map<String, List<BSFunc>> funcsPerPackage = new HashMap<>();
 		for (BSFunc f : funcs) {
@@ -154,7 +137,7 @@ public class BS2PKS {
 		}
 
 		for (Map.Entry<String, List<BSFunc>> e : funcsPerPackage.entrySet()) {
-			String classPath = e.getKey().replace('.', '/');
+			String classPath = FormattingUtils.getStrWithoutNonAlphanumeric(StringEx.deleteAllChars(e.getKey().replace('.', '/'), ' '), '/');
 			String className = FSUtil.getFileName(classPath);
 			FSFile target = includesRoot.getChild(classPath + LangConstants.LANG_GENERAL_HEADER_EXTENSION);
 
@@ -162,27 +145,39 @@ public class BS2PKS {
 
 			PrintStream out = new PrintStream(target.getNativeOutputStream());
 
-			out.println("/**======================================================");
-			out.println("*");
-			out.print("*    ");
+			List<String> localSourceFiles = new ArrayList<>();
+			for (BSFunc f : e.getValue()) {
+				String sf = sourceFiles.get(f);
+				ArraysEx.addIfNotNullOrContains(localSourceFiles, sf);
+			}
+
+			out.println("/**");
+			out.println(" *");
+			out.print(" *\t");
 			out.print(className);
 			out.println(" native class function definition");
-			out.print("*    Rev. ");
+			out.print(" *\tRev. ");
 			out.println(FormattingUtils.getCommonFormattedDate());
-			out.print("*    Source file: ");
-			out.println(beaterScriptYml.documentName);
-			out.println("*");
-			out.println("*    This file was auto-generated by BS2PKS.");
-			out.println("*");
-			out.println("========================================================*/");
+			if (localSourceFiles.size() > 1) {
+				out.println(" *\tSource files: ");
+				for (String sf : localSourceFiles) {
+					out.print(" *\t\t");
+					out.print(sf);
+				}
+			} else {
+				out.print(" *\tSource file: ");
+				out.println(localSourceFiles.get(0));
+			}
+			out.println(" *");
+			out.println(" *\tThis file was auto-generated by BS2PKS.");
+			out.println(" *");
+			out.println(" */");
 
-			out.println();
 			out.print("public class ");
 			out.print(className);
 			out.println(" {");
-
+			
 			for (BSFunc f : e.getValue()) {
-				out.println();
 				out.print(f.getDecl(1));
 			}
 

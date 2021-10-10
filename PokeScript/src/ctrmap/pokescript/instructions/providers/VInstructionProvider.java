@@ -1,4 +1,3 @@
-
 package ctrmap.pokescript.instructions.providers;
 
 import ctrmap.pokescript.OutboundDefinition;
@@ -15,9 +14,11 @@ import ctrmap.pokescript.instructions.gen5.instructions.VCaseTable;
 import ctrmap.pokescript.instructions.gen5.instructions.VConditionJump;
 import ctrmap.pokescript.instructions.gen5.instructions.VLocalCall;
 import ctrmap.pokescript.instructions.gen5.instructions.VNativeCall;
-import ctrmap.pokescript.instructions.gen5.metahandlers.VMovementFuncHandler;
+import ctrmap.pokescript.instructions.gen5.metahandlers.VExternFuncHandler;
+import ctrmap.pokescript.instructions.gen5.metahandlers.VActionSeqHandler;
 import ctrmap.pokescript.instructions.providers.floatlib.FXFloatHandler;
 import ctrmap.pokescript.instructions.providers.floatlib.IFloatHandler;
+import ctrmap.stdlib.util.ParsingUtils;
 
 public class VInstructionProvider implements AInstructionProvider {
 
@@ -41,20 +42,20 @@ public class VInstructionProvider implements AInstructionProvider {
 		public int getGlobalsIndexingStep() {
 			return -1;
 		}
-		
+
 		@Override
 		public boolean isStackOrderNatural() {
 			return false;
 		}
 	};
-	
+
 	public static final MachineInfo V_MACHINE_INFO = new MachineInfo() {
 		@Override
 		public boolean getAllowsGotoStatement() {
 			return true;
 		}
 	};
-	
+
 	@Override
 	public APlainInstruction getPlainInstruction(APlainOpCode opCode, int[] args) {
 		return PokeScriptToV.getPlainNTRForOpCode(opCode, args);
@@ -97,9 +98,20 @@ public class VInstructionProvider implements AInstructionProvider {
 
 	@Override
 	public MetaFunctionHandler getMetaFuncHandler(String handlerName) {
-		switch (handlerName){
-			case "VMovementFunc":
-				return new VMovementFuncHandler();
+		switch (handlerName) {
+			case "VActionSequence":
+				return new VActionSeqHandler();
+		}
+		if (handlerName.startsWith("VGlobalCall")) {
+			int idxStart = handlerName.indexOf('[');
+			int idxEnd = handlerName.lastIndexOf(']');
+			if (idxStart >= 0 && idxEnd >= 0) {
+				String sourceText = handlerName.substring(idxStart + 1, idxEnd);
+				int scrid = ParsingUtils.parseBasedIntOrDefault(sourceText, -1);
+				if (scrid != -1) {
+					return new VExternFuncHandler(scrid, handlerName.startsWith("VGlobalCallAsync"));
+				}
+			}
 		}
 		return null;
 	}

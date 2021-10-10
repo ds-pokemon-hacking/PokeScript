@@ -8,6 +8,8 @@ import ctrmap.stdlib.formats.yaml.Yaml;
 import ctrmap.stdlib.formats.yaml.YamlNode;
 import ctrmap.stdlib.fs.FSFile;
 import ctrmap.stdlib.fs.FSUtil;
+import ctrmap.stdlib.text.FormattingUtils;
+import ctrmap.stdlib.text.StringEx;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -19,16 +21,34 @@ public class VCommandDataBase {
 
 	public VCommandDataBase(FSFile fsf) {
 		Yaml yml = new Yaml(fsf);
-		
-		String defPkg = FSUtil.getFileNameWithoutExtension(fsf.getName());
+
+		String defPkg = FormattingUtils.getStrWithoutNonAlphanumeric(StringEx.deleteAllChars(FSUtil.getFileNameWithoutExtension(fsf.getName()), ' '));
 
 		for (YamlNode func : yml.root.children) {
 			VCommand cmd = new VCommand(func, defPkg);
 			commands.put(cmd.def.opCode, cmd);
 		}
 	}
+
+	public VCommandDataBase(List<VCommandDataBase> sources) {
+		for (VCommandDataBase db : sources) {
+			if (db != null) {
+				commands.putAll(db.commands);
+			}
+		}
+	}
 	
-	public VCommand getCommandProto(int opCode){
+	public int getCommandMax() {
+		int max = 0;
+		for (VCommand c : commands.values()) {
+			if (c.def.opCode > max) {
+				max = c.def.opCode;
+			}
+		}
+		return max;
+	}
+
+	public VCommand getCommandProto(int opCode) {
 		return commands.get(opCode);
 	}
 
@@ -38,87 +58,105 @@ public class VCommandDataBase {
 		public NTRInstructionPrototype def;
 
 		public CommandType type;
-		public boolean isConditional;
-		public boolean setsCmpFlag;
-		
+		public boolean callsExtern;
+		public boolean readsCmpFlag;
+		public boolean writesCmpFlag;
+
 		public String[] methodNames;
 		public String classPath;
-		
-		public VCommand(String name, NTRInstructionPrototype def, CommandType type, boolean isConditional, boolean setsCmpFlag){
+		public String[] paramNames;
+
+		public VCommand(String name, NTRInstructionPrototype def, CommandType type, boolean isConditional, boolean setsCmpFlag) {
 			this.name = name;
 			this.def = def;
 			this.type = type;
-			this.isConditional = isConditional;
-			this.setsCmpFlag = setsCmpFlag;
+			this.readsCmpFlag = isConditional;
+			this.writesCmpFlag = setsCmpFlag;
 		}
 
 		public VCommand(YamlNode node, String defaultPackage) {
 			int opCode = node.getKeyInt();
 			name = node.getChildByName("Name").getValue();
+
 			YamlNode paramsList = node.getChildByName("Parameters");
-			YamlNode paramNamesNode = node.getChildByName("ParamNames");
-			List<String> paramNames = new ArrayList<>();
-			if (paramNamesNode != null) {
-				paramNames.addAll(paramNamesNode.getChildValuesAsListStr());
-			}
-			YamlNode returnTypesNode = node.getChildByName("ReturnParams");
-			List<String> returnables = new ArrayList<>();
-			if (returnTypesNode != null){
-				returnables.addAll(returnTypesNode.getChildValuesAsListStr());
-			}
-			
+
 			YamlNode psNameNode = node.getChildByName("PSName");
 			YamlNode psPkgNode = node.getChildByName("PSPackage");
 			methodNames = (psNameNode != null ? psNameNode.getValue() : name).split("/");
 			classPath = psPkgNode != null ? psPkgNode.getValue() : defaultPackage;
 
 			List<NTRArgument> args = new ArrayList<>();
-			
+			List<String> argNames = new ArrayList<>();
+
 			if (paramsList != null) {
 				int rcb = 0;
 				for (int i = 0; i < paramsList.children.size(); i++) {
 					YamlNode pn = paramsList.children.get(i);
-					NTRArgument arg = new NTRArgument(parseNTRDT(pn.getValue()));
-					if (i < paramNames.size() && returnables.contains(paramNames.get(i))){
+
+					NTRArgument arg = new NTRArgument(parseNTRDT(pn.getChildValue("Type")));
+					if (pn.getChildBoolValue("IsReturn")) {
 						arg.returnCallBackIndex = rcb;
 						rcb++;
 					}
+					argNames.add(pn.getChildValue("Name"));
 					args.add(arg);
 				}
 			}
+			paramNames = argNames.toArray(new String[argNames.size()]);
+			
 			def = new NTRInstructionPrototype(opCode, args.toArray(new NTRArgument[args.size()]));
-			
+
 			type = CommandType.REGULAR;
-			
-			boolean isEnd = node.getChildBoolValue("IsEnd");
-			boolean isScrEnd = node.getChildBoolValue("IsScriptEnd");
-			boolean isMove = node.getChildBoolValue("HasMovement");
-			boolean isFunc = node.getChildBoolValue("HasFunction");
-			isConditional = node.getChildBoolValue("HasCondition");
-			setsCmpFlag = node.getChildBoolValue("WritesCondition");
-			boolean isJump = node.getChildBoolValue("IsJump");
-						
-			if (isMove){
-				type = CommandType.MOVEMENT_JUMP;
-			}
-			else if (isEnd){
-				type = isScrEnd ? CommandType.HALT : CommandType.RETURN;
-			}
-			else if (isFunc){
-				type = isJump ? CommandType.JUMP : CommandType.CALL;
+
+			readsCmpFlag = node.getChildBoolValue("HasCondition");
+			writesCmpFlag = node.getChildBoolValue("WritesCondition");
+			callsExtern = node.getChildBoolValue("ExternCall");
+
+			String cmdType = node.getChildValue("CommandType");
+
+			if (cmdType != null) {
+				switch (cmdType) {
+					case "Jump":
+						type = CommandType.JUMP;
+						break;
+					case "End":
+						type = CommandType.HALT;
+						break;
+					case "Return":
+						type = CommandType.RETURN;
+						break;
+					case "Call":
+						type = CommandType.CALL;
+						break;
+					case "CallActionSeq":
+						type = CommandType.ACTION_JUMP;
+						break;
+				}
 			}
 		}
-		
-		public boolean isDecompPrintable(){
-			return !(setsCmpFlag || def.opCode == VOpCode.CmpPriAlt.ordinal());
+
+		public boolean isDecompPrintable() {
+			return !(writesCmpFlag || def.opCode == VOpCode.CmpPriAlt.ordinal());
 		}
-		
-		public String getPKSCallName(){
+
+		public String getPKSCallName() {
 			return FSUtil.getFileName(classPath.replace('.', '/')) + "." + methodNames[0];
 		}
 		
-		public boolean isBranchEnd(){
-			return type == CommandType.HALT || type == CommandType.RETURN || (type == CommandType.JUMP && !isConditional);
+		public String getClassName() {
+			int idx = classPath.lastIndexOf('.');
+			return classPath.substring(idx + 1, classPath.length());
+		}
+		
+		public String getPackageName() {
+			if (classPath.contains(".")) {
+				return classPath.substring(0, classPath.lastIndexOf('.'));
+			}
+			return null;
+		}
+
+		public boolean isBranchEnd() {
+			return type == CommandType.HALT || type == CommandType.RETURN || (type == CommandType.JUMP && !readsCmpFlag);
 		}
 
 		private static NTRDataType parseNTRDT(String csharpType) {
@@ -159,6 +197,6 @@ public class VCommandDataBase {
 		CALL,
 		RETURN,
 		JUMP,
-		MOVEMENT_JUMP
+		ACTION_JUMP
 	}
 }

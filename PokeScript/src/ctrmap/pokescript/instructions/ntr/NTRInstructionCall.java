@@ -57,6 +57,9 @@ public class NTRInstructionCall extends ACompiledInstruction {
 
 	@Override
 	public int getSize() {
+		if (definition.parameters.length != args.length) {
+			throw new RuntimeException("Call size does not match definition!!");
+		}
 		return definition.getSize();
 	}
 	
@@ -87,14 +90,19 @@ public class NTRInstructionCall extends ACompiledInstruction {
 				case FLEX:
 				case U16:
 				case VAR:
+				case BOOL:
+				case FX16:
 					out.writeShort(argV);
 					break;
+				case FX32:
 				case S32:
 					out.writeInt(argV);
 					break;
 				case U8:
 					out.write(argV);
 					break;
+				default:
+					throw new RuntimeException("Unimplemented data type: " + definition.parameters[ai].dataType);
 			}
 		}
 	}

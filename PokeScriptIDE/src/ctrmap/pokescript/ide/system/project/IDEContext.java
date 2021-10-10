@@ -115,7 +115,11 @@ public class IDEContext {
 		}
 		for (IRemoteExtResolver resolver : remoteExtResolvers) {
 			if (resolver.getName().equals(ref.remoteExtType)) {
-				return resolver.resolvePath(ref.path, this, resolutionWorkDir);
+				FSFile fsf = resolver.resolvePath(ref.path, this, resolutionWorkDir);
+				if (fsf == null) {
+					break;
+				}
+				return fsf;
 			}
 		}
 		DialogUtils.showErrorMessage("Could not resolve extended remote", "Extended remote handler " + ref.remoteExtType + " does not exist!");

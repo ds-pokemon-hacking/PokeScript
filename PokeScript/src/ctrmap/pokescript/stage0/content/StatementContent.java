@@ -110,10 +110,10 @@ public class StatementContent extends AbstractContent {
 	@Override
 	public void declareToGraph(NCompileGraph graph, DeclarerController declarer) {
 		if (statement == Statement.PACKAGE) {
-			if (arguments.size() != 1) {
+			if (arguments.size() > 1) {
 				line.throwException("Package can have only one argument.");
 			}
-			String packageName = arguments.get(0);
+			String packageName = (arguments.isEmpty() ? null : arguments.get(0));
 			declarer.setPackage(packageName);
 		} else if (statement == Statement.IMPORT) {
 			if (arguments.size() != 1) {

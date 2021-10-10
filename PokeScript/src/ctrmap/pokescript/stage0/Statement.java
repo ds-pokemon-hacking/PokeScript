@@ -16,7 +16,7 @@ public enum Statement {
 	RETURN("return"), 
 	PAUSE("pause", EffectiveLine.StatementFlags.FORBIDS_ARGUMENTS),
 	IMPORT("import", EffectiveLine.StatementFlags.NEEDS_ARGUMENTS, EffectiveLine.StatementFlags.ALLOWS_GLOBAL_EXPLICIT),
-	PACKAGE("package", EffectiveLine.StatementFlags.NEEDS_ARGUMENTS, EffectiveLine.StatementFlags.ALLOWS_GLOBAL_EXPLICIT),
+	PACKAGE("package", EffectiveLine.StatementFlags.ALLOWS_GLOBAL_EXPLICIT),
 	BREAK("break"),
 	CONTINUE("continue"),
 	GOTO("goto", EffectiveLine.StatementFlags.NEEDS_ARGUMENTS),

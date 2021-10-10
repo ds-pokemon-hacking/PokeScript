@@ -28,7 +28,7 @@ public class VConditionJump extends AConditionJump {
 			case SWITCH:
 				return VOpCode.Jump.getSize();
 			case JUMP_IF_ZERO:
-				return VOpCode.CmpVarConst.getSize() + VOpCode.JumpOnCmp.getSize();
+				return VOpCode.CmpVarConst.getSize() + VOpCode.JumpIf.getSize();
 		}
 		return 0;
 	}
@@ -42,7 +42,7 @@ public class VConditionJump extends AConditionJump {
 			case JUMP_IF_ZERO:
 				return ArraysEx.asList(
 						VOpCode.CmpVarConst.createCall(VConstants.GP_REG_PRI, 0), 
-						VOpCode.JumpOnCmp.createCall(VCmpResultRequest.EQUAL, getJumpTarget(g))
+						VOpCode.JumpIf.createCall(VCmpResultRequest.EQUAL, getJumpTarget(g))
 				);
 		}
 		return new ArrayList<>();

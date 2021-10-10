@@ -31,7 +31,7 @@ public class Throughput {
 
 	public Throughput(float immediateValue, NCompileGraph cg) {
 		type = DataType.FLOAT.typeDef();
-		makeConst(Float.floatToIntBits(immediateValue), cg);
+		makeConst(cg.provider.getFloatingPointHandler().floatToIntBits(immediateValue), cg);
 	}
 
 	private void makeConst(int constValue, NCompileGraph cg) {

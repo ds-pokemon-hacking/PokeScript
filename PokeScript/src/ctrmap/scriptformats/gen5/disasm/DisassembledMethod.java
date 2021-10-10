@@ -14,6 +14,9 @@ public class DisassembledMethod {
 	}
 	
 	public String getName(){
+		if (instructions.isEmpty()) {
+			return "nullsub_" + Integer.toHexString(ptr);
+		}
 		return instructions.get(0).label;
 	}
 }

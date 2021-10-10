@@ -17,7 +17,7 @@ import java.util.Map;
  */
 public class VCaseTable extends ACaseTable {
 
-	private static final int ONE_CASE_SIZEOF = VOpCode.CmpVarConst.getSize() + VOpCode.JumpOnCmp.getSize();
+	private static final int ONE_CASE_SIZEOF = VOpCode.CmpVarConst.getSize() + VOpCode.JumpIf.getSize();
 	
 	/*
 	Since Gen V does not have proper switch/case function, it can be emulated with if/else if...
@@ -26,7 +26,7 @@ public class VCaseTable extends ACaseTable {
 	
 	for each case in the table, insert:
 	CmpVarConst(GP_REG_PRI, caseValue);
-	JumpOnCmp(VCmpResultRequest.EQUAL, caseJumpLabel);
+	JumpIf(VCmpResultRequest.EQUAL, caseJumpLabel);
 	
 	then the default case
 	Jump(defaultJumpLabel)
@@ -45,7 +45,7 @@ public class VCaseTable extends ACaseTable {
 		int caseIdx = 0;
 		for (Map.Entry<Integer, String> caseEntry : targets.entrySet()){
 			l.add(VOpCode.CmpVMVarConst.createCall(VConstants.GP_REG_PRI, caseEntry.getKey()));
-			l.add(VOpCode.JumpOnCmp.createCall(VCmpResultRequest.EQUAL, getJumpTarget(g, caseEntry.getValue(), caseIdx)));
+			l.add(VOpCode.JumpIf.createCall(VCmpResultRequest.EQUAL, getJumpTarget(g, caseEntry.getValue(), caseIdx)));
 			caseIdx++;
 		}
 		l.add(VOpCode.Jump.createCall(getJumpTarget(g, defaultCase, caseIdx) - VOpCode.Jump.getSize()));

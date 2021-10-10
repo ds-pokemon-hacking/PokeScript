@@ -58,7 +58,7 @@ public class NTRInstructionConstructor {
 				
 				NTRDataType type = defaultArgType;
 				if (arg.typeDef.baseType == DataType.FLOAT){
-					type = NTRDataType.FX32; //FX32
+					type = NTRDataType.FX16; //FX16
 				}
 				if (argBytesOverride.containsKey(arg.name)){
 					type = getNTRDTForBytes(argBytesOverride.get(arg.name), type);
@@ -86,11 +86,11 @@ public class NTRInstructionConstructor {
 	private static NTRDataType getNTRDTForBytes(int bytes, NTRDataType baseType){
 		switch (bytes){
 			case 2:
-				return baseType == NTRDataType.FX32 ? NTRDataType.FX16 : NTRDataType.U16;
+				return baseType == NTRDataType.FX16 ? NTRDataType.FX16 : NTRDataType.U16;
 			case 1:
 				return NTRDataType.U8;
 			case 4:
-				return baseType == NTRDataType.FX32 ? NTRDataType.FX32 : NTRDataType.S32;
+				return baseType == NTRDataType.FX16 ? NTRDataType.FX32 : NTRDataType.S32;
 		}
 		return NTRDataType.VOID;
 	}

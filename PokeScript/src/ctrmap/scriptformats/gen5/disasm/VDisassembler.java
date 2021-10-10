@@ -9,22 +9,26 @@ import ctrmap.stdlib.io.base.impl.ext.data.DataIOStream;
 import ctrmap.stdlib.text.FormattingUtils;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Comparator;
 import java.util.List;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
 public class VDisassembler {
 
-	private VScriptFile scr;
-	private VCommandDataBase cdb;
+	private final VScriptFile scr;
+	private final VCommandDataBase cdb;
 
 	private List<LinkPrototype> publics = new ArrayList<>();
 	private List<LinkPrototype> jumpLinks = new ArrayList<>();
 	private List<LinkPrototype> functionCalls = new ArrayList<>();
-	private List<LinkPrototype> movementJumps = new ArrayList<>();
+	private List<LinkPrototype> actionJumps = new ArrayList<>();
 
 	public List<DisassembledMethod> methods = new ArrayList<>();
-	public List<DisassembledMethod> movements = new ArrayList<>();
+	public List<DisassembledMethod> actionSequences = new ArrayList<>();
+
+	public boolean unsafeMode = true;
 
 	public VDisassembler(VScriptFile scr, VCommandDataBase cdb) {
 		this.scr = scr;
@@ -33,12 +37,14 @@ public class VDisassembler {
 
 	public void disassemble() {
 		if (scr.getSourceFile() != null) {
+			System.out.println("Disassembling file " + scr.getSourceFile() + " with database command maximum " + Integer.toHexString(cdb.getCommandMax()));
 			try {
 				DataIOStream dis = scr.getSourceFile().getDataIOStream();
 
 				readScriptHeader(dis);
 
 				for (LinkPrototype p : publics) {
+					System.out.println("Reading public " + Integer.toHexString(p.targetOffset));
 					DisassembledMethod m = readMethod(dis, p);
 					if (m != null) {
 						m.isPublic = true;
@@ -66,15 +72,15 @@ public class VDisassembler {
 		scr.updateLinks();
 	}
 
-	public boolean isJumpLabelUsed(int ptr){
-		for (LinkPrototype j : jumpLinks){
-			if (j.targetOffset == ptr){
+	public boolean isJumpLabelUsed(int ptr) {
+		for (LinkPrototype j : jumpLinks) {
+			if (j.targetOffset == ptr) {
 				return true;
 			}
 		}
 		return false;
 	}
-	
+
 	private DisassembledMethod findMethodByPtr(int ptr) {
 		for (DisassembledMethod m : methods) {
 			if (m.ptr == ptr) {
@@ -84,8 +90,8 @@ public class VDisassembler {
 		return null;
 	}
 
-	private DisassembledMethod findMovementByPtr(int ptr) {
-		for (DisassembledMethod m : movements) {
+	private DisassembledMethod findActionSeqByPtr(int ptr) {
+		for (DisassembledMethod m : actionSequences) {
 			if (m.ptr == ptr) {
 				return m;
 			}
@@ -100,14 +106,14 @@ public class VDisassembler {
 		createLabelsImpl(functionCalls, "sub_", false, 0);
 		System.out.println("--Re-linking jumps--");
 		createLabelsImpl(jumpLinks, "LABEL_", false, 0);
-		System.out.println("--Re-linking movement--");
-		createLabelsImpl(movementJumps, "PlayMovement_", false, 0);
+		System.out.println("--Re-linking actions--");
+		createLabelsImpl(actionJumps, "ActionSequence_", false, 0);
 	}
 
 	private void createLabelsImpl(List<LinkPrototype> links, String prefix, boolean labelByIndex, int initialIndex) {
 		int index = initialIndex;
 		for (LinkPrototype jmp : links) {
-			DisassembledCall jumpTarget = findCallOrMovementByPtr(jmp.targetOffset);
+			DisassembledCall jumpTarget = findCallOrActionSeqByPtr(jmp.targetOffset);
 			DisassembledCall jumpSrc = findCallByPtr(jmp.sourceOffset);
 			if (jumpTarget != null) {
 				if (jumpSrc != null) {
@@ -123,8 +129,7 @@ public class VDisassembler {
 						jumpTarget.label = prefix + FormattingUtils.getStrWithLeadingZeros(4, Integer.toHexString(jumpTarget.pointer));
 					}
 				}
-			}
-			else {
+			} else {
 				System.out.println("Could not link!! from " + Integer.toHexString(jmp.sourceOffset) + " to " + Integer.toHexString(jmp.targetOffset));
 			}
 			index++;
@@ -134,14 +139,14 @@ public class VDisassembler {
 	private DisassembledCall findCallByPtr(int ptr) {
 		return findCall(methods, ptr);
 	}
-	
-	private DisassembledCall findCallOrMovementByPtr(int ptr) {
+
+	private DisassembledCall findCallOrActionSeqByPtr(int ptr) {
 		List<DisassembledMethod> l = new ArrayList<>(methods);
-		l.addAll(movements);
+		l.addAll(actionSequences);
 		return findCall(l, ptr);
 	}
-	
-	private static DisassembledCall findCall(List<DisassembledMethod> l, int ptr){
+
+	private static DisassembledCall findCall(List<DisassembledMethod> l, int ptr) {
 		for (DisassembledMethod m : l) {
 			for (DisassembledCall c : m.instructions) {
 				int diff = ptr - c.pointer;
@@ -160,7 +165,7 @@ public class VDisassembler {
 		System.out.println("Reading method at " + Integer.toHexString(lp.targetOffset));
 		int methodPtr = lp.targetOffset;
 		dis.seek(methodPtr);
-		int max = dis.getLength()- 2;
+		int max = dis.getLength() - 2;
 
 		DisassembledMethod m = new DisassembledMethod(methodPtr);
 
@@ -173,13 +178,18 @@ public class VDisassembler {
 
 			VCommandDataBase.VCommand c = cdb.getCommandProto(opCode);
 			if (c == null) {
-				System.err.println("WARN: Could not detect command 0x" + Integer.toHexString(opCode) + " at " + Integer.toHexString(insPtr));
-				if (!m.instructions.isEmpty()){
+				String text = "WARN: Could not detect command 0x" + Integer.toHexString(opCode) + " at " + Integer.toHexString(insPtr);
+				if (unsafeMode) {
+					System.out.println(text);
+				} else {
+					throw new RuntimeException(text);
+				}
+				if (!m.instructions.isEmpty()) {
 					DisassembledCall lastCall = m.instructions.get(m.instructions.size() - 1);
-					System.err.println("Last command: " + (lastCall.command != null ? lastCall.command.name : "[UNDETECTED]") + " at " + Integer.toHexString(lastCall.pointer) + "(size " + Integer.toHexString(lastCall.getSize()) + ")");
+					System.out.println("Last command: " + (lastCall.command != null ? lastCall.command.name : "[UNDETECTED]") + " at " + Integer.toHexString(lastCall.pointer) + "(size " + Integer.toHexString(lastCall.getSize()) + ")");
 				}
 				if ((opCode & 0xF000) != 0) {
-					System.err.println("Suspicious command. Aligning stream.");
+					System.out.println("Suspicious command. Aligning stream.");
 					dis.seek(dis.getPosition() - 1);
 				}
 			} else {
@@ -218,37 +228,44 @@ public class VDisassembler {
 					case HALT:
 					case RETURN:
 						boolean hasJumpTo = false;
-						for (LinkPrototype jumpTo : jumpLinks){
-							if (jumpTo.targetOffset == dis.getPosition()){
+						for (LinkPrototype jumpTo : jumpLinks) {
+							if (jumpTo.targetOffset == dis.getPosition()) {
 								hasJumpTo = true;
 								break;
 							}
 						}
-						if (hasJumpTo){
+						if (hasJumpTo) {
 							//WORKAROUND: If there is a forward jump to this instruction, keep reading
 							break;
 						}
 						break FuncReader;
-					case JUMP:
+					case JUMP: {
 						LinkPrototype link = new LinkPrototype(dis, call.args[call.args.length - 1]);
 						jumpLinks.add(link);
 						break;
-					case MOVEMENT_JUMP:
-						movementJumps.add(new LinkPrototype(dis, call.args[call.args.length - 1]));
+					}
+					case ACTION_JUMP:
+						actionJumps.add(new LinkPrototype(dis, call.args[call.args.length - 1]));
 						break;
-					case CALL:
-						functionCalls.add(new LinkPrototype(dis, call.args[call.args.length - 1]));
+					case CALL: {
+						if (!call.command.callsExtern) {
+							LinkPrototype link = new LinkPrototype(dis, call.args[call.args.length - 1]);
+							System.out.println("Function call to " + Integer.toHexString(link.targetOffset) + " from " + Integer.toHexString(link.sourceOffset));
+							functionCalls.add(link);
+						}
 						break;
+					}
 				}
+				//System.out.println(c.name + ": " + Arrays.toString(call.args));
 			}
 		}
-		
+
 		System.out.println("Method end at " + Integer.toHexString(dis.getPosition()));
 		methods.add(m);
 
-		for (LinkPrototype movementCall : movementJumps) {
-			if (findMovementByPtr(movementCall.targetOffset) == null) {
-				readMovement(dis, movementCall);
+		for (LinkPrototype actionSeqCall : actionJumps) {
+			if (findActionSeqByPtr(actionSeqCall.targetOffset) == null) {
+				readActionSeq(dis, actionSeqCall);
 			}
 		}
 
@@ -261,15 +278,15 @@ public class VDisassembler {
 		return m;
 	}
 
-	private void readMovement(DataIOStream dis, LinkPrototype lp) throws IOException {
-		System.out.println("Reading movement at " + Integer.toHexString(lp.targetOffset) + "(from " + Integer.toHexString(lp.sourceOffset) + ")");
+	private void readActionSeq(DataIOStream dis, LinkPrototype lp) throws IOException {
+		System.out.println("Reading action sequence at " + Integer.toHexString(lp.targetOffset) + "(from " + Integer.toHexString(lp.sourceOffset) + ")");
 		int methodPtr = lp.targetOffset;
 		dis.seek(methodPtr);
-		int max = dis.getLength()- 4;
+		int max = dis.getLength() - 4;
 
 		DisassembledMethod m = new DisassembledMethod(methodPtr);
 
-		MovementReader:
+		ActionReader:
 		while (dis.getPosition() < max) {
 			int insPtr = dis.getPosition();
 
@@ -283,7 +300,7 @@ public class VDisassembler {
 			}
 		}
 
-		movements.add(m);
+		actionSequences.add(m);
 	}
 
 	private void readScriptHeader(DataIOStream dis) throws IOException {
@@ -297,5 +314,30 @@ public class VDisassembler {
 			}
 			publics.add(new LinkPrototype(dis, offset));
 		}
+	}
+
+	public void sortMethods() {
+		Comparator<DisassembledMethod> comp = new Comparator<DisassembledMethod>() {
+			@Override
+			public int compare(DisassembledMethod o1, DisassembledMethod o2) {
+				return o1.ptr - o2.ptr;
+			}
+		};
+
+		List<DisassembledMethod> publicMethods = new ArrayList<>();
+		List<DisassembledMethod> subMethods = new ArrayList<>();
+		for (DisassembledMethod m : methods) {
+			if (m.isPublic) {
+				publicMethods.add(m);
+			} else {
+				subMethods.add(m);
+			}
+		}
+
+		subMethods.sort(comp);
+		methods.clear();
+		methods.addAll(publicMethods);
+		methods.addAll(subMethods);
+		actionSequences.sort(comp);
 	}
 }

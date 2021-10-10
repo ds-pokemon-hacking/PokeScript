@@ -4,6 +4,7 @@ import ctrmap.pokescript.ide.PSIDE;
 import ctrmap.pokescript.ide.system.project.IDEFile;
 import ctrmap.scriptformats.pkslib.LibraryFile;
 import ctrmap.scriptformats.pkslib.PlatformSourceTarget;
+import java.awt.event.MouseEvent;
 
 public class LibraryReferenceNode extends PackageNode {
 
@@ -22,10 +23,16 @@ public class LibraryReferenceNode extends PackageNode {
 			if (file == null){
 				throw new NullPointerException("Source directory " + tgt.path + " not present in library " + library + "(" + library.getSource().getClass() + ")");
 			}
+			file.setReadOnly(true);
 			add(new SourceDirNode(ide, file));
 		}
 	}
 
+	@Override
+	public void onNodePopupInvoke(MouseEvent evt) {
+		
+	}
+	
 	@Override
 	public int getIconResourceID() {
 		return RESID;

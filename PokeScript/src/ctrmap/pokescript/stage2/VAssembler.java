@@ -1,15 +1,11 @@
 package ctrmap.pokescript.stage2;
 
-import ctrmap.pokescript.LangCompiler;
 import ctrmap.pokescript.data.Variable;
 import ctrmap.pokescript.instructions.abstractcommands.ACompiledInstruction;
 import ctrmap.pokescript.instructions.abstractcommands.AInstruction;
-import ctrmap.pokescript.instructions.abstractcommands.APlainInstruction;
-import ctrmap.pokescript.instructions.abstractcommands.APlainOpCode;
-import ctrmap.pokescript.instructions.gen5.VOpCode;
-import ctrmap.pokescript.instructions.gen5.metahandlers.VMovementFuncHandler;
+import ctrmap.pokescript.instructions.gen5.metahandlers.VActionSeqHandler;
 import ctrmap.pokescript.instructions.ntr.NTRInstructionCall;
-import ctrmap.pokescript.instructions.ntr.instructions.PlainNTRInstruction;
+import ctrmap.pokescript.instructions.ntr.NTRInstructionLink;
 import ctrmap.pokescript.stage0.Modifier;
 import ctrmap.pokescript.stage1.NCompilableMethod;
 import ctrmap.pokescript.stage1.NCompileGraph;
@@ -34,7 +30,7 @@ public class VAssembler {
 
 	public static void assemble(NCompileGraph graph, VScriptFile scr) {
 		scr.instructions.clear();
-		scr.movements.clear();
+		scr.actions.clear();
 		scr.publics.clear();
 
 		for (NCompilableMethod m : graph.methods) {
@@ -80,16 +76,16 @@ public class VAssembler {
 		}
 
 		boolean putPublicNext = false;
-		boolean putAsMovement = false;
+		boolean putAsActionSeq = false;
 		for (AInstruction i : allInstructions) {
 			List<? extends ACompiledInstruction> compiled = i.compile(graph);
 
 			if (publicsInstructionHooks.containsKey(i)) {
 				NCompilableMethod m = publicsInstructionHooks.get(i);
-				putAsMovement = false;
+				putAsActionSeq = false;
 				if (m.hasModifier(Modifier.META)) {
-					if (m.metaHandler instanceof VMovementFuncHandler) {
-						putAsMovement = true;
+					if (m.metaHandler instanceof VActionSeqHandler) {
+						putAsActionSeq = true;
 					}
 				} else {
 					putPublicNext = true;
@@ -97,8 +93,8 @@ public class VAssembler {
 			}
 			for (ACompiledInstruction ci : compiled) {
 				if (ci instanceof NTRInstructionCall) {
-					if (putAsMovement) {
-						scr.movements.add((NTRInstructionCall) ci);
+					if (putAsActionSeq) {
+						scr.actions.add((NTRInstructionCall) ci);
 					} else {
 						scr.instructions.add((NTRInstructionCall) ci);
 					}
@@ -116,5 +112,9 @@ public class VAssembler {
 		scr.setUpLinks();
 
 		VAsmOptimizer.optimize(scr, graph.getArgs().optimizationLevel);
+		
+		/*for (NTRInstructionCall call : scr.instructions) {
+			System.out.println(call + " @ " + Integer.toHexString(call.pointer));
+		}*/
 	}
 }

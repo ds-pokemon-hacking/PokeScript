@@ -29,7 +29,6 @@ public abstract class ALocalCall extends AInstruction {
 		return call.args.length;
 	}
 	
-	
 	@Override
 	public List<AInstruction> getAllInstructions() {
 		List<AInstruction> l = ArraysEx.asList(this);

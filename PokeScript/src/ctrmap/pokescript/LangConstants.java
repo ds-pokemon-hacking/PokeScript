@@ -22,7 +22,7 @@ public class LangConstants {
 	}
 
 	public static final ExtensionFilter LANG_SOURCE_FILE_EXTENSION_FILTER = new ExtensionFilter("PokéScript source", "*.pks");
-	public static final ExtensionFilter LANG_HEADER_EXTENSION_FILTER = new ExtensionFilter("PokéScript header", "*.nd", "*.h");
+	public static final ExtensionFilter LANG_HEADER_EXTENSION_FILTER = new ExtensionFilter("PokéScript header", "*.h", "*.nd");
 	public static final ExtensionFilter LANG_COMPILABLES_FILTER_COMB = ExtensionFilter.combine(LANG_SOURCE_FILE_EXTENSION_FILTER, LANG_HEADER_EXTENSION_FILTER);
 	public static final ExtensionFilter LANG_LIBRARY_EXTENSION_FILTER = new ExtensionFilter("PokéScript Library", "*.lib");
 

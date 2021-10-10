@@ -729,7 +729,7 @@ public class NCompileGraph {
 				continue;
 			}
 			if (findMethod(m.def) == null) {
-				methods.add(m);
+				methods.add(0, m);
 			}
 		}
 		for (Variable glb : cg.globals) {

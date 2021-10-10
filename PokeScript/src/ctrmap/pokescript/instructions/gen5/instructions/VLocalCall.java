@@ -35,17 +35,34 @@ public class VLocalCall extends ALocalCall {
 	public List<? extends ACompiledInstruction> compile(NCompileGraph g) {
 		List<ACompiledInstruction> l = new ArrayList<>();
 
+		compilePreCall(l, this, g, VConstants.VAR_START_LOCAL);
+
+		int ptr = pointer;
+		for (ACompiledInstruction i : l) {
+			ptr += i.getSize();
+		}
+		ptr += VOpCode.Call.getSize();
+
+		//Done! Args are now in the first N variables. We can safely call the method now.
+		l.add(VOpCode.Call.createCall(g.getMethodByDef(call).getPointer() - ptr));
+
+		compilePostCall(l, g);
+
+		return l;
+	}
+
+	public static void compilePreCall(List<ACompiledInstruction> l, ALocalCall call, NCompileGraph g, int argVarStart) {
 		//First, push the currently used variables to the stack
 		//This could potentially result in bugs if any of the vars were changed in the args creation. Let's just hope noone does that (using things like i++ etc.)
-		
+
 		LocalDataGraph locals = g.getCurrentMethod().locals;
 		for (int i = 0; i < locals.variables.size(); i++) {
 			l.add(VOpCode.PushVar.createCall(VConstants.VAR_START_LOCAL + i));
 		}
 
 		//Compile the input and store it onto the stack
-		for (int i = 0; i < getArgCount(); i++) {
-			l.addAll(NTRInstructionCall.compileIL(call.args[i].getCode(DataType.ANY.typeDef()), g));
+		for (int i = 0; i < call.getArgCount(); i++) {
+			l.addAll(NTRInstructionCall.compileIL(call.call.args[i].getCode(DataType.ANY.typeDef()), g));
 
 			//the result is now in the primary GPR
 			l.add(VOpCode.PushVar.createCall(VConstants.GP_REG_PRI));
@@ -53,24 +70,15 @@ public class VLocalCall extends ALocalCall {
 		}
 
 		//All variables are in their final state and both them and the args have been pushed to the stack. Now we just need to get the args back from the stack
-		for (int i = getArgCount() - 1; i >= 0; i--){
-			l.add(VOpCode.PopToVar.createCall(VConstants.VAR_START_LOCAL + i));
+		for (int i = call.getArgCount() - 1; i >= 0; i--) {
+			l.add(VOpCode.PopToVar.createCall(argVarStart + i));
 		}
-		
-		int ptr = pointer;
-		for (ACompiledInstruction i : l) {
-			ptr += i.getSize();
-		}
-		ptr += VOpCode.Call.getSize();
-		
-		//Done! Args are now in the first N variables. We can safely call the method now.
-		l.add(VOpCode.Call.createCall(g.getMethodByDef(call).getPointer() - ptr));
-		
+	}
+
+	public static void compilePostCall(List<ACompiledInstruction> l, NCompileGraph g) {
 		//Pop back the variables' original values
-		for (int i = locals.variables.size() - 1; i >= 0; i--){
+		for (int i = g.getCurrentMethod().locals.variables.size() - 1; i >= 0; i--) {
 			l.add(VOpCode.PopToVar.createCall(VConstants.VAR_START_LOCAL + i));
 		}
-		
-		return l;
 	}
 }

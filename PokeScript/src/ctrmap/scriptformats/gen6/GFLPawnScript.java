@@ -158,8 +158,6 @@ public class GFLPawnScript {
 
 			byte[] decCode = quickDecompress(compCode, decCodeLen, cellSize);
 
-			new DiskFile("D:/_REWorkspace/scr/enumtest/coderaw.bin").setBytes(decCode);
-
 			DataIOStream codeReader = new DataIOStream(decCode);
 
 			int dataLen = dataStart - instructionStart;
@@ -662,7 +660,7 @@ public class GFLPawnScript {
 	}
 
 	public static byte[] quickDecompress(byte[] data, int byteSize, int cellSize) {
-		DataIOStream out = new DataIOStream();
+		DataIOStream out = new DataIOStream(new byte[byteSize]);
 		try {
 			int i = 0, j = 0, f = 0;
 			long x = 0;

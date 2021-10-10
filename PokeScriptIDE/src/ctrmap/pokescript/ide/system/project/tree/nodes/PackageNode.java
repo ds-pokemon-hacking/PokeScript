@@ -39,6 +39,7 @@ public class PackageNode extends IDENodeBase {
 
 	protected void addChildrenFromDir(IDEFile directory) {
 		for (IDEFile child : directory.listFiles()) {
+			child.setReadOnly(!directory.canWrite());
 			if (child.isDirectory()) {
 				packages.add(new PackageNode(ide, child));
 			} else {

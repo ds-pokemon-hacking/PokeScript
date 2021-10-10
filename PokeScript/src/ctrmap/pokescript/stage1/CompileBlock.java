@@ -108,6 +108,10 @@ public class CompileBlock {
 		//un-allocate the variables
 		updateBlockStackIns();
 		cg.removeLocals(localsOfThisBlock);
+		//System.out.println("terminated block " + fullBlockName);
+		/*for (Variable loc : localsOfThisBlock) {
+			System.out.println("loc " + loc.name);
+		}*/
 	}
 	
 	public void updateBlockStackIns(){

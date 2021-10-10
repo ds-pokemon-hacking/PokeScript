@@ -246,6 +246,10 @@ public class NExpression {
 								for (Variable glb : cg.globals.variables) {
 									//System.err.println("has glb " + glb.name + " / " + glb.aliases);
 								}
+								//System.out.println(cg.getCurrentMethod().def.name + " CUREMNTS line " + line.startingLine);
+								for (Variable loc : cg.getCurrentMethod().locals) {
+									//System.err.println("has loc " + loc.name);
+								}
 								line.throwException("Unresolved variable: " + rightS);
 							} else {
 								String methodName = rightS.substring(0, braceIdx);

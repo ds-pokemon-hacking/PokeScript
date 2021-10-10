@@ -163,7 +163,9 @@ public class FileEditorRSTA extends RSyntaxTextArea {
 
 	public void waitFinishCompilers() {
 		try {
-			parser.currentCompilerThread.join();
+			if (parser != null && parser.currentCompilerThread != null) {
+				parser.currentCompilerThread.join();
+			}
 		} catch (InterruptedException ex) {
 			Logger.getLogger(FileEditorRSTA.class.getName()).log(Level.SEVERE, null, ex);
 		}
@@ -254,7 +256,7 @@ public class FileEditorRSTA extends RSyntaxTextArea {
 	public class PPParser extends AbstractParser {
 
 		public Preprocessor pp;
-		
+
 		private boolean enabled = true;
 
 		public class CompilerThread extends Thread {
@@ -273,11 +275,11 @@ public class FileEditorRSTA extends RSyntaxTextArea {
 				}
 			}
 		};
-		
+
 		public void enable() {
 			enabled = true;
 		}
-		
+
 		public void disable() {
 			enabled = false;
 		}

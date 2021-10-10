@@ -353,7 +353,7 @@ public class DeclarationContent extends AbstractContent {
 					if (!cnt.hasModifier(Modifier.STATIC)) { //native methods are automatically static
 						cnt.declaredModifiers.add(Modifier.STATIC);
 					}
-				} else {
+				} else if (!cnt.hasModifier(Modifier.META)) {
 					if (!line.hasType(EffectiveLine.LineType.BLOCK_START)) {
 						line.throwException("Non-native methods require a body.");
 					}

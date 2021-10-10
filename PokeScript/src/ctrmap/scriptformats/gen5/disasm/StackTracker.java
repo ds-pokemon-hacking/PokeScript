@@ -1,5 +1,6 @@
 package ctrmap.scriptformats.gen5.disasm;
 
+import ctrmap.pokescript.instructions.gen5.VConstants;
 import ctrmap.pokescript.instructions.gen5.VOpCode;
 import ctrmap.pokescript.instructions.gen5.VStackCmpOpRequest;
 import ctrmap.scriptformats.gen5.VDecompiler;
@@ -14,6 +15,10 @@ public class StackTracker {
 		elems.push(elem);
 	}
 
+	public boolean empty() {
+		return elems.empty();
+	}
+	
 	public StackElement pop() {
 		if (!elems.empty()) {
 			return elems.pop();
@@ -62,7 +67,7 @@ public class StackTracker {
 					break;
 				case PUSH_VAR:
 					int param = call.args[0];
-					StackElementType t = param < 0x4000 ? StackElementType.CONSTANT : StackElementType.VARIABLE;
+					StackElementType t = param < VConstants.WKVAL_START ? StackElementType.CONSTANT : StackElementType.VARIABLE;
 					push(new StackElement(t, param));
 					break;
 				case ADD:

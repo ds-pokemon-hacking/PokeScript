@@ -39,18 +39,18 @@ public enum VOpCode {
 
 	CmpVarConst(NTRDataType.VAR, NTRDataType.U16),
 	CmpVarVar(NTRDataType.VAR, NTRDataType.VAR),
-	VMAddNew(NTRDataType.U16),
+	GlobalCallAsync(NTRDataType.U16),
 	GlobalCall(NTRDataType.U16),
 	Halt2(),
 	Jump(NTRDataType.S32),
-	JumpOnCmp(NTRDataType.U8, NTRDataType.S32), //VCmpResultRequest, BranchTgt
-	CallOnCmp(NTRDataType.U8, NTRDataType.S32), //VCmpResultRequest, BranchTgt
+	JumpIf(NTRDataType.U8, NTRDataType.S32), //VCmpResultRequest, BranchTgt
+	CallIf(NTRDataType.U8, NTRDataType.S32), //VCmpResultRequest, BranchTgt
 
-	SetMapEventStatusFlag(NTRDataType.U16),
+	ReserveScript(NTRDataType.U16),
 	StoreMapTypeChange(NTRDataType.VAR),
 	FlagSet(NTRDataType.FLEX),
 	FlagReset(NTRDataType.FLEX),
-	VarSetFromFlag(NTRDataType.VAR, NTRDataType.FLEX),
+	FlagGet(NTRDataType.VAR, NTRDataType.FLEX),
 	VarUpdateAdd(NTRDataType.VAR, NTRDataType.FLEX),
 	VarUpdateSub(NTRDataType.VAR, NTRDataType.FLEX),
 	VarUpdateConst(NTRDataType.VAR, NTRDataType.U16),
@@ -60,6 +60,8 @@ public enum VOpCode {
 	VarUpdateDiv(NTRDataType.VAR, NTRDataType.FLEX),
 	VarUpdateMod(NTRDataType.VAR, NTRDataType.FLEX),;
 
+	public static final VOpCode[] VALUES = values();
+	
 	public final NTRInstructionPrototype proto;
 
 	private VOpCode(NTRDataType... argTypes) {
@@ -77,6 +79,13 @@ public enum VOpCode {
 
 	public int getSize() {
 		return proto.getSize();
+	}
+	
+	public static VOpCode parse(int opcode) {
+		if (opcode < 0 || opcode >= VALUES.length) {
+			return null;
+		}
+		return VALUES[opcode];
 	}
 	
 	public static VOpCode parse(String str){

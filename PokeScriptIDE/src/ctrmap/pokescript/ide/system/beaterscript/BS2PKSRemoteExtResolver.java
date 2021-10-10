@@ -12,6 +12,8 @@ import ctrmap.stdlib.gui.DialogUtils;
 import ctrmap.stdlib.gui.LoadingDialog;
 import ctrmap.stdlib.net.FileDownloader;
 import java.awt.Frame;
+import java.util.ArrayList;
+import java.util.List;
 import javax.swing.SwingWorker;
 
 public class BS2PKSRemoteExtResolver implements IRemoteExtResolver {
@@ -60,8 +62,23 @@ public class BS2PKSRemoteExtResolver implements IRemoteExtResolver {
 						dlg.setProgressSubTitle("Generating...");
 
 						LibraryManifest mf = new LibraryManifest(libraryRoot.getChild(LibraryManifest.LIBRARY_MANIFEST_NAME));
+						
+						List<Yaml> ymls = new ArrayList<>();
+						for (FSFile child : libraryRoot.getChild(ymlPath).listFiles()) {
+							if (child.getName().endsWith(Yaml.EXTENSION_FILTER.getPrimaryExtension())) {
+								ymls.add(new Yaml(child));
+							}
+						}
+						
+						FSFile dest = libraryRoot.getChild(mf.getMultireleaseTargetForPlatform(LangPlatform.EV_SWAN).path);
+						dest.delete();
+						dest.mkdirs();
 
-						BS2PKS.makePKSIncludes(new Yaml(libraryRoot.getChild(ymlPath)), libraryRoot.getChild(mf.getMultireleaseTargetForPlatform(LangPlatform.EV_SWAN).path));
+						BS2PKS.makePKSIncludes(
+							dest,
+							ymls.toArray(new Yaml[ymls.size()])
+						);
+						
 						dlg.setProgressPercentage(100);
 						dlg.setVisible(false);
 

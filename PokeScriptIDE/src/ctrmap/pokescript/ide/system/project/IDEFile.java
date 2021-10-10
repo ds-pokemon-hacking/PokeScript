@@ -29,6 +29,10 @@ public class IDEFile extends FSFileAdapter {
 		project = proj;
 	}
 
+	public void setReadOnly(boolean bln) {
+		readOnly = bln;
+	}
+
 	public void addIDEFileListener(IDEFileListener l) {
 		ArraysEx.addIfNotNullOrContains(listeners, l);
 	}
@@ -45,9 +49,11 @@ public class IDEFile extends FSFileAdapter {
 
 	public void saveNotify(FileEditorRSTA.SaveResult result) {
 		if (source.canRead()) {
-			compiler.read(source);
-			for (IDEFileListener l : listeners) {
-				l.onSaved(this, result);
+			if (compiler != null) {
+				compiler.read(source);
+				for (IDEFileListener l : listeners) {
+					l.onSaved(this, result);
+				}
 			}
 		}
 	}

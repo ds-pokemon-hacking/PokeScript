@@ -84,6 +84,6 @@ public class IDEProjectTree extends CustomJTree {
 	}
 
 	private void registerIconResource(int resID, String name) {
-		iconProvider.registerResourceIcon(resID, ResourceAccess.getByteArray("scripting/ui/tree/" + name + ".png"));
+		registerIconResourceImpl(resID, "scripting/ui/tree/" + name + ".png");
 	}
 }

@@ -20,15 +20,15 @@ import ctrmap.pokescript.types.DataType;
 import java.util.ArrayList;
 import java.util.List;
 
-public class VMovementFuncHandler implements MetaFunctionHandler {
+public class VActionSeqHandler implements MetaFunctionHandler {
 
-	public static final NTRInstructionPrototype MOVEMENT_END_INS = new NTRInstructionPrototype(0xFE, new NTRArgument(NTRDataType.U16));
-	public NTRInstructionPrototype MOVEMENT_APPLY_DEF = new NTRInstructionPrototype(0x64, new NTRArgument(NTRDataType.FLEX), new NTRArgument(NTRDataType.S32));
+	public static final NTRInstructionPrototype ACTIONSEQ_END_INS = new NTRInstructionPrototype(0xFE, new NTRArgument(NTRDataType.U16));
+	public NTRInstructionPrototype ACTIONSEQ_APPLY_DEF = new NTRInstructionPrototype(0x64, new NTRArgument(NTRDataType.FLEX), new NTRArgument(NTRDataType.S32));
 
 	@Override
 	public void onDeclare(DeclarationContent cnt) {
 		if (cnt.arguments.size() != 1 || cnt.arguments.get(0).typeDef.baseType != DataType.INT) {
-			cnt.line.throwException("A VMovementFunc can only have one argument specifying the target actor.");
+			cnt.line.throwException("A VActionSeq can only have one argument specifying the target actor.");
 		}
 	}
 
@@ -45,8 +45,8 @@ public class VMovementFuncHandler implements MetaFunctionHandler {
 				PlainNTRInstruction ins = (PlainNTRInstruction) ai;
 
 				ins.instructions.clear();
-				ins.instructions.add(new NTRInstructionCall(MOVEMENT_END_INS, 0));
-				//replace returns with movement ends
+				ins.instructions.add(new NTRInstructionCall(ACTIONSEQ_END_INS, 0));
+				//replace returns with action sequence terminators
 			} else if (!(ai instanceof ANativeCall)) {
 				method.body.remove(i);
 				i--;
@@ -72,10 +72,10 @@ public class VMovementFuncHandler implements MetaFunctionHandler {
 		for (ACompiledInstruction i : l) {
 			ptr += i.getSize();
 		}
-		ptr += MOVEMENT_APPLY_DEF.getSize();
+		ptr += ACTIONSEQ_APPLY_DEF.getSize();
 
 		//only one variable argument - we can reuse the primary reg straight away
-		l.add(new NTRInstructionCall(MOVEMENT_APPLY_DEF, imVal == -1 ? VConstants.GP_REG_PRI : imVal, g.getMethodByDef(call.call).getPointer() - ptr));
+		l.add(new NTRInstructionCall(ACTIONSEQ_APPLY_DEF, imVal == -1 ? VConstants.GP_REG_PRI : imVal, g.getMethodByDef(call.call).getPointer() - ptr));
 
 		return l;
 	}

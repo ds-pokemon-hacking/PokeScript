@@ -1,9 +1,9 @@
 package ctrmap.pokescript.ide.system.beaterscript;
 
 import ctrmap.pokescript.instructions.ntr.NTRAnnotations;
-import ctrmap.pokescript.instructions.ntr.NTRArgument;
 import ctrmap.pokescript.instructions.ntr.NTRDataType;
 import ctrmap.pokescript.types.DataType;
+import ctrmap.stdlib.text.StringEx;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -16,10 +16,17 @@ public class BSFunc {
 	public String[] names;
 	public String brief;
 	public int opCode;
-	public List<NTRDataType> returnTypes = new ArrayList<>();
-	public List<String> returnArgNames = new ArrayList<>();
-	public String[] argNames;
-	public NTRArgument[] args;
+
+	public List<BSArgument> args = new ArrayList<>();
+
+	public static class BSArgument {
+
+		public String name;
+		public NTRDataType type;
+		public NTRDataType returnType;
+
+		public boolean isReturn;
+	}
 
 	public String getDecl() {
 		return getDecl(0);
@@ -29,124 +36,123 @@ public class BSFunc {
 		StringBuilder sb = new StringBuilder();
 		String ind = getIndent(indent);
 
-		for (int r = 0; r < returnTypes.size(); r++) {
-			appendBrief(sb, indent);
-			NTRDataType returnType = returnTypes.get(r);
-			String returnArgName = r < returnArgNames.size() ? returnArgNames.get(r) : null;
-
-			if (r != 0) {
-				sb.append("\n");
+		List<BSArgument> returnArguments = new ArrayList<>();
+		for (BSArgument a : args) {
+			if (a.isReturn) {
+				returnArguments.add(a);
 			}
+		}
 
-			for (int i = 0; i < args.length; i++) {
-				NTRArgument arg = args[i];
-				if (argNames[i].equals(returnArgName)) {
+		for (int r = 0; r < returnArguments.size(); r++) {
+			sb.append('\n');
+			appendBrief(sb, indent);
+
+			BSArgument retnArg = returnArguments.get(r);
+
+			NTRDataType returnType = retnArg.returnType;
+
+			for (int i = 0; i < args.size(); i++) {
+				BSArgument arg = args.get(i);
+
+				if (arg == retnArg) {
 					sb.append(ind);
-					sb.append("@");
-					sb.append(NTRAnnotations.NAME_ARG_AS_RETURN);
-					sb.append("(");
-					sb.append(NTRAnnotations.ARG_ARG_NUM);
-					sb.append(" = ");
-					sb.append(i);
-					sb.append(")\n");
-				} else if (arg.isReturnCallback()) {
+					appendAnnotation(sb, NTRAnnotations.NAME_ARG_AS_RETURN, NTRAnnotations.ARG_ARG_NUM, String.valueOf(i));
+				} else if (arg.isReturn) {
 					sb.append(ind);
-					sb.append("@");
-					sb.append(NTRAnnotations.NAME_ARG_AS_RETURN_ALT);
-					sb.append("(");
-					sb.append(NTRAnnotations.ARG_ARG_NUM);
-					sb.append(" = ");
-					sb.append(i);
-					sb.append(")\n");
+					appendAnnotation(sb, NTRAnnotations.NAME_ARG_AS_RETURN_ALT, NTRAnnotations.ARG_ARG_NUM, String.valueOf(i));
 				}
-				if (arg.dataType.sizeof != Short.BYTES) {
-					sb.append(ind);
-					sb.append("@");
-					sb.append(NTRAnnotations.NAME_ARG_BYTES_OVERRIDE);
-					sb.append("(");
-					sb.append(NTRAnnotations.ARG_ARG_NAME);
-					sb.append(" = ");
-					sb.append(argNames[i]);
-					sb.append(", ");
-					sb.append(NTRAnnotations.ARG_BYTES);
-					sb.append(" = ");
-					sb.append(arg.dataType.sizeof);
-					sb.append(")\n");
-				}
+				appendArgSizeAnnotation(arg, sb, ind);
 			}
 
 			sb.append(ind);
 			sb.append("static native ");
 			sb.append(getPKSType(returnType).getFriendlyName());
 			sb.append(" ");
-			if (returnTypes.size() == 1) {
+			if (returnArguments.size() == 1) {
 				sb.append(names[0]);
 			} else {
 				sb.append((r + 1) < names.length ? names[r + 1] : names[0] + (r + 1));
 			}
 			sb.append("(");
 			int firstArg = 0;
-			for (; firstArg < args.length; firstArg++) {
-				if (!args[firstArg].isReturnCallback()) {
+			for (; firstArg < args.size(); firstArg++) {
+				if (!args.get(firstArg).isReturn) {
 					break;
 				}
 			}
-			for (int i = firstArg; i < args.length; i++) {
-				NTRArgument a = args[i];
-				if (a.isReturnCallback()) {
+			for (int i = firstArg; i < args.size(); i++) {
+				BSArgument a = args.get(i);
+				if (a.isReturn) {
 					continue;
 				}
 				if (i != firstArg) {
 					sb.append(", ");
 				}
-				if (a.dataType == NTRDataType.VAR) {
-				//	sb.append("var "); //do not do this, allow for numeric variables
-				} else if (a.dataType != NTRDataType.FLEX) {
+				if (a.type == NTRDataType.VAR) {
+					//	sb.append("var "); //do not do this, allow for numeric variables
+				} else if (a.type != NTRDataType.FLEX) {
 					sb.append("final ");
 				}
-				sb.append(getPKSType(a.dataType).getFriendlyName());
+				sb.append(getPKSType(a.type).getFriendlyName());
 				sb.append(" ");
-				sb.append(argNames[i]);
+				sb.append(a.name);
 			}
 			appendOpCodeAndEnd(sb);
 		}
 
-		if (returnTypes.size() > 1) {
-			sb.append("\n");
+		if (returnArguments.size() > 1 || returnArguments.isEmpty()) {
+			sb.append('\n');
 
 			appendBrief(sb, indent);
+			for (BSArgument arg : args) {
+				appendArgSizeAnnotation(arg, sb, ind);
+			}
 
 			//append combined function
 			sb.append(ind);
 			sb.append("static native void ");
 			sb.append(names[0]);
 			sb.append("(");
-			for (int i = 0; i < args.length; i++) {
-				NTRArgument a = args[i];
+			for (int i = 0; i < args.size(); i++) {
+				BSArgument a = args.get(i);
 				if (i != 0) {
 					sb.append(", ");
 				}
-				if (a.isReturnCallback()) {
-					sb.append("var ");
-				} else if (a.dataType != NTRDataType.FLEX) {
+				if (a.type == NTRDataType.VAR) {
+					//sb.append("var ");
+				} else if (a.type != NTRDataType.FLEX) {
 					sb.append("final ");
 				}
-				sb.append(getPKSType(a.dataType).getFriendlyName());
+				sb.append(getPKSType(a.type).getFriendlyName());
 				sb.append(" ");
-				sb.append(argNames[i]);
+				sb.append(a.name);
 			}
 			appendOpCodeAndEnd(sb);
 		}
 
-		boolean hasVarArg = false;
-		for (int i = 0; i < args.length; i++) {
-			if (args[i].dataType == NTRDataType.VAR && !returnArgNames.contains(argNames[i])) {
-				hasVarArg = true;
-				break;
-			}
-		}
-
 		return sb.toString();
+	}
+
+	private void appendArgSizeAnnotation(BSArgument arg, StringBuilder sb, String ind) {
+		if (arg.type.sizeof != Short.BYTES) {
+			sb.append(ind);
+			appendAnnotation(sb, NTRAnnotations.NAME_ARG_BYTES_OVERRIDE, NTRAnnotations.ARG_ARG_NAME, arg.name, NTRAnnotations.ARG_BYTES, String.valueOf(arg.type.sizeof));
+		}
+	}
+
+	private static void appendAnnotation(StringBuilder sb, String name, String... paramsAndValues) {
+		sb.append("@");
+		sb.append(name);
+		sb.append("(");
+		for (int i = 0; i < paramsAndValues.length >> 1; i++) {
+			if (i != 0) {
+				sb.append(", ");
+			}
+			sb.append(paramsAndValues[i * 2]);
+			sb.append(" = ");
+			sb.append(paramsAndValues[i * 2 + 1]);
+		}
+		sb.append(")\n");
 	}
 
 	private void appendOpCodeAndEnd(StringBuilder sb) {
@@ -161,12 +167,13 @@ public class BSFunc {
 		if (brief != null) {
 			sb.append(ind);
 			sb.append("/**\n");
-			String[] briefLines = brief.split("\\. ");
+			String[] briefLines = StringEx.splitOnecharFast(brief, '.');
 			for (String bl : briefLines) {
 				if (!bl.isEmpty()) {
 					sb.append(ind);
-					sb.append(" * ");
-					sb.append(bl);
+					sb.append(" *");
+					sb.append("\t");
+					sb.append(bl.trim());
 					if (!bl.endsWith(".")) {
 						sb.append(".");
 					}
@@ -174,7 +181,7 @@ public class BSFunc {
 				}
 			}
 			sb.append(ind);
-			sb.append("*/\n");
+			sb.append(" */\n");
 		}
 	}
 

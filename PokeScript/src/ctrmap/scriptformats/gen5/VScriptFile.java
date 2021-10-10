@@ -17,9 +17,9 @@ public class VScriptFile {
 
 	public static final NTRInstructionLinkSetup[] GEN_V_LINK_SETUP = new NTRInstructionLinkSetup[]{
 		new NTRInstructionLinkSetup(VOpCode.Jump, 0),
-		new NTRInstructionLinkSetup(VOpCode.JumpOnCmp, 1),
+		new NTRInstructionLinkSetup(VOpCode.JumpIf, 1),
 		new NTRInstructionLinkSetup(VOpCode.Call, 0),
-		new NTRInstructionLinkSetup(VOpCode.CallOnCmp, 1),
+		new NTRInstructionLinkSetup(VOpCode.CallIf, 1),
 		new NTRInstructionLinkSetup(0x64, 1) //ApplyMovement
 	};
 
@@ -30,7 +30,7 @@ public class VScriptFile {
 	public List<NTRInstructionLink> publics = new ArrayList<>();
 
 	public List<NTRInstructionCall> instructions = new ArrayList<>();
-	public List<NTRInstructionCall> movements = new ArrayList<>();
+	public List<NTRInstructionCall> actions = new ArrayList<>();
 
 	public VScriptFile() {
 
@@ -62,13 +62,13 @@ public class VScriptFile {
 	public void replaceFrom(VScriptFile scr) {
 		publics = new ArrayList<>(scr.publics);
 		instructions = new ArrayList<>(scr.instructions);
-		movements = new ArrayList<>(scr.movements);
+		actions = new ArrayList<>(scr.actions);
 	}
 
 	private List<NTRInstructionCall> getAllInstructions() {
 		List<NTRInstructionCall> l = new ArrayList<>();
 		l.addAll(instructions);
-		l.addAll(movements);
+		l.addAll(actions);
 		return l;
 	}
 
@@ -133,15 +133,14 @@ public class VScriptFile {
 			for (NTRInstructionCall call : alignedInstructions) {
 				if (call.definition.opCode == 0x64) {
 					if (call.link != null && call.link.target != null) {
-						if ((call.link.target.pointer & 1) != 0) {
-							call.link.target.pointer = -1;
-						}
+						call.link.target.pointer = -1;
 					}
 				}
 
 				if (call.pointer == -1) {
-					call.pointer++; //pointer requires word-alignment
-					ptr = call.pointer;
+					if ((ptr & 1) != 0) {
+						ptr++;
+					}
 				}
 
 				call.pointer = ptr;
@@ -160,7 +159,7 @@ public class VScriptFile {
 
 			int pos = dos.getPosition();
 			for (NTRInstructionCall call : getAllInstructions()) {
-				if (pos != call.pointer){
+				if (pos != call.pointer) {
 					dos.seek(call.pointer);
 				}
 				call.write(dos);

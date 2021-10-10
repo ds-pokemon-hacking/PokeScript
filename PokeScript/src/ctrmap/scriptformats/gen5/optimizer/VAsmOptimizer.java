@@ -88,7 +88,7 @@ public class VAsmOptimizer {
 			new VInstructionMatch(VInstructionMatch.InstructionMatchType.FULL, "CmpPriAlt(ANY)"),         //2
 			new VInstructionMatch(VInstructionMatch.InstructionMatchType.FULL, "PopToVar(ANY_GPR)"),      //3
 			new VInstructionMatch(VInstructionMatch.InstructionMatchType.FULL, "CmpVarConst(ANY_GPR, ZERO)"), //4
-			new VInstructionMatch(VInstructionMatch.InstructionMatchType.FULL, "JumpOnCmp(ONE, ANY)")         //5
+			new VInstructionMatch(VInstructionMatch.InstructionMatchType.FULL, "JumpIf(ONE, ANY)")         //5
 			)
 		},
 	};
