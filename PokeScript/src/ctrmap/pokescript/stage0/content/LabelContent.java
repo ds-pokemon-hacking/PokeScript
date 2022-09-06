@@ -8,6 +8,7 @@ import ctrmap.pokescript.instructions.abstractcommands.AInstruction;
 import ctrmap.pokescript.stage0.EffectiveLine;
 import ctrmap.pokescript.stage1.NCompileGraph;
 import ctrmap.pokescript.stage1.PendingLabel;
+import xstandard.util.ParsingUtils;
 
 /**
  *
@@ -74,7 +75,7 @@ public class LabelContent extends AbstractContent {
 						else {
 							int value = 0;
 							try {
-								value = Integer.parseInt(label);
+								value = ParsingUtils.parseBasedInt(label);
 							}
 							catch (NumberFormatException ex){
 								line.throwException("Case has to be either a constant or an integer value.");

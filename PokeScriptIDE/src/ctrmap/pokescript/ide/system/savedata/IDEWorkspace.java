@@ -1,6 +1,6 @@
 package ctrmap.pokescript.ide.system.savedata;
 
-import ctrmap.stdlib.fs.FSFile;
+import xstandard.fs.FSFile;
 
 /**
  * Handles access to the IDE's files in a workspace.

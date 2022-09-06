@@ -13,7 +13,7 @@ import java.util.List;
 public class ClassVariable extends Variable {
 	
 	public ClassVariable(String name, List<Modifier> modifiers, TypeDef type, NCompileGraph cg){
-		super(name, modifiers, type, cg);
+		super(name, modifiers, type, cg, null);
 	}
 
 	@Override

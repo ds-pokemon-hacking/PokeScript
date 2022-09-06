@@ -1,13 +1,13 @@
 package ctrmap.scriptformats.gen6;
 
-import ctrmap.stdlib.fs.FSFile;
-import ctrmap.stdlib.fs.accessors.DiskFile;
-import ctrmap.stdlib.io.base.iface.DataInputEx;
-import ctrmap.stdlib.io.base.iface.DataOutputEx;
-import ctrmap.stdlib.io.base.impl.ext.data.DataIOStream;
-import ctrmap.stdlib.io.base.impl.ext.data.DataInStream;
-import ctrmap.stdlib.io.util.StringIO;
-import ctrmap.stdlib.math.BitMath;
+import xstandard.fs.FSFile;
+import xstandard.fs.accessors.DiskFile;
+import xstandard.io.base.iface.DataInputEx;
+import xstandard.io.base.iface.DataOutputEx;
+import xstandard.io.base.impl.ext.data.DataIOStream;
+import xstandard.io.base.impl.ext.data.DataInStream;
+import xstandard.io.util.StringIO;
+import xstandard.math.BitMath;
 import java.io.DataInput;
 import java.io.DataOutput;
 import java.io.IOException;
@@ -73,6 +73,25 @@ public class GFLPawnScript {
 		stackSize = 0x1000;
 		sNAMEMAX = 63;
 	}
+	
+	public void setCellSize(int cellSize) {
+		switch (cellSize) {
+			case Short.BYTES:
+				magic = PAWN16_MAGIC;
+				defsize = 6;
+				break;
+			case Integer.BYTES:
+				magic = PAWN32_MAGIC;
+				defsize = 8;
+				break;
+			case Long.BYTES:
+				magic = PAWN64_MAGIC;
+				defsize = 12;
+				break;
+			default:
+				throw new RuntimeException("Invalid cell size: " + cellSize + " bytes!");
+		}		
+	}
 
 	public int getCellSize() {
 		switch (magic) {
@@ -87,16 +106,22 @@ public class GFLPawnScript {
 	}
 
 	public long hashName(String name) {
-		if (magic == PAWN32_MAGIC) {
+		//if (magic == PAWN32_MAGIC) {
 			return GFScrHash.getHash(name);
-		} else if (magic == PAWN64_MAGIC) {
+		/*} else if (magic == PAWN64_MAGIC) {
 			return GFScrHash.getHash64(name);
 		}
-		throw new UnsupportedOperationException("No hash function for 16-bit Pawn.");
+		throw new UnsupportedOperationException("No hash function for 16-bit Pawn.");*/
 	}
 
 	public static GFLPawnScript createExecutableGFLScript() {
+		return createExecutableGFLScript(Integer.BYTES);
+	}
+	
+	public static GFLPawnScript createExecutableGFLScript(int cellSize) {
 		GFLPawnScript s = new GFLPawnScript();
+		
+		s.setCellSize(cellSize);
 
 		s.instructions.add(new PawnInstruction(PawnOpCode.HALT_P));
 		s.mainEntryPoint = 0;
@@ -176,7 +201,7 @@ public class GFLPawnScript {
 			Logger.getLogger(GFLPawnScript.class.getName()).log(Level.SEVERE, null, ex);
 		}
 	}
-
+	
 	public void readNameTable(DataInputEx dis) throws IOException {
 		sNAMEMAX = dis.readShort(); //the name table is completely unused in GFL pawn scripts, but still
 		while (dis.getPosition() < instructionStart) {
@@ -240,7 +265,7 @@ public class GFLPawnScript {
 			mainEntryPoint = -1;
 		}
 		codeImage.seek(0);
-		byte[] instructionsToWrite = compressScript(codeImage, codeImage.getLength(), getCellSize());
+		byte[] instructionsToWrite = compressScript(codeImage, codeImage.getLength(), cellSize);
 		len = instructionStart + instructionsToWrite.length;
 
 		for (PawnPrefixEntry p : publics) {
@@ -369,9 +394,11 @@ public class GFLPawnScript {
 
 	public void setPtrsByIndex() {
 		int currentPtr = 0;
+		int cellSize = getCellSize();
 		for (int i = 0; i < instructions.size(); i++) {
 			PawnInstruction ins = instructions.get(i);
 			ins.pointer = currentPtr;
+			ins.cellSize = cellSize;
 			currentPtr += ins.getSize();
 		}
 	}
@@ -638,12 +665,21 @@ public class GFLPawnScript {
 	}
 
 	public PawnPrefixEntry getPrefixEntryByName(List<PawnPrefixEntry> list, long name) {
-		for (PawnPrefixEntry e : list) {
-			if (e.data[1] == name) {
-				return e;
+		int idx = getPrefixEntryIdxByName(list, name);
+		return idx == -1 ? null : list.get(idx);
+	}
+	
+	public int getPrefixEntryIdxByName(List<PawnPrefixEntry> list, String name) {
+		return getPrefixEntryIdxByName(list, hashName(name));
+	}
+	
+	public int getPrefixEntryIdxByName(List<PawnPrefixEntry> list, long name) {
+		for (int i = 0; i < list.size(); i++) {
+			if (list.get(i).data[1] == name) {
+				return i;
 			}
 		}
-		return null;
+		return -1;
 	}
 
 	public void callInstructionListeners() {

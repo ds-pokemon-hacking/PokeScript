@@ -1,6 +1,5 @@
 package ctrmap.pokescript.instructions.abstractcommands;
 
-import ctrmap.pokescript.stage1.NCompileGraph;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -9,14 +8,15 @@ import java.util.List;
  */
 public abstract class AInstruction {
 
-	public int pointer;
 	private List<String> labels = new ArrayList<>();
 
 	public abstract List<AInstruction> getAllInstructions();
-
-	public abstract int getAllocatedPointerSpace(NCompileGraph g);
-
-	public abstract List<? extends ACompiledInstruction> compile(NCompileGraph g);
+	
+	public abstract AInstructionType getType();
+	
+	public List<String> labels() {
+		return labels;
+	}
 	
 	public void addLabel(String lbl){
 		labels.add(lbl);

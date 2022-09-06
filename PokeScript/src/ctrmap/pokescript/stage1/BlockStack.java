@@ -36,6 +36,17 @@ public class BlockStack<T extends CompileBlock> extends Stack<T> {
 			}
 		};
 	}
+	
+	public CompileBlock getFirstBlockForAttr(CompileBlock.BlockAttribute a, String label) {
+		for (CompileBlock b : this) {
+			if (b.hasAttribute(a)) {
+				if (label == null || b.getShortBlockName().equals(label)) {
+					return b;
+				}
+			}
+		}
+		return null;
+	}
 
 	public BlockResult getBlocksToAttribute(CompileBlock.BlockAttribute a, String label) {
 		BlockResult rsl = new BlockResult();
@@ -57,18 +68,37 @@ public class BlockStack<T extends CompileBlock> extends Stack<T> {
 
 		public BlockStack<CompileBlock> blocks = new BlockStack<>();
 
-		public List<Variable> collectLocalsNoBottom() {
+		public List<Variable> collectLocalsNoBottom(CompileBlock bottomBlock) {
 			List<Variable> v = new ArrayList<>();
-			for (CompileBlock b : blocks) {
-				if (b != getBottomBlock()) {
-					v.addAll(b.localsOfThisBlock);
-				}
+			int index = blocks.indexOf(bottomBlock);
+			for (int i = index + 1; i < blocks.size(); i++) {
+				v.addAll(blocks.get(i).localsOfThisBlock);
 			}
 			return v;
+		}
+		
+		public CompileBlock getBlockByAttr(CompileBlock.BlockAttribute a, String name) {
+			for (CompileBlock b : blocks) {
+				if (b.hasAttribute(a)) {
+					if (name == null || b.getShortBlockName().equals(name)) {
+						return b;
+					}
+				}
+			}
+			return null;
 		}
 
 		public CompileBlock getBottomBlock() {
 			return blocks.firstElement();
+		}
+		
+		public CompileBlock getBlockByName(String name) {
+			for (CompileBlock b : blocks) {
+				if (b.getShortBlockName().equals(name)) {
+					return b;
+				}
+			}
+			return null;
 		}
 	}
 }

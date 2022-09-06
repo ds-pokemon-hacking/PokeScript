@@ -2,10 +2,39 @@ package ctrmap.scriptformats.gen5.optimizer;
 
 import ctrmap.pokescript.instructions.gen5.VOpCode;
 import ctrmap.pokescript.instructions.ntr.NTRInstructionCall;
+import xstandard.text.StringEx;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 public class VInstructionMatch {
+
+	private static final Map<String, VOpCode[]> OPCODE_MACROS = new HashMap<>();
+
+	static {
+		OPCODE_MACROS.put("ANY_VAR_UPDATE", new VOpCode[]{
+			VOpCode.VarUpdateVar,
+			VOpCode.VarUpdateConst,
+			VOpCode.VarUpdateFlex,
+			VOpCode.VarUpdateAdd,
+			VOpCode.VarUpdateSub,
+			VOpCode.VarUpdateMul,
+			VOpCode.VarUpdateDiv,
+			VOpCode.VarUpdateMod,
+			VOpCode.VarUpdateAND,
+			VOpCode.VarUpdateOR
+		});
+		OPCODE_MACROS.put("MATH_VAR_UPDATE", new VOpCode[]{
+			VOpCode.VarUpdateAdd,
+			VOpCode.VarUpdateSub,
+			VOpCode.VarUpdateMul,
+			VOpCode.VarUpdateDiv,
+			VOpCode.VarUpdateMod,
+			VOpCode.VarUpdateAND,
+			VOpCode.VarUpdateOR
+		});
+	}
 
 	public final List<Integer> opCodes = new ArrayList<>();
 	public final InstructionMatchType matchType;
@@ -16,23 +45,32 @@ public class VInstructionMatch {
 		this.matchType = matchType;
 		if (source != null) {
 			String op = source;
-			if (source.contains("(")) {
-				op = source.substring(0, source.indexOf('('));
+			int idxPrts = source.indexOf('(');
+			if (idxPrts != -1) {
+				op = source.substring(0, idxPrts);
 			}
-			String[] ops = op.split("\\|");
+			String[] ops = StringEx.splitOnecharFastNoBlank(op, '|');
 
 			for (String opC : ops) {
-				VOpCode opCode = VOpCode.parse(opC);
+				VOpCode[] macro = OPCODE_MACROS.get(opC);
 
-				if (opCode == null) {
-					System.err.println("WARN: Invalid opcode: " + opC);
+				if (macro != null) {
+					for (VOpCode opcode : macro) {
+						opCodes.add(opcode.ordinal());
+					}
 				} else {
-					opCodes.add(opCode.ordinal());
+					VOpCode opCode = VOpCode.parse(opC);
+
+					if (opCode == null) {
+						System.err.println("WARN: Invalid opcode: " + opC);
+					} else {
+						opCodes.add(opCode.ordinal());
+					}
 				}
 			}
 
-			if (source.contains("(")) {
-				String[] args = source.substring(source.indexOf('(') + 1, source.lastIndexOf(')')).split(",");
+			if (idxPrts != -1) {
+				String[] args = StringEx.splitOnecharFastNoBlank(source.substring(idxPrts + 1, source.lastIndexOf(')')), ',');
 				argMatch = new VOpCodeArgMatch[args.length];
 
 				for (int i = 0; i < argMatch.length; i++) {
@@ -54,6 +92,8 @@ public class VInstructionMatch {
 		switch (matchType) {
 			case ANY:
 				return true;
+			case OPCODE_ONLY:
+				return opCodes.contains(instruction.definition.opCode);
 			case FULL:
 			case NOT_FULL:
 				boolean b = opCodes.contains(instruction.definition.opCode);
@@ -89,6 +129,7 @@ public class VInstructionMatch {
 	public enum InstructionMatchType {
 		ANY,
 		FULL,
+		OPCODE_ONLY,
 		ARGS_ONLY,
 		ARGS_ONLY_NONINTERNAL,
 		NOT_FULL,

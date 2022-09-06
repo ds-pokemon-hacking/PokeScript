@@ -1,6 +1,6 @@
 package ctrmap.scriptformats.gen6;
 
-import ctrmap.stdlib.util.ArraysEx;
+import xstandard.util.ArraysEx;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashMap;

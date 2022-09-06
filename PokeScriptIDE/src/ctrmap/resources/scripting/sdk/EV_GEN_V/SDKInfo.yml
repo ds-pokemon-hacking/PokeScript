@@ -2,12 +2,12 @@ SDKBundles:
   - Name: "Pokémon Black/White 2 SDK"
     ResourceType: REMOTE_EXT
     RemoteExtType: BS2PKS
-    ResourcePath: "https://github.com/HelloOO7/PokeScriptSDK5/archive/refs/heads/master.zip|yml"
+    ResourcePath: "https://github.com/HelloOO7/PokeScriptSDK5/archive/refs/heads/master.zip|yml/B2W2"
     Definitions:
       - "SWAN"
   - Name: "Pokémon Black/White SDK"
     ResourceType: REMOTE_EXT
     RemoteExtType: BS2PKS
-    ResourcePath: "https://github.com/HelloOO7/PokeScriptSDK5/archive/refs/heads/master.zip|yml"
+    ResourcePath: "https://github.com/HelloOO7/PokeScriptSDK5/archive/refs/heads/master.zip|yml/BW"
     Definitions:
       - "WB"

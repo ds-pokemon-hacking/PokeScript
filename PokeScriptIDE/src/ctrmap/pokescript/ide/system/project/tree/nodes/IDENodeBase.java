@@ -1,11 +1,12 @@
 package ctrmap.pokescript.ide.system.project.tree.nodes;
 
 import ctrmap.pokescript.ide.PSIDE;
-import ctrmap.stdlib.gui.DialogUtils;
-import ctrmap.stdlib.gui.components.tree.CustomJTreeNode;
+import xstandard.gui.DialogUtils;
+import xstandard.gui.components.tree.CustomJTreeNode;
 import java.awt.event.MouseEvent;
 import javax.swing.JMenuItem;
 import javax.swing.JPopupMenu;
+import javax.swing.tree.MutableTreeNode;
 import javax.swing.tree.TreeNode;
 
 public abstract class IDENodeBase extends CustomJTreeNode {
@@ -48,6 +49,16 @@ public abstract class IDENodeBase extends CustomJTreeNode {
 
 	public void callNodeAction(String action) {
 
+	}
+	
+	@Override
+	public void remove(MutableTreeNode child) {
+		ide.getProjectTree().getModel().removeNodeFromParent(child);
+	}
+	
+	@Override
+	public void add(MutableTreeNode child) {
+		ide.getProjectTree().getModel().insertNodeInto(child, this, getChildCount());
 	}
 
 	public String[] getNodeActions() {

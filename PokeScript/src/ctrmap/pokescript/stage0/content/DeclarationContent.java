@@ -2,22 +2,21 @@ package ctrmap.pokescript.stage0.content;
 
 import ctrmap.pokescript.InboundDefinition;
 import ctrmap.pokescript.LangConstants;
-import ctrmap.pokescript.data.ClassVariable;
 import ctrmap.pokescript.stage0.Preprocessor;
 import ctrmap.pokescript.data.Variable;
 import ctrmap.pokescript.types.DataType;
 import ctrmap.pokescript.expr.Throughput;
+import ctrmap.pokescript.expr.ast.AST;
 import ctrmap.pokescript.instructions.abstractcommands.APlainOpCode;
 import ctrmap.pokescript.stage0.BraceContent;
 import ctrmap.pokescript.stage0.EffectiveLine;
 import ctrmap.pokescript.stage0.Modifier;
 import ctrmap.pokescript.stage1.NCompilableMethod;
 import ctrmap.pokescript.stage1.NCompileGraph;
-import ctrmap.pokescript.stage1.NExpression;
 import ctrmap.pokescript.types.TypeDef;
 import ctrmap.pokescript.types.classes.ClassDefinition;
 import ctrmap.pokescript.types.declarers.DeclarerController;
-import ctrmap.stdlib.text.StringEx;
+import xstandard.text.StringEx;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -70,9 +69,9 @@ public class DeclarationContent extends AbstractContent {
 			if (line.context != EffectiveLine.AnalysisLevel.LOCAL) {
 				declaredType = getCorrectTypeDef(graph);
 
-				NExpression init_from = null;
+				AST init_from = null;
 				if (initFromContent != null) {
-					init_from = new NExpression(initFromContent, line, graph);
+					init_from = new AST(line, graph, initFromContent);
 				}
 
 				if (hasModifier(Modifier.STATIC) || line.context == EffectiveLine.AnalysisLevel.GLOBAL) {
@@ -93,7 +92,7 @@ public class DeclarationContent extends AbstractContent {
 				}
 
 				if (init_from != null) {
-					Throughput tp = init_from.toThroughput(graph);
+					Throughput tp = init_from.toThroughput();
 					checkVariableInitType(tp);
 				}
 			}
@@ -140,10 +139,11 @@ public class DeclarationContent extends AbstractContent {
 
 	@Override
 	public void addToGraph(NCompileGraph graph) {
+		//System.out.println("debug: declaring " + declaredName + ", var " + isVarDeclaration() + ", method " + isMethodDeclaration() + " class/enum " + isClassOrEnumDeclaration() + " ctx " + line.context);
 		if (isVarDeclaration()) {
-			NExpression init_from = null;
+			AST init_from = null;
 			if (initFromContent != null) {
-				init_from = new NExpression(initFromContent, line, graph);
+				init_from = new AST(line, graph, initFromContent);
 			}
 
 			Variable result = null;
@@ -151,12 +151,12 @@ public class DeclarationContent extends AbstractContent {
 			if (line.context == EffectiveLine.AnalysisLevel.LOCAL) {
 				declaredType = getCorrectTypeDef(graph);
 
-				Variable.Local l = new Variable.Local(declaredName, declaredModifiers, declaredType, graph);
+				Variable.Local l = new Variable.Local(declaredName, declaredModifiers, declaredType, graph, graph.getCurrentMethod().locals);
 				graph.addLocal(l);
-				graph.addInstruction(graph.getPlain(APlainOpCode.RESIZE_STACK, graph.provider.getMemoryInfo().getStackIndexingStep()));
+				graph.addInstruction(graph.getPlain(APlainOpCode.RESIZE_STACK, 1));
 				result = l;
 				if (init_from != null) {
-					Throughput tp = init_from.toThroughput(graph);
+					Throughput tp = init_from.toThroughput();
 					if (checkVariableInitType(tp)) {
 						if (line.context == EffectiveLine.AnalysisLevel.LOCAL) {
 							graph.addInstructions(tp.getCode(declaredType));
@@ -172,7 +172,7 @@ public class DeclarationContent extends AbstractContent {
 				if (m.metaHandler != null) {
 					m.metaHandler.onDeclare(this);
 				}
-				graph.addMethod(m);
+				graph.addMethod(m, line.hasType(EffectiveLine.LineType.METHOD_BODY_START));
 			}
 		} else {
 			if (isClassOrEnumDeclaration()) {
@@ -287,6 +287,8 @@ public class DeclarationContent extends AbstractContent {
 			char charAtDeclEnd = Preprocessor.safeCharAt(str, declarationEnd);
 			boolean hasSetting = charAtDeclEnd == LangConstants.CH_ASSIGNMENT;
 			boolean isMethod = charAtDeclEnd == '(';
+			
+			//System.out.println("debug declaration " + declaredName + " ismethod " + isMethod + " is classdef " + isClassDef);
 
 			if (isMethod) {
 				if (hasSetting) {

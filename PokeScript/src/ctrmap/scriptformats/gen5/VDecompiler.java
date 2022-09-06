@@ -13,11 +13,11 @@ import ctrmap.scriptformats.gen5.disasm.MathMaker;
 import ctrmap.scriptformats.gen5.disasm.StackCommands;
 import ctrmap.scriptformats.gen5.disasm.StackTracker;
 import ctrmap.scriptformats.gen5.disasm.VDisassembler;
-import ctrmap.stdlib.fs.FSFile;
-import ctrmap.stdlib.fs.FSUtil;
-import ctrmap.stdlib.fs.accessors.DiskFile;
-import ctrmap.stdlib.text.FormattingUtils;
-import ctrmap.stdlib.io.util.IndentedPrintStream;
+import xstandard.fs.FSFile;
+import xstandard.fs.FSUtil;
+import xstandard.fs.accessors.DiskFile;
+import xstandard.text.FormattingUtils;
+import xstandard.io.util.IndentedPrintStream;
 import java.io.ByteArrayOutputStream;
 import java.io.PrintStream;
 import java.nio.charset.StandardCharsets;
@@ -44,11 +44,22 @@ public class VDecompiler {
 	}
 
 	public static void main(String[] args) {
-		FSFile scrFile = new DiskFile("D:\\_REWorkspace\\CTRMapProjects\\White2\\vfs\\data\\a\\0\\5\\6\\1240");
-		FSFile cdbFile = new DiskFile("C:\\Users\\Čeněk\\eclipse-workspace\\BsYmlGen\\B2W2\\Base.yml");
-		FSFile outFile = new DiskFile("D:\\_REWorkspace\\pokescript_genv\\decomp\\out.pks");
+		FSFile scrFile = new DiskFile("D:\\_REWorkspace\\pokescript_genv\\6\\6_84.bin");
+		//FSFile scrFile = new DiskFile("D:\\_REWorkspace\\CTRMapProjects\\BW1\\vfs\\data\\a\\0\\5\\7\\782");
+		FSFile[] cdbFiles = new FSFile[]{
+			new DiskFile("C:\\Users\\Čeněk\\eclipse-workspace\\BsYmlGen\\B2W2\\Base.yml"),
+			new DiskFile("C:\\Users\\Čeněk\\eclipse-workspace\\BsYmlGen\\B2W2\\Overlay 66.yml")
+		};
+		FSFile outFile = new DiskFile("D:\\_REWorkspace\\pokescript_genv\\decomp\\castelia_city_42.pks");
+		
+		List<VCommandDataBase> dbs = new ArrayList<>();
+		for (FSFile f : cdbFiles) {
+			dbs.add(new VCommandDataBase(f));
+		}
+		
+		VCommandDataBase rootDB = new VCommandDataBase(dbs);
 
-		VDecompiler dec = new VDecompiler(new VScriptFile(scrFile), new VCommandDataBase(cdbFile));
+		VDecompiler dec = new VDecompiler(new VScriptFile(scrFile), rootDB);
 		dec.decompileToFile(outFile);
 	}
 
@@ -115,7 +126,7 @@ public class VDecompiler {
 		}
 		out.println(" {");
 		out.incrementIndentLevel();
-		
+
 		disasm.sortMethods();
 
 		for (DisassembledMethod m : disasm.methods) {
@@ -237,7 +248,7 @@ public class VDecompiler {
 						if (f != null) {
 							if (getCallParameters(callIdx, call.link.target.pointer, m, false, true).size() < f.paramWorks.length) {
 								for (int wk : f.paramWorks) {
-									if (wk >= VConstants.GP_REG_PRI) {
+									if (VConstants.isHighWk(wk)) {
 										if (!usedRegisters.contains(wk) && !paramRegisters.contains(wk)) {
 											usedRegisters.add(wk);
 										}
@@ -298,14 +309,13 @@ public class VDecompiler {
 					//otherwise it's obviously not a method argument
 					for (int check = i + 1; check < method.instructions.size(); check++) {
 						DisassembledCall c = method.instructions.get(check);
-						
+
 						StackCommands stkcmd = StackCommands.valueOf(c.command.def.opCode);
 						if (stkcmd == StackCommands.POP_TO) {
 							if (c.args[0] == wk) {
 								return true;
 							}
-						}
-						else {
+						} else {
 							break;
 						}
 					}
@@ -368,7 +378,7 @@ public class VDecompiler {
 			switch (stackResult) {
 				case POP_TO:
 					int target = call.args[0];
-					printAsgnOrWorkSet(out, target, stack.pop().toString());
+					printVarSet(out, target, stack.pop().toString());
 					out.println(";");
 					break;
 			}
@@ -380,7 +390,7 @@ public class VDecompiler {
 			} else {
 				int target = call.args[0];
 				int rhs = call.args[1];
-				printVarAssignment(out, mathResult.operator, target, rhs, call.definition.parameters[1].dataType);
+				printVarUpdate(out, mathResult.operator, target, rhs, call.definition.parameters[1].dataType);
 				out.println(";");
 			}
 		} else if (call.command.type == VCommandDataBase.CommandType.REGULAR) {
@@ -399,7 +409,8 @@ public class VDecompiler {
 			int rcbIndex = call.command.def.getIndexOfFirstReturnArgument();
 
 			if (isRCB) {
-				printAsgnOrWorkSet(out, call.args[rcbIndex], null);
+				System.out.println(call.args[rcbIndex] + " at " + Integer.toHexString(call.pointer));
+				printVarSet(out, call.args[rcbIndex], null);
 			}
 
 			out.print(call.command.getPKSCallName());
@@ -426,7 +437,7 @@ public class VDecompiler {
 			}
 
 			out.print(")");
-			if (isRCB && call.args[rcbIndex] < VConstants.GP_REG_PRI) {
+			if (isRCB && VConstants.isLowWk(call.args[rcbIndex])) {
 				out.print(")");
 			}
 			out.println(";");
@@ -436,8 +447,8 @@ public class VDecompiler {
 		call.doNotDisassemble = true;
 	}
 
-	private static void printAsgnOrWorkSet(PrintStream out, int target, String rhs) {
-		if (target < VConstants.GP_REG_PRI) {
+	private static void printVarSet(PrintStream out, int target, String rhs) {
+		if (VConstants.isLowWk(target)) {
 			out.print("EventWorks.WorkSet(");
 			out.print(target);
 			out.print(", ");
@@ -454,14 +465,15 @@ public class VDecompiler {
 		}
 	}
 
-	private static void printVarAssignment(PrintStream out, String operator, int target, int rhs, NTRDataType rhsType) {
-		if (target < VConstants.GP_REG_PRI) {
+	private static void printVarUpdate(PrintStream out, String operator, int target, int rhs, NTRDataType rhsType) {
+		if (VConstants.isLowWk(target)) {
 			out.print("EventWorks.WorkSet(");
 			out.print(target);
 			out.print(", ");
 			if (operator != null) {
+				out.print("EventWorks.WorkGet(");
 				out.print(target);
-				out.print(" ");
+				out.print(") ");
 				out.print(operator);
 				out.print(" ");
 				printByDataType(rhsType, rhs, out);
@@ -663,6 +675,7 @@ public class VDecompiler {
 
 				if (call.link == null && !call.command.callsExtern) {
 					System.err.println("Link error at " + call.command.name + "(" + Integer.toHexString(call.pointer) + ")");
+					System.err.println("Desired link target " + Integer.toHexString(call.pointer + call.getSize() + call.args[call.args.length - 1]));
 					out.println("goto [LINK ERROR];");
 				} else {
 					NTRInstructionLink link = call.link;
@@ -857,8 +870,8 @@ public class VDecompiler {
 					}
 				}
 			}
+			Collections.reverse(l);
 		}
-		Collections.reverse(l);
 
 		return l;
 	}
@@ -899,16 +912,12 @@ public class VDecompiler {
 	}
 
 	public static String flex2Str(int av) {
-		if (av < VConstants.GP_REG_PRI) {
-			if (av >= VConstants.WKVAL_START) {
-				return "EventWorks.WorkGet(" + (av /*- 0x4000*/) + ")";
-			}
-			return String.valueOf(av);
-		} else if (av > VConstants.WKVAL_END) {
-			return String.valueOf(av);
-		} else {
+		if (VConstants.isLowWk(av)) {
+			return "EventWorks.WorkGet(" + (av /*- 0x4000*/) + ")";
+		} else if (VConstants.isHighWk(av)) {
 			return "v" + (av - VConstants.GP_REG_PRI);
 		}
+		return String.valueOf(av);
 	}
 
 	public static String var2StrRef(int av) {

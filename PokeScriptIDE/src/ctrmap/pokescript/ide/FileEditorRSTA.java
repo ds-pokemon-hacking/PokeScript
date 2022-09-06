@@ -5,13 +5,15 @@ import ctrmap.pokescript.ide.autocomplete.AutoCompleteKeyListener;
 import ctrmap.pokescript.ide.system.project.IDEFile;
 import ctrmap.pokescript.stage0.Preprocessor;
 import ctrmap.pokescript.stage1.NCompileGraph;
-import ctrmap.stdlib.gui.DialogUtils;
-import ctrmap.stdlib.gui.components.CaretMotion;
-import ctrmap.stdlib.io.base.impl.InputStreamReadable;
+import xstandard.gui.DialogUtils;
+import xstandard.gui.components.CaretMotion;
+import xstandard.io.base.impl.InputStreamReadable;
 import java.awt.Color;
 import java.awt.Graphics;
 import java.awt.Rectangle;
 import java.awt.event.ActionEvent;
+import java.awt.event.AdjustmentEvent;
+import java.awt.event.AdjustmentListener;
 import java.awt.event.KeyEvent;
 import java.io.ByteArrayInputStream;
 import java.lang.reflect.InvocationTargetException;
@@ -63,6 +65,16 @@ public class FileEditorRSTA extends RSyntaxTextArea {
 		}
 
 		scrollPane = new RTextScrollPane(this, true);
+		
+		AdjustmentListener adjustmentListener = new AdjustmentListener() {
+			@Override
+			public void adjustmentValueChanged(AdjustmentEvent e) {
+				ac.close();
+			}
+		};
+		
+		scrollPane.getVerticalScrollBar().addAdjustmentListener(adjustmentListener);
+		scrollPane.getHorizontalScrollBar().addAdjustmentListener(adjustmentListener);
 
 		setSyntaxEditingStyle(SYNTAX_STYLE_PP);
 		parser = new PPParser();
@@ -94,8 +106,7 @@ public class FileEditorRSTA extends RSyntaxTextArea {
 		getActionMap().put("ReloadACHotKey", new AbstractAction() {
 			@Override
 			public void actionPerformed(ActionEvent e) {
-				ac.closeAndInvalidate();
-				ac.reloadProject();
+				refreshAC();
 			}
 		});
 
@@ -159,6 +170,16 @@ public class FileEditorRSTA extends RSyntaxTextArea {
 		file.saveNotify(SaveResult.NO_CHANGES);
 		parser.enable();
 		return SaveResult.NO_CHANGES;
+	}
+
+	public void refreshAC() {
+		ac.closeAndInvalidate();
+		ac.reloadProject();
+	}
+	
+	public void resync() {
+		refreshAC();
+		forceReparsing();
 	}
 
 	public void waitFinishCompilers() {
@@ -264,8 +285,8 @@ public class FileEditorRSTA extends RSyntaxTextArea {
 			@Override
 			public void run() {
 				pp = file.getCompiler();
-				pp.read(new InputStreamReadable(new ByteArrayInputStream(getText().getBytes())));
-				NCompileGraph cg = pp.getCompileGraph();
+				file.fillCompiler(new InputStreamReadable(new ByteArrayInputStream(getText().getBytes())));
+				pp.getCompileGraph();
 
 				if (ac.isBoundToArea(FileEditorRSTA.this)) {
 					ac.rebuildNodeTree(pp);

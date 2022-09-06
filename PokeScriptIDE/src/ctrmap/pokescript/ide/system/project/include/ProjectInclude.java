@@ -8,7 +8,7 @@ package ctrmap.pokescript.ide.system.project.include;
 
 import ctrmap.pokescript.LangPlatform;
 import ctrmap.pokescript.ide.system.project.IDEProject;
-import ctrmap.stdlib.fs.FSFile;
+import xstandard.fs.FSFile;
 import java.util.List;
 
 /**

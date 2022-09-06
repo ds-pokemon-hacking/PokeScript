@@ -1,8 +1,7 @@
 package ctrmap.pokescript.types;
 
-import ctrmap.pokescript.instructions.providers.floatlib.PawnFloatLib;
-import ctrmap.pokescript.OutboundDefinition;
 import ctrmap.pokescript.expr.Throughput;
+import ctrmap.pokescript.instructions.abstractcommands.AFloatOpCode;
 import ctrmap.pokescript.stage0.CompilerPragma;
 import ctrmap.pokescript.stage1.NCompileGraph;
 
@@ -35,7 +34,7 @@ public class FloatTypeHandler implements AbstractTypeHandler {
 			case FLOAT:
 				return r;
 			case INT:
-				cg.provider.getFloatingPointHandler().castFloatToInt(r, cg);
+				r.instructions.add(cg.getPlainFloat(AFloatOpCode.VCVT_FROMFLOAT));
 				return r;
 			default:
 				if (cg.getIsBoolPragmaEnabledSimple(CompilerPragma.ALLOW_UNSAFE_CASTS)) {

@@ -1,9 +1,7 @@
 package ctrmap.pokescript.expr;
 
 import ctrmap.pokescript.types.DataType;
-import ctrmap.pokescript.instructions.ctr.instructions.CTRInstruction;
 import ctrmap.pokescript.instructions.abstractcommands.AInstruction;
-import ctrmap.pokescript.instructions.abstractcommands.APlainInstruction;
 import ctrmap.pokescript.stage0.EffectiveLine;
 import ctrmap.pokescript.stage0.Modifier;
 import ctrmap.pokescript.stage1.NCompileGraph;
@@ -27,12 +25,20 @@ public class SetEquals extends Operator {
 
 	@Override
 	public TypeDef getOutputType() {
+		if (input == null) {
+			return DataType.VOID.typeDef();
+		}
 		return input.type;
 	}
 
 	@Override
-	public List<AInstruction> getOperation(Throughput left, Throughput right, EffectiveLine line, NCompileGraph cg) {
-		if (!(left instanceof VariableThroughput)) {
+	public OperatorOperation getOperationType() {
+		return OperatorOperation.ASSIGN;
+	}
+
+	@Override
+	public List<AInstruction> getOperation(EffectiveLine line, NCompileGraph cg, Throughput... inputs) {
+		if (!(inputs[0] instanceof VariableThroughput)) {
 			if (line != null) {
 				line.throwException("Cannot assign a constant value.");
 				return new ArrayList<>();
@@ -40,9 +46,11 @@ public class SetEquals extends Operator {
 				throw new UnsupportedOperationException("Cannot change a constant value.");
 			}
 		}
-		input = (VariableThroughput) left;
+		input = (VariableThroughput) inputs[0];
 
 		List<AInstruction> l = new ArrayList<>();
+		
+		Throughput right = inputs[1];
 
 		if (right != null) {
 			//the variable throughput (always left) has to be set to the result of the right (any) throughput
@@ -66,11 +74,6 @@ public class SetEquals extends Operator {
 		}
 
 		return l;
-	}
-
-	@Override
-	protected List<AInstruction> createOperation(NCompileGraph cg) {
-		throw new UnsupportedOperationException("This method should never be called on this class.");
 	}
 
 	@Override

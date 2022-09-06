@@ -5,8 +5,9 @@ import ctrmap.pokescript.instructions.ntr.NTRInstructionCall;
 import ctrmap.pokescript.instructions.ntr.NTRInstructionLink;
 import ctrmap.pokescript.instructions.ntr.NTRInstructionLinkSetup;
 import ctrmap.scriptformats.gen5.disasm.VDisassembler;
-import ctrmap.stdlib.fs.FSFile;
-import ctrmap.stdlib.io.base.impl.ext.data.DataIOStream;
+import xstandard.fs.FSFile;
+import xstandard.io.base.iface.DataInputEx;
+import xstandard.io.base.impl.ext.data.DataIOStream;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
@@ -47,6 +48,22 @@ public class VScriptFile {
 				Logger.getLogger(VScriptFile.class.getName()).log(Level.SEVERE, null, ex);
 			}
 		}
+	}
+
+	public static boolean isScriptFile(FSFile fsf) {
+		boolean is = false;
+		try (DataInputEx in = fsf.getDataInputStream()) {
+			int len = in.getLength();
+			for (int i = 0; i + 2 <= len; i += 2) {
+				if (in.readUnsignedShort() == V_SCR_MAGIC) {
+					is = true;
+					break;
+				}
+			}
+		} catch (IOException ex) {
+			Logger.getLogger(VScriptFile.class.getName()).log(Level.SEVERE, null, ex);
+		}
+		return is;
 	}
 
 	public void disassemble(VCommandDataBase commandDB) {
@@ -95,10 +112,19 @@ public class VScriptFile {
 				call.link.updateSourceArg();
 			}
 		}
+		for (NTRInstructionLink pub : publics) {
+			pub.updateSourceArg();
+		}
 	}
 
 	public void setUpLinks() {
-		updatePtrs();
+		setUpLinks(true);
+	}
+
+	public void setUpLinks(boolean updatePtrs) {
+		if (updatePtrs) {
+			updatePtrs();
+		}
 		for (NTRInstructionCall call : instructions) {
 			call.setupLink(this, GEN_V_LINK_SETUP);
 		}

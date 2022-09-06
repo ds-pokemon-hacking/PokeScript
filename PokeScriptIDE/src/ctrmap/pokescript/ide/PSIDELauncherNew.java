@@ -2,9 +2,9 @@ package ctrmap.pokescript.ide;
 
 import ctrmap.pokescript.ide.forms.InitialLaunchDialog;
 import ctrmap.pokescript.ide.system.savedata.IDEWorkspace;
-import ctrmap.stdlib.fs.accessors.DiskFile;
-import ctrmap.stdlib.gui.DialogUtils;
-import ctrmap.stdlib.gui.components.ComponentUtils;
+import xstandard.fs.accessors.DiskFile;
+import xstandard.gui.DialogUtils;
+import xstandard.gui.components.ComponentUtils;
 import java.util.prefs.Preferences;
 import javax.swing.JFrame;
 import javax.swing.SwingUtilities;

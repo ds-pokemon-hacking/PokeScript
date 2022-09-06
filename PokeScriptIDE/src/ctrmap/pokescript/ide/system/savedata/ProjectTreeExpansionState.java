@@ -3,7 +3,7 @@ package ctrmap.pokescript.ide.system.savedata;
 import ctrmap.pokescript.ide.system.project.tree.IDEProjectTree;
 import ctrmap.pokescript.ide.system.project.tree.nodes.IDENodeBase;
 import ctrmap.pokescript.ide.system.project.tree.nodes.ProjectNode;
-import ctrmap.stdlib.formats.yaml.YamlNode;
+import xstandard.formats.yaml.YamlNode;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;

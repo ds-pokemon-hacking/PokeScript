@@ -2,7 +2,6 @@
 package ctrmap.pokescript.types;
 
 import ctrmap.pokescript.expr.Throughput;
-import ctrmap.pokescript.instructions.ctr.instructions.CTRInstruction;
 import ctrmap.pokescript.instructions.abstractcommands.AInstruction;
 import ctrmap.pokescript.stage1.NCompileGraph;
 import java.util.ArrayList;

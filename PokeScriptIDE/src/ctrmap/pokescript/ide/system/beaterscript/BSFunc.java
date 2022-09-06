@@ -3,7 +3,7 @@ package ctrmap.pokescript.ide.system.beaterscript;
 import ctrmap.pokescript.instructions.ntr.NTRAnnotations;
 import ctrmap.pokescript.instructions.ntr.NTRDataType;
 import ctrmap.pokescript.types.DataType;
-import ctrmap.stdlib.text.StringEx;
+import xstandard.text.StringEx;
 import java.util.ArrayList;
 import java.util.List;
 

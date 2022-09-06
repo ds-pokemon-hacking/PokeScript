@@ -1,7 +1,7 @@
 package ctrmap.pokescript.ide.system.project.include;
 
 import ctrmap.pokescript.LangPlatform;
-import ctrmap.stdlib.fs.FSFile;
+import xstandard.fs.FSFile;
 import java.util.List;
 
 public interface IInclude {

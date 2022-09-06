@@ -3,16 +3,13 @@ package ctrmap.pokescript.stage1;
 import ctrmap.pokescript.InboundDefinition;
 import ctrmap.pokescript.data.LocalDataGraph;
 import ctrmap.pokescript.data.Variable;
-import ctrmap.pokescript.types.DataType;
 import ctrmap.pokescript.instructions.abstractcommands.AInstruction;
 import ctrmap.pokescript.instructions.abstractcommands.APlainOpCode;
 import ctrmap.pokescript.instructions.providers.MetaFunctionHandler;
-import ctrmap.pokescript.stage0.CompilerAnnotation;
 import ctrmap.pokescript.stage0.EffectiveLine;
 import ctrmap.pokescript.stage0.Modifier;
 import ctrmap.pokescript.stage0.content.DeclarationContent;
 import ctrmap.pokescript.types.TypeDef;
-import ctrmap.pokescript.types.classes.ClassDefinition;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
@@ -28,19 +25,29 @@ public class NCompilableMethod {
 	public NCompilableMethod(String name, List<Modifier> mods, DeclarationContent.Argument[] args, TypeDef retnType) {
 		def = new InboundDefinition(name, args, retnType, mods);
 	}
-	
+
 	public NCompilableMethod(InboundDefinition def) {
 		this.def = def;
 	}
 
+	public boolean isBlankBody() {
+		return body.size() <= 2; //method begin instruction + return
+	}
+	
+	public boolean isBodiless() {
+		return body.isEmpty();
+	}
+
 	public void initWithCompiler(EffectiveLine line, NCompileGraph graph) {
-		addInstruction(graph.getPlain(APlainOpCode.BEGIN_METHOD));
+		if (line.hasType(EffectiveLine.LineType.METHOD_BODY_START)) {
+			addInstruction(graph.getPlain(APlainOpCode.BEGIN_METHOD));
+		}
 
 		locals = new LocalDataGraph(graph);
 		//System.out.println("METHOD " + def.name);
 		for (int i = 0; i < def.args.length; i++) {
 			//System.out.println("ADDING ARGLOCAL " + def.args[i].typeDef);
-			locals.addVariableUnderStackFrame(new Variable.Local(def.args[i].name, new ArrayList<>(), def.args[i].typeDef, graph), graph);
+			locals.addVariableUnderStackFrame(new Variable.LocalArgument(def.args[i].name, new ArrayList<>(), def.args[i].typeDef, graph, locals), graph);
 		}
 
 		if (hasModifier(Modifier.META)) {
@@ -72,9 +79,5 @@ public class NCompilableMethod {
 
 	public void insertInstructions(Collection<AInstruction> l) {
 		body.addAll(1, l);
-	}
-
-	public int getPointer() {
-		return body.get(0).pointer; //first instruction is always PROC(0)
 	}
 }

@@ -8,8 +8,8 @@ package ctrmap.pokescript.ide.system.project.include;
 
 import ctrmap.pokescript.ide.system.IDEResourceReference;
 import ctrmap.pokescript.ide.system.project.ProjectAttributes;
-import ctrmap.stdlib.formats.yaml.YamlListElement;
-import ctrmap.stdlib.formats.yaml.YamlNode;
+import xstandard.formats.yaml.YamlListElement;
+import xstandard.formats.yaml.YamlNode;
 import java.util.Objects;
 
 /**

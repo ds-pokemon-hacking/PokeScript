@@ -1,8 +1,8 @@
 package ctrmap.scriptformats.pkslib;
 
 import ctrmap.pokescript.LangPlatform;
-import ctrmap.stdlib.formats.yaml.YamlListElement;
-import ctrmap.stdlib.formats.yaml.YamlNode;
+import xstandard.formats.yaml.YamlListElement;
+import xstandard.formats.yaml.YamlNode;
 
 public class PlatformSourceTarget {
 

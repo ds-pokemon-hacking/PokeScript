@@ -1,9 +1,10 @@
 package ctrmap.pokescript.ide.forms;
 
 import ctrmap.pokescript.ide.system.savedata.IDEWorkspace;
-import ctrmap.stdlib.fs.accessors.DiskFile;
-import ctrmap.stdlib.gui.DialogUtils;
-import ctrmap.stdlib.gui.file.CMFileDialog;
+import xstandard.fs.FSFile;
+import xstandard.fs.accessors.DiskFile;
+import xstandard.gui.DialogUtils;
+import xstandard.gui.file.XFileDialog;
 import java.io.File;
 
 public class InitialLaunchDialog extends javax.swing.JDialog {
@@ -160,10 +161,10 @@ public class InitialLaunchDialog extends javax.swing.JDialog {
     }//GEN-LAST:event_btnCreateWorkspaceActionPerformed
 
     private void btnFindWorkspaceActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_btnFindWorkspaceActionPerformed
-		File dir = CMFileDialog.openDirectoryDialog();
+		FSFile dir = XFileDialog.openDirectoryDialog();
 
 		if (dir != null) {
-			IDEWorkspace ws = IDEWorkspace.openWorkspaceIfApplicable(new DiskFile(dir));
+			IDEWorkspace ws = IDEWorkspace.openWorkspaceIfApplicable(dir);
 			if (ws != null) {
 				trySetWS(ws);
 			} else {

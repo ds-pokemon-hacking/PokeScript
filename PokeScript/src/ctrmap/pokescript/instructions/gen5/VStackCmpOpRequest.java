@@ -13,7 +13,7 @@ public class VStackCmpOpRequest {
 	public static final int EQUAL = 5;
 	public static final int BOOL_AND = 6;
 	public static final int BOOL_OR = 7;
-	
+
 	public static String getStrOperator(int stkCmpReq){
 		switch (stkCmpReq){
 			case GEQUAL:

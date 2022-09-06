@@ -71,7 +71,7 @@
 
       <Layout class="org.netbeans.modules.form.compat2.layouts.support.JScrollPaneSupportLayout"/>
       <SubComponents>
-        <Component class="ctrmap.stdlib.gui.components.tree.CustomJTree" name="settingsMenuTree">
+        <Component class="xstandard.gui.components.tree.CustomJTree" name="settingsMenuTree">
         </Component>
       </SubComponents>
     </Container>

@@ -1,6 +1,6 @@
 package ctrmap.scriptformats.gen6;
 
-import ctrmap.stdlib.text.FormattingUtils;
+import xstandard.text.FormattingUtils;
 import java.io.BufferedWriter;
 import java.io.File;
 import java.io.FileWriter;

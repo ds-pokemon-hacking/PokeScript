@@ -1,8 +1,7 @@
 package ctrmap.scriptformats.gen6;
 
-import ctrmap.pokescript.instructions.abstractcommands.ACompiledInstruction;
-import ctrmap.stdlib.math.BitMath;
-import ctrmap.stdlib.text.StringEx;
+import xstandard.math.BitMath;
+import xstandard.text.StringEx;
 import java.io.DataInput;
 import java.io.DataOutput;
 import java.io.IOException;
@@ -12,7 +11,9 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
-public class PawnInstruction extends ACompiledInstruction {
+public class PawnInstruction {
+
+	public int pointer;
 
 	public PawnOpCode opCode;
 	public long[] arguments;
@@ -64,10 +65,10 @@ public class PawnInstruction extends ACompiledInstruction {
 		this.pointer = ptr;
 
 		long op = readCell(in, cellSize);
-		opCode = PawnOpCode.OPCODES[(int) (op & BitMath.makeMask(cellSize * 4))];
+		opCode = PawnOpCode.OPCODES[(int) (op & BitMath.makeMask64(cellSize * 4))];
 
 		if (opCode.packed) {
-			arguments = new long[]{op >> cellSize * 4};
+			arguments = new long[]{op >> (cellSize * 4)};
 		} else {
 			if (opCode == PawnOpCode.CASETBL) {
 				long caseCount = readCell(in, cellSize);
@@ -129,7 +130,6 @@ public class PawnInstruction extends ACompiledInstruction {
 		return arguments.length;
 	}
 
-	@Override
 	public int getSize() {
 		int size = cellSize;
 		if (!opCode.packed) {
@@ -138,11 +138,11 @@ public class PawnInstruction extends ACompiledInstruction {
 		return size;
 	}
 
-	public static PawnInstruction fromString(int ptr, String instruction) {
-		return fromString(ptr, instruction, true);
+	public static PawnInstruction fromString(int ptr, int cellSize, String instruction) {
+		return fromString(ptr, instruction, cellSize, true);
 	}
 
-	public static PawnInstruction fromString(int ptr, String instruction, boolean doOutput) {
+	public static PawnInstruction fromString(int ptr, String instruction, int cellSize, boolean doOutput) {
 		PawnInstruction ret = null;
 		int lastJunk = instruction.lastIndexOf(':');
 		int idx = lastJunk + 1;
@@ -215,7 +215,12 @@ public class PawnInstruction extends ACompiledInstruction {
 						String src = argsUnparsed[i];
 						try {
 							if (src.endsWith("f")) {
-								ret.arguments[i] = Float.floatToIntBits(Float.parseFloat(src.substring(0, src.length() - 1)));
+								String fsrc = src.substring(0, src.length() - 1);
+								if (cellSize == Long.BYTES) {
+									ret.arguments[i] = Double.doubleToLongBits(Double.parseDouble(fsrc));
+								} else {
+									ret.arguments[i] = Float.floatToIntBits(Float.parseFloat(fsrc));
+								}
 								//System.out.println("floatarg " + src + " at " + Integer.toHexString(ptr));
 							} else {
 								ret.arguments[i] = Integer.parseInt(argsUnparsed[i]);
@@ -290,8 +295,19 @@ public class PawnInstruction extends ACompiledInstruction {
 						floatTest = -floatTest;
 					}
 					if (floatTest > 0xFFFFFFL) {
-						sb.append(Float.intBitsToFloat((int) arguments[i]));
-						sb.append("f");
+						double d;
+						if (cellSize == Long.BYTES) {
+							d = Double.longBitsToDouble(arguments[i]);
+						} else {
+							d = Float.intBitsToFloat((int) arguments[i]);
+						}
+						double abs = Math.abs(d);
+						if (abs > 0.0001f && abs < 10E7) {
+							sb.append(d);
+							sb.append("f");
+						} else {
+							sb.append(arguments[i]);
+						}
 					} else {
 						sb.append(arguments[i]);
 					}

@@ -1,6 +1,6 @@
 package ctrmap.scriptformats.gen5.disasm;
 
-import ctrmap.stdlib.io.base.impl.ext.data.DataIOStream;
+import xstandard.io.base.impl.ext.data.DataIOStream;
 import java.io.IOException;
 
 public class LinkPrototype {	

@@ -15,6 +15,24 @@ public class VCmpResultRequest {
 	
 	public static final int STACK_RESULT = 255;
 	
+	public static int invert(int cmpResReq) {
+		switch (cmpResReq){
+			case LESS:
+				return GEQUAL;
+			case GREATER:
+				return LEQUAL;
+			case EQUAL:
+				return NEQUAL;
+			case NEQUAL:
+				return EQUAL;
+			case LEQUAL:
+				return GREATER;
+			case GEQUAL:
+				return LESS;
+		}
+		return STACK_RESULT;
+	}
+	
 	public static String getOpStr(int cmpResReq){
 		switch (cmpResReq){
 			case LESS:

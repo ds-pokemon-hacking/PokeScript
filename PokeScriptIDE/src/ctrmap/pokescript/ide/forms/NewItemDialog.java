@@ -2,8 +2,8 @@ package ctrmap.pokescript.ide.forms;
 
 import ctrmap.pokescript.LangConstants;
 import ctrmap.pokescript.ide.system.project.IDEFile;
-import ctrmap.stdlib.gui.components.listeners.DocumentAdapterEx;
-import ctrmap.stdlib.text.StringEx;
+import xstandard.gui.components.listeners.DocumentAdapterEx;
+import xstandard.text.StringEx;
 import java.awt.Color;
 import javax.swing.event.DocumentEvent;
 

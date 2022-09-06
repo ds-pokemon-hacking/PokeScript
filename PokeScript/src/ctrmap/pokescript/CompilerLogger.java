@@ -1,7 +1,7 @@
 
 package ctrmap.pokescript;
 
-import ctrmap.stdlib.fs.FSFile;
+import xstandard.fs.FSFile;
 import java.io.BufferedWriter;
 import java.io.IOException;
 import java.io.OutputStreamWriter;
@@ -12,6 +12,8 @@ import java.util.logging.Logger;
 public abstract class CompilerLogger {
 	public abstract void stdout(String text);
 	public abstract void stderr(String text);
+	
+	public abstract void close();
 	
 	public void println(LogLevel level, String text){
 		print(level, text + '\n');
@@ -45,6 +47,11 @@ public abstract class CompilerLogger {
 		public void stderr(String text) {
 			System.err.print(text);
 		}
+
+		@Override
+		public void close() {
+			
+		}
 		
 	}
 	
@@ -58,6 +65,7 @@ public abstract class CompilerLogger {
 			writer = new BufferedWriter(new OutputStreamWriter(out.getNativeOutputStream()));
 		}
 		
+		@Override
 		public void close(){
 			try {
 				writer.close();

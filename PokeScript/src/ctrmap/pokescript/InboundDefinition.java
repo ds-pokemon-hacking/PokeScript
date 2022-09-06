@@ -7,7 +7,7 @@ import ctrmap.pokescript.stage0.IModifiable;
 import ctrmap.pokescript.stage0.Modifier;
 import ctrmap.pokescript.stage0.content.DeclarationContent;
 import ctrmap.pokescript.types.TypeDef;
-import ctrmap.stdlib.util.ArraysEx;
+import xstandard.util.ArraysEx;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -16,7 +16,7 @@ public class InboundDefinition implements IModifiable {
 
 	public String name;
 	public String extendsBase;
-	public boolean isNameAbsolute = false;
+
 	public List<String> aliases = new ArrayList<>();
 	public List<Modifier> modifiers = new ArrayList<>();
 	public List<CompilerAnnotation> annotations = new ArrayList<>();
@@ -24,12 +24,15 @@ public class InboundDefinition implements IModifiable {
 	public TypeDef retnType;
 
 	public final boolean isResident;
-	public int timesUsed = 0; //increased by the compiler every time this definition is requested
 	
 	public static InboundDefinition makeResidentNative(String name, DeclarationContent.Argument[] args, TypeDef retnType) {
 		return new InboundDefinition(name, args, retnType, ArraysEx.asList(Modifier.NATIVE, Modifier.STATIC), true);
 	}
 
+	public InboundDefinition() {
+		isResident = false;
+	}
+	
 	public InboundDefinition(String name, DeclarationContent.Argument[] args, TypeDef retnType, List<Modifier> modifiers) {
 		this(name, args, retnType, modifiers, false);
 	}
@@ -41,12 +44,22 @@ public class InboundDefinition implements IModifiable {
 		this.modifiers = modifiers;
 		this.isResident = isResident;
 	}
+	
+	public String getNameWithoutNamespace() {
+		return LangConstants.getLastPathElem(name);
+	}
 
-	public OutboundDefinition createDummyOutbound() {
+	public OutboundDefinition createBlankOutbound() {
 		OutboundDefinition od = new OutboundDefinition(name, new Throughput[args.length]);
 		for (int i = 0; i < args.length; i++) {
 			od.args[i] = new Throughput(args[i].typeDef, new ArrayList<>());
 		}
+		return od;
+	}
+	
+	public OutboundDefinition createOutbound(Throughput... args) {
+		OutboundDefinition od = new OutboundDefinition(name, new Throughput[args.length]);
+		od.args = args;
 		return od;
 	}
 
@@ -129,8 +142,16 @@ public class InboundDefinition implements IModifiable {
 	}
 
 	public boolean accepts(OutboundDefinition out) {
+		return accepts(out, false);
+	}
+	
+	public boolean accepts(OutboundDefinition out, boolean dirty) {
 		if (out == null || !(out.name.equals(name) || aliases.contains(out.name)) || args.length != out.args.length) {
 			return false;
+		}
+		
+		if (dirty) {
+			return true;
 		}
 
 		for (int i = 0; i < out.args.length; i++) {
@@ -144,39 +165,10 @@ public class InboundDefinition implements IModifiable {
 			}
 			TypeDef incomingType = out.args[i].type;
 			TypeDef reqType = args[i].typeDef;
-			if (!incomingType.equals(reqType)) {
-				if (reqType.isClass() || possiblyDowncast(incomingType.baseType) != getCompatEnumType(reqType.baseType)) {
-					if (args[i].typeDef.baseType == DataType.FLOAT && possiblyDowncast(incomingType.baseType) == DataType.INT) {
-						continue;
-					}
-					return false;
-				}
+			if (!reqType.acceptsIncoming(incomingType)) {
+				return false;
 			}
 		}
 		return true;
-	}
-	
-	public static DataType getCompatEnumType(DataType t) {
-		switch (t) {
-			case ENUM:
-			case VAR_ENUM:
-				return DataType.INT;
-		}
-		return t;
-	}
-
-	public static DataType possiblyDowncast(DataType t) {
-		switch (t) {
-			case VAR_BOOLEAN:
-				return DataType.BOOLEAN;
-			case VAR_INT:
-			case VAR_ENUM:
-			case ENUM:
-				return DataType.INT;
-			case VAR_FLOAT:
-				return DataType.FLOAT;
-			default:
-				return t;
-		}
 	}
 }

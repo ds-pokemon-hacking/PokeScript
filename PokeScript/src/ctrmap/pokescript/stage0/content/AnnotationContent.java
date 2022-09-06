@@ -6,7 +6,7 @@ import ctrmap.pokescript.stage0.CompilerAnnotation;
 import ctrmap.pokescript.stage0.EffectiveLine;
 import ctrmap.pokescript.stage0.Preprocessor;
 import ctrmap.pokescript.stage1.NCompileGraph;
-import ctrmap.stdlib.text.StringEx;
+import xstandard.text.StringEx;
 
 public class AnnotationContent extends AbstractContent {
 

@@ -8,11 +8,15 @@ import ctrmap.pokescript.OutboundDefinition;
 import ctrmap.pokescript.data.DataGraph;
 import ctrmap.pokescript.data.LocalDataGraph;
 import ctrmap.pokescript.data.Variable;
-import ctrmap.pokescript.instructions.abstractcommands.AAccessGlobal;
+import ctrmap.pokescript.instructions.abstractcommands.AAccessVariable;
 import ctrmap.pokescript.instructions.abstractcommands.ACaseTable;
 import ctrmap.pokescript.instructions.abstractcommands.AConditionJump;
+import ctrmap.pokescript.instructions.abstractcommands.AFloatInstruction;
+import ctrmap.pokescript.instructions.abstractcommands.AFloatOpCode;
 import ctrmap.pokescript.instructions.abstractcommands.AInstruction;
+import ctrmap.pokescript.instructions.abstractcommands.AInstructionType;
 import ctrmap.pokescript.instructions.abstractcommands.ALocalCall;
+import ctrmap.pokescript.instructions.abstractcommands.ANativeCall;
 import ctrmap.pokescript.instructions.abstractcommands.MetaCall;
 import ctrmap.pokescript.instructions.abstractcommands.APlainInstruction;
 import ctrmap.pokescript.instructions.abstractcommands.APlainOpCode;
@@ -23,10 +27,8 @@ import ctrmap.pokescript.stage0.EffectiveLine;
 import ctrmap.pokescript.stage0.Modifier;
 import ctrmap.pokescript.stage0.content.DeclarationContent;
 import ctrmap.pokescript.types.DataType;
-import ctrmap.pokescript.types.TypeDef;
 import ctrmap.pokescript.types.classes.ClassDefinition;
-import ctrmap.stdlib.fs.FSFile;
-import ctrmap.stdlib.fs.FSUtil;
+import xstandard.fs.FSFile;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -43,6 +45,9 @@ public class NCompileGraph {
 
 	public List<InboundDefinition> methodHeaders = new ArrayList<>();
 	public List<NCompilableMethod> methods = new ArrayList<>();
+
+	public NCompilableMethod staticInitializers;
+	public Variable.Global gNeedsStaticInit = new Variable.Global("::__static_needInit", new ArrayList<>(), DataType.BOOLEAN.typeDef(), this, 1);
 
 	public List<FSFile> includePaths = new ArrayList<>();
 	public List<Preprocessor> includedReaders = new ArrayList<>();
@@ -63,7 +68,7 @@ public class NCompileGraph {
 
 	public Map<CompilerPragma, CompilerPragma.PragmaValue> pragmata = new HashMap<>();
 
-	public EffectiveLine currentCompiledLine;
+	public EffectiveLine currentCompiledLine = new EffectiveLine();
 	public List<String> importedNamespaces = new ArrayList<>();
 	public List<String> includedClasses = new ArrayList<>();
 
@@ -72,8 +77,12 @@ public class NCompileGraph {
 	public NCompileGraph(LangCompiler.CompilerArguments args) {
 		graphUID = UUID.randomUUID().toString();
 		this.args = args;
-		this.provider = args.provider;
-		pragmata.putAll(args.pragmata);
+		if (args != null) {
+			this.provider = args.provider;
+			pragmata.putAll(args.pragmata);
+		}
+		staticInitializers = new NCompilableMethod("::__static", new ArrayList<>(), new DeclarationContent.Argument[0], DataType.VOID.typeDef());
+		globals.addVariable(gNeedsStaticInit, this);
 	}
 
 	public LangCompiler.CompilerArguments getArgs() {
@@ -83,7 +92,7 @@ public class NCompileGraph {
 	public NCompilableMethod getCurrentMethod() {
 		if (!hasMethods()) {
 			currentCompiledLine.throwException("Can not request a method without any.");
-			NCompilableMethod dmy = new NCompilableMethod("dummy", new ArrayList<>(), new DeclarationContent.Argument[0], new TypeDef(DataType.INT.getFriendlyName()));
+			NCompilableMethod dmy = new NCompilableMethod("dummy", new ArrayList<>(), new DeclarationContent.Argument[0], DataType.INT.typeDef());
 			dmy.initWithCompiler(currentCompiledLine, this);
 			return dmy;
 		}
@@ -152,6 +161,8 @@ public class NCompileGraph {
 	}
 
 	public void finishCompileLoad() {
+		//end static initializers
+		staticInitializers.addInstruction(getPlain(APlainOpCode.RETURN));
 		//check that all labels were correctly linked
 		for (LabelRequest reqLabel : requestedLabels) {
 			if (getInstructionByLabelSafe(reqLabel.label) == null) {
@@ -209,21 +220,22 @@ public class NCompileGraph {
 		boolean isMethodBlk = methodBlocks.contains(blk);
 
 		if (blk.blockEndControlInstruction != null) {
-			if (blk.blockEndControlInstruction instanceof ACaseTable) {
+			if (blk.blockEndControlInstruction.getType() == AInstructionType.CASE_TABLE) {
 				ACaseTable casetbl = (ACaseTable) blk.blockEndControlInstruction;
 				if (casetbl.defaultCase == null) {
+					//System.out.println("null defcase at " + blk.fullBlockName);
 					casetbl.defaultCase = blk.getBlockTermFullLabel();
 				}
 			}
 			boolean noAddBECI = false;
-			if (blk.blockEndControlInstruction instanceof AConditionJump) {
+			if (blk.blockEndControlInstruction.getType() == AInstructionType.JUMP) {
 				//If the block ends with an unconditional jump (if blocks), but the last instruction is a return, omit it
 
 				if (((AConditionJump) blk.blockEndControlInstruction).getOpCode() == APlainOpCode.JUMP) {
 					List<AInstruction> instructions = getCurrentMethod().body;
 					if (!instructions.isEmpty()) {
 						AInstruction last = instructions.get(instructions.size() - 1);
-						if (last instanceof APlainInstruction) {
+						if (last.getType() == AInstructionType.PLAIN) {
 							if (((APlainInstruction) last).opCode == APlainOpCode.RETURN) {
 								noAddBECI = true;
 							}
@@ -268,36 +280,55 @@ public class NCompileGraph {
 			blk.updateBlockStackIns();
 		}
 
-		if (isMethodBlk) {
+		/*if (isMethodBlk) {
 			NCompilableMethod m = getCurrentMethod();
 			if (m.metaHandler != null) {
 				m.metaHandler.onCompileEnd(this, m);
 			}
-		}
+		}*/
 
 		if (blk.popNext) {
 			popBlock();
 		}
 	}
 
-	public void addMethod(NCompilableMethod method) {
-		CompileBlock methodBlk = new CompileBlock(this);
-		methodBlk.setShortBlockLabel("method_" + method.def.name);
-		methodBlocks.push(methodBlk);
+	public void addMethod(NCompilableMethod method, boolean hasBody) {
 		method.def.annotations.addAll(pendingAnnotations);
 		pendingAnnotations.clear();
 		methods.add(method);
-		pushBlock(methodBlk);
 
-		if (method.metaHandler != null) {
-			method.metaHandler.onCompileBegin(this, method);
+		if (!staticInitializers.isBlankBody()) {
+			//Inject static initializer call to all methods, but only if there is an initialization needed
+			//Global inits are predeclared, so at this stage, the static initializer method should be final
+			//This check could be performed in the static initializer itself instead, but inlining saves us a few pushes and a call
+			if (hasBody && !method.hasModifier(Modifier.NATIVE) && !method.hasModifier(Modifier.META) && method.hasModifier(Modifier.STATIC) && method.hasModifier(Modifier.PUBLIC)) {
+				//add static initializer call BEFORE blocks and labels are set up
+				addInstruction(getVarRead(gNeedsStaticInit));															//Read initializer status
+				addInstruction(getConditionJump(APlainOpCode.JUMP_IF_ZERO, "__static_init_if_end"));					//If no longer needs initialization, skip
+				addInstruction(getMethodCall(staticInitializers.def.createBlankOutbound(), staticInitializers.def));	//Call static initializer method
+				addPendingLabel("__static_init_if_end");																//Prepare label for initialization skip
+			}
 		}
+
+		if (hasBody) {
+			CompileBlock methodBlk = new CompileBlock(this);
+			methodBlk.setShortBlockLabel("method_" + method.def.name);
+			methodBlocks.push(methodBlk);
+			pushBlock(methodBlk);
+		}
+
+		/*if (method.metaHandler != null) {
+			method.metaHandler.onCompileBegin(this, method);
+		}*/
 	}
 
 	public void addGlobal(Variable.Global glb) {
 		glb.annotations.addAll(pendingAnnotations);
 		pendingAnnotations.clear();
 		globals.addVariable(glb, this);
+		if (!glb.isImmediate()) {
+			staticInitializers.addInstructions(glb.init_from);
+		}
 	}
 
 	public PendingLabel addPendingLabel(String label) {
@@ -391,7 +422,7 @@ public class NCompileGraph {
 	}
 
 	public AInstruction getLocalsRemoveIns(List<Variable> l) {
-		return getPlain(APlainOpCode.RESIZE_STACK, l.size() * -provider.getMemoryInfo().getStackIndexingStep());
+		return getPlain(APlainOpCode.RESIZE_STACK, -l.size());
 	}
 
 	public void addInstruction(AInstruction i) {
@@ -415,7 +446,23 @@ public class NCompileGraph {
 	}
 
 	public APlainInstruction getPlain(APlainOpCode opCode, int... args) {
-		return provider.getPlainInstruction(opCode, args);
+		return new APlainInstruction(opCode, args);
+	}
+
+	public AFloatInstruction getPlainFloat(AFloatOpCode opCode) {
+		return getPlainFloat(opCode, new float[0]);
+	}
+
+	public AFloatInstruction getPlainFloat(AFloatOpCode opCode, float... args) {
+		return new AFloatInstruction(opCode, args);
+	}
+
+	public AConditionJump getConditionJump(APlainOpCode opCode, String label) {
+		return new AConditionJump(opCode, label);
+	}
+
+	public ACaseTable getCaseTable() {
+		return new ACaseTable();
 	}
 
 	public ALocalCall getMethodCall(OutboundDefinition def, InboundDefinition resolvedMethod) {
@@ -423,18 +470,34 @@ public class NCompileGraph {
 		if (resolvedMethod.hasModifier(Modifier.META)) {
 			return new MetaCall(def);
 		} else if (resolvedMethod.hasModifier(Modifier.NATIVE)) {
-			return provider.getNativeCall(def);
+			return new ANativeCall(def);
 		} else {
-			return provider.getMethodCall(def);
+			return new ALocalCall(def);
 		}
+	}
+
+	public AAccessVariable.AReadVariable getVarRead(Variable var) {
+		return new AAccessVariable.AReadVariable(var);
+	}
+
+	public AAccessVariable.AWriteVariable getVarWrite(Variable var) {
+		return new AAccessVariable.AWriteVariable(var);
 	}
 
 	public boolean hasMethods() {
 		return !methods.isEmpty();
 	}
+	
+	public InboundDefinition findBestMatchingMethod(OutboundDefinition def) {
+		return resolveMethod(def, true);
+	}
 
 	public InboundDefinition resolveMethod(OutboundDefinition def) {
-		InboundDefinition m = findMethod(def);
+		return resolveMethod(def, false);
+	}
+	
+	public InboundDefinition resolveMethod(OutboundDefinition def, boolean dirty) {
+		InboundDefinition m = findMethod(def, dirty);
 		if (m != null) {
 			return m;
 		}
@@ -451,7 +514,7 @@ public class NCompileGraph {
 			//need to compile another file
 			ensureIncludeForPath(filePath);
 		}
-		m = findMethod(def);
+		m = findMethod(def, dirty);
 		if (m != null) {
 			return m;
 		} else {
@@ -474,15 +537,19 @@ public class NCompileGraph {
 	}
 
 	public InboundDefinition findMethod(OutboundDefinition def) {
+		return findMethod(def, false);
+	}
+	
+	public InboundDefinition findMethod(OutboundDefinition def, boolean dirty) {
 		//System.out.println("req " + def);
 		for (NCompilableMethod m : methods) {
 			//System.out.println("method " + m.def);
-			if (m.def.accepts(def)) {
+			if (m.def.accepts(def, dirty)) {
 				return m.def;
 			}
 		}
 		for (InboundDefinition d : methodHeaders) {
-			if (d.accepts(def)) {
+			if (d.accepts(def, dirty)) {
 				return d;
 			}
 		}
@@ -628,64 +695,24 @@ public class NCompileGraph {
 				FSFile c = matchingCandidates.get(0);
 				Preprocessor candComp = compilers.get(c);
 				includedReaders.add(candComp);
-				candComp.include = includePaths;
 				NCompileGraph candCG = candComp.getCompileGraph();
 				if (candCG == null) {
 					return false;
 				}
-				String candidatePathRelative = c.getPathRelativeTo(candidateRoots.get(c));
-				candidatePathRelative = candidatePathRelative.replace('/', '.');
-				candCG.applyNameSpace(candidatePathRelative);
 				merge(candCG);
 				break;
 			default:
-				currentCompiledLine.throwException("Ambiguous symbol: " + path);
+				String errmsg = "Ambiguous symbol \"" + path + "\" :\n";
+				
+				for (FSFile f : matchingCandidates) {
+					errmsg += f.getPath();
+					errmsg += "\n";
+				}
+				
+				currentCompiledLine.throwException(errmsg);
+				break;
 		}
 		return true;
-	}
-
-	public void applyNameSpace(String ns) {
-		if (true) {
-			return;
-		}
-		if (packageName != null) {
-			throw new UnsupportedOperationException("Namespace " + packageName + " is already applied - can not replace.");
-		}
-		ns = FSUtil.getFileNameWithoutExtension(ns);
-		for (NCompilableMethod m : methods) {
-			for (AInstruction i0 : m.body) {
-				for (AInstruction ins : i0.getAllInstructions()) {
-					if (ins instanceof ALocalCall) {
-						ALocalCall c = (ALocalCall) ins;
-						InboundDefinition tgt = findMethod(c.call);
-						if (!tgt.isNameAbsolute) {
-							c.call.name = ns + "." + c.call.name;
-						}
-					} else if (ins instanceof AAccessGlobal) {
-						AAccessGlobal a = (AAccessGlobal) ins;
-						Variable.Global tgt = findGVar(a.gName);
-						if (!tgt.isNameAbsolute) {
-							a.gName = ns + "." + a.gName;
-						}
-					}
-				}
-			}
-		}
-		for (NCompilableMethod m : methods) {
-			if (!m.def.isNameAbsolute) {
-				m.def.name = ns + "." + m.def.name;
-				m.def.isNameAbsolute = true;
-			}
-//			m.def.aliases.clear();
-		}
-		for (Variable glb : globals) {
-			if (!glb.isNameAbsolute) {
-				glb.name = ns + "." + glb.name;
-				glb.isNameAbsolute = true;
-			}
-//			glb.aliases.clear();
-		}
-		packageName = ns;
 	}
 
 	public void applyImport(String importName) {

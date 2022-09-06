@@ -6,7 +6,7 @@ import ctrmap.pokescript.stage0.CompilerPragma;
 import ctrmap.pokescript.stage0.content.DeclarationContent;
 import ctrmap.pokescript.stage1.NCompileGraph;
 import ctrmap.pokescript.types.DataType;
-import ctrmap.stdlib.util.ParsingUtils;
+import xstandard.util.ParsingUtils;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -62,7 +62,7 @@ public class NTRInstructionConstructor {
 				}
 				if (argBytesOverride.containsKey(arg.name)){
 					type = getNTRDTForBytes(argBytesOverride.get(arg.name), type);
-					//For FX16, override to 2 bytes
+					//For FX32, override to 4 bytes
 				}
 				
 				args[i] = new NTRArgument(type);

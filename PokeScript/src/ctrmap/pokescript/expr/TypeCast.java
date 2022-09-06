@@ -9,15 +9,17 @@ import ctrmap.pokescript.types.TypeDef;
 import java.util.ArrayList;
 import java.util.List;
 
-/**
- *
- */
 public class TypeCast extends Operator {
 
 	public TypeDef targetType;
 
 	public TypeCast(TypeDef target) {
 		targetType = target;
+	}
+
+	@Override
+	public String toString() {
+		return "Cast:" + targetType;
 	}
 
 	@Override
@@ -34,23 +36,31 @@ public class TypeCast extends Operator {
 	public TypeDef getOutputType() {
 		return targetType;
 	}
-	
+
 	@Override
-	public List<AInstruction> getOperation(Throughput left, Throughput right, EffectiveLine line, NCompileGraph cg) {
+	public OperatorOperation getOperationType() {
+		return OperatorOperation.CAST;
+	}
+
+	@Override
+	public List<AInstruction> getOperation(EffectiveLine line, NCompileGraph cg, Throughput... inputs) {
 		//only accepts the right throughput
-		Throughput toCast = right;
-		AbstractTypeHandler.CastResult rsl = toCast.type.baseType.requestHandler().getInstructionForCast(targetType.baseType, cg);
+		Throughput toCast = inputs[0];
 		List<AInstruction> l = new ArrayList<>();
-		if (rsl.success) {
-			l.addAll(right.getCode(right.type));
-			if (toCast.type != targetType) {
-				l.addAll(rsl.instructions);
+		if (toCast != null) {
+			AbstractTypeHandler.CastResult rsl = toCast.type.baseType.getBaseType().requestHandler().getInstructionForCast(targetType.baseType, cg);
+			if (rsl.success) {
+				l.addAll(toCast.getCode(toCast.type));
+				if (toCast.type != targetType) {
+					l.addAll(rsl.instructions);
+				}
+			} else {
+				if (line != null) {
+					line.throwException(rsl.exception);
+				}
 			}
-		}
-		else {
-			if (line != null){
-				line.throwException(rsl.exception);
-			}
+		} else {
+			line.throwException("Null cast operand.");
 		}
 		return l;
 	}
@@ -67,13 +77,8 @@ public class TypeCast extends Operator {
 	}
 
 	@Override
-	protected List<AInstruction> createOperation(NCompileGraph cg) {
-		throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
-	}
-
-	@Override
 	public Priority getPriority() {
-		return Priority.NORMAL;
+		return Priority.NEGATE;
 	}
 
 }

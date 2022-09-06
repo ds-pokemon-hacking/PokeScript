@@ -1,13 +1,13 @@
 package ctrmap.pokescript.ide.system;
 
 import ctrmap.pokescript.ide.system.project.IDEContext;
-import ctrmap.stdlib.formats.yaml.YamlNode;
-import ctrmap.stdlib.fs.FSFile;
-import ctrmap.stdlib.fs.accessors.DiskFile;
-import ctrmap.stdlib.gui.DialogUtils;
-import ctrmap.stdlib.text.FormattingUtils;
-import ctrmap.stdlib.net.FileDownloader;
-import ctrmap.stdlib.res.ResourceAccess;
+import xstandard.formats.yaml.YamlNode;
+import xstandard.fs.FSFile;
+import xstandard.fs.accessors.DiskFile;
+import xstandard.gui.DialogUtils;
+import xstandard.text.FormattingUtils;
+import xstandard.net.FileDownloader;
+import xstandard.res.ResourceAccess;
 import java.util.Objects;
 
 public class IDEResourceReference {

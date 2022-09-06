@@ -1,9 +1,9 @@
 package ctrmap.scriptformats.pkslib;
 
 import ctrmap.pokescript.LangPlatform;
-import ctrmap.stdlib.formats.yaml.Yaml;
-import ctrmap.stdlib.formats.yaml.YamlNode;
-import ctrmap.stdlib.fs.FSFile;
+import xstandard.formats.yaml.Yaml;
+import xstandard.formats.yaml.YamlNode;
+import xstandard.fs.FSFile;
 import java.util.ArrayList;
 import java.util.List;
 

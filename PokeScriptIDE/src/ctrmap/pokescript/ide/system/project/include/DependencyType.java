@@ -5,7 +5,7 @@
  */
 package ctrmap.pokescript.ide.system.project.include;
 
-import ctrmap.stdlib.text.FormattingUtils;
+import xstandard.text.FormattingUtils;
 
 /**
  *

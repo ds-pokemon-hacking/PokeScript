@@ -14,7 +14,7 @@ public class VConstants {
 	public static int GP_REG_3 = 0x8002;
 	
 	public static int VAR_START_LOCAL = 0x8003;
-	public static int VAR_TOP_GLOBAL = 0x827F;
+	public static int VAR_TOP_GLOBAL = 0x8054;
 	
 	public static boolean isWk(int value) {
 		return value >= WKVAL_START && value < WKVAL_END;

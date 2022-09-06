@@ -3,6 +3,7 @@ package ctrmap.pokescript.ide.system.project;
 import ctrmap.pokescript.LangCompiler;
 import ctrmap.pokescript.LangConstants;
 import ctrmap.pokescript.LangPlatform;
+import ctrmap.pokescript.ide.FileEditorRSTA;
 import ctrmap.pokescript.ide.system.project.caches.ProjectFileCaretPosCache;
 import ctrmap.pokescript.ide.system.project.include.Dependency;
 import ctrmap.pokescript.ide.system.project.include.IInclude;
@@ -12,18 +13,22 @@ import ctrmap.pokescript.ide.system.project.include.ProjectInclude;
 import ctrmap.pokescript.ide.system.project.include.SimpleInclude;
 import ctrmap.pokescript.ide.system.savedata.IDESaveData;
 import ctrmap.scriptformats.pkslib.LibraryFile;
-import ctrmap.stdlib.fs.FSFile;
-import ctrmap.stdlib.fs.accessors.DiskFile;
-import ctrmap.stdlib.gui.file.ExtensionFilter;
-import ctrmap.stdlib.util.ArraysEx;
-import ctrmap.stdlib.util.ListenableList;
+import xstandard.fs.FSFile;
+import xstandard.fs.accessors.DiskFile;
+import xstandard.gui.file.ExtensionFilter;
+import xstandard.util.ArraysEx;
+import xstandard.util.ListenableList;
 import java.io.File;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 public class IDEProject {
 
 	public static final ExtensionFilter IDE_PROJECT_EXTENSION_FILTER = new ExtensionFilter("PokéScript IDE Project", "*.pksproj");
+
+	private FSFile projectRootFs;
 
 	private IDEFile projectRoot;
 	private IDEProjectManifest manifest;
@@ -31,12 +36,15 @@ public class IDEProject {
 	private FSFile cacheDir;
 	private FSFile libDir;
 
-	public ListenableList<IInclude> includes = new ListenableList<>();
+	public Map<Dependency, IInclude> includes = new HashMap<>();
 
 	public ProjectFileCaretPosCache caretPosCache;
 
+	private final List<IDEProjectListener> listeners = new ArrayList<>();
+
 	public IDEProject(FSFile projectFile) {
-		projectRoot = new IDEFile(this, projectFile.getParent());
+		projectRootFs = projectFile.getParent();
+		projectRoot = new IDEFile(this, projectRootFs);
 		manifest = new IDEProjectManifest(projectFile);
 
 		loadSetup();
@@ -50,6 +58,20 @@ public class IDEProject {
 		loadSetup();
 
 		getSourceDir().mkdirs();
+	}
+
+	public void addListener(IDEProjectListener l) {
+		ArraysEx.addIfNotNullOrContains(listeners, l);
+	}
+
+	public void removeListener(IDEProjectListener l) {
+		listeners.remove(l);
+	}
+
+	public void callSaveListeners(FileEditorRSTA.SaveResult result) {
+		for (IDEProjectListener l : listeners) {
+			l.onSaved(result);
+		}
 	}
 
 	private void loadSetup() {
@@ -75,8 +97,9 @@ public class IDEProject {
 		return f;
 	}
 
-	public IDEFile getClassFile(String path) {
-		return getFile(path + LangConstants.LANG_SOURCE_FILE_EXTENSION);
+	public IDEFile getClassFile(String classpath) {
+		classpath = classpath.replace('.', '/');
+		return getFile(classpath + LangConstants.LANG_SOURCE_FILE_EXTENSION);
 	}
 
 	public IDEFile getFile(String path) {
@@ -99,40 +122,66 @@ public class IDEProject {
 		return manifest.getManifestPath();
 	}
 
+	public void setMainClass(IDEFile file) {
+		manifest.setMainClass(file.getClasspathInProject());
+		for (IDEProjectListener l : listeners) {
+			l.onMainClassChanged(file);
+		}
+	}
+
 	public static boolean isIDEProjectManifest(File f) {
 		return f != null && f.exists() && !f.isDirectory();
+	}
+	
+	public void addDependency(IDEContext ctx, Dependency dep) {
+		if (getManifest().addDependency(dep)) {
+			loadInclude(ctx, dep);
+		}
+	}
+
+	public void loadInclude(IDEContext ctx, Dependency dep) {
+		if (includes.containsKey(dep)) {
+			return;
+		}
+		FSFile file = null;
+		IInclude inc = null;
+		try {
+			file = resolvePath(dep, ctx);
+
+			if (file == null) {
+				inc = new InvalidInclude(dep.ref.path);
+			} else {
+				switch (dep.type) {
+					case DIRECTORY:
+						inc = new SimpleInclude(file);
+						break;
+					case LIBRARY:
+						inc = new LibraryInclude(new LibraryFile(file));
+						break;
+					case PROJECT:
+						inc = new ProjectInclude(ctx.getLoadedProject(file));
+						break;
+				}
+			}
+		} catch (Exception ex) {
+			inc = new InvalidInclude(dep.ref.path);
+		}
+		includes.put(dep, inc);
 	}
 
 	public final void loadIncludes(IDEContext ctx) {
 		List<Dependency> l = manifest.getProjectDependencies();
 		includes.clear();
 		for (Dependency d : l) {
-			FSFile file = null;
-			try {
-				file = resolvePath(d, ctx);
-				
-				if (file == null) {
-					includes.add(new InvalidInclude(d.ref.path));
-				} else {
-					switch (d.type) {
-						case DIRECTORY:
-							includes.add(new SimpleInclude(file));
-							break;
-						case LIBRARY:
-							includes.add(new LibraryInclude(new LibraryFile(file)));
-							break;
-						case PROJECT:
-							includes.add(new ProjectInclude(ctx.getLoadedProject(file)));
-							break;
-					}
-				}
-			} catch (Exception ex) {
-				includes.add(new InvalidInclude(d.ref.path));
-			}
+			loadInclude(ctx, d);
 		}
 	}
 
-	public FSFile getRoot() {
+	public FSFile getFSRoot() {
+		return projectRootFs;
+	}
+
+	public IDEFile getIDERoot() {
 		return projectRoot;
 	}
 
@@ -143,7 +192,7 @@ public class IDEProject {
 	public List<FSFile> getAllIncludeFiles() {
 		List<FSFile> l = new ArrayList<>();
 		LangPlatform plaf = manifest.getSinglereleaseTargetPlatform();
-		for (IInclude inc : includes) {
+		for (IInclude inc : includes.values()) {
 			l.addAll(inc.getIncludeSources(plaf));
 		}
 		l.add(getSourceDirForPlatform(plaf));
@@ -164,6 +213,8 @@ public class IDEProject {
 			IDEFile cls = getClassFile(mcPath);
 			if (cls.isFile()) {
 				return cls;
+			} else {
+				System.err.println("Could not get main class IDEFile: 'cls' is not a file! (exists: " + cls.exists() + ", isDirectory: " + cls.isDirectory() + ")");
 			}
 		}
 		return null;

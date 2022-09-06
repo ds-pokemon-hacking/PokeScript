@@ -1,6 +1,6 @@
 package ctrmap.scriptformats.gen6;
 
-import ctrmap.stdlib.text.StringEx;
+import xstandard.text.StringEx;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
@@ -70,7 +70,7 @@ public class PawnSubroutine {
 			if (line.length() == 0) {
 				continue;
 			}
-			PawnInstruction newIns = PawnInstruction.fromString(ptr, line, doOutput);
+			PawnInstruction newIns = PawnInstruction.fromString(ptr, line, cellSize, doOutput);
 			newIns.checkJmpConvertArgs();
 			if (newIns.opCode == PawnOpCode.CASETBL) {
 				newIns = caseTblFromString(newIns.pointer, code);
@@ -141,17 +141,19 @@ public class PawnSubroutine {
 	}
 
 	public List<String> getAllInstructionStrings(int indentLevel) {
+		StringBuilder indentator = new StringBuilder();
+		if (indentLevel != -1) {
+			for (int j = 0; j < indentLevel; j++) {
+				indentator.append("\t");
+			}
+		}
+		String id = indentator.toString();
 		List<String> ret = new ArrayList<>();
 		for (int i = 0; i < instructions.size(); i++) {
 			StringBuilder sb = new StringBuilder();
-			StringBuilder indentator = new StringBuilder();
-			if (indentLevel != -1) {
-				for (int j = 0; j < indentLevel; j++) {
-					indentator.append("\t");
-				}
-			}
+
 			sb.append(indentator);
-			sb.append(instructions.get(i).toString().replaceAll("\n", "\n" + indentator.toString()));
+			sb.append(StringEx.replaceFast(instructions.get(i).toString(), "\n", "\n" + id));
 			ret.add(sb.toString());
 		}
 		return ret;

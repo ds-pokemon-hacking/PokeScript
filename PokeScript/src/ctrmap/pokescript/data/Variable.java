@@ -1,6 +1,8 @@
 package ctrmap.pokescript.data;
 
+import ctrmap.pokescript.LangConstants;
 import ctrmap.pokescript.expr.Throughput;
+import ctrmap.pokescript.expr.ast.AST;
 import ctrmap.pokescript.instructions.abstractcommands.AInstruction;
 import ctrmap.pokescript.instructions.abstractcommands.APlainInstruction;
 import ctrmap.pokescript.instructions.abstractcommands.APlainOpCode;
@@ -8,21 +10,19 @@ import ctrmap.pokescript.stage0.CompilerAnnotation;
 import ctrmap.pokescript.stage0.IModifiable;
 import ctrmap.pokescript.stage0.Modifier;
 import ctrmap.pokescript.stage1.NCompileGraph;
-import ctrmap.pokescript.stage1.NExpression;
 import ctrmap.pokescript.types.TypeDef;
 import java.util.ArrayList;
 import java.util.List;
 
 public abstract class Variable implements IModifiable {
 
+	public final DataGraph parent;
+	
 	public String name;
-	public boolean isNameAbsolute;
 	public List<String> aliases = new ArrayList<>();
 	public List<Modifier> modifiers = new ArrayList<>();
 	public TypeDef typeDef;
 	public int index;
-
-	public int timesUsed = 0;
 
 	public abstract VarLoc getLocation();
 
@@ -30,10 +30,11 @@ public abstract class Variable implements IModifiable {
 
 	public abstract AInstruction getWriteIns(NCompileGraph cg);
 
-	public Variable(String name, List<Modifier> modifiers, TypeDef type, NCompileGraph cg) {
+	public Variable(String name, List<Modifier> modifiers, TypeDef type, NCompileGraph cg, DataGraph parent) {
 		this.name = name;
 		this.modifiers = modifiers;
 		this.typeDef = type;
+		this.parent = parent;
 		//System.out.println(typeDef);
 	}
 
@@ -45,6 +46,10 @@ public abstract class Variable implements IModifiable {
 	public List<Modifier> getModifiers() {
 		return modifiers;
 	}
+	
+	public String getNameWithoutNamespace() {
+		return LangConstants.getLastPathElem(name);
+	}
 
 	public void setNumeric(int n) {
 		index = n;
@@ -54,22 +59,15 @@ public abstract class Variable implements IModifiable {
 		//Classes will always be stored on heap
 		return 1;
 	}
-	
+
 	@Override
 	public String toString() {
 		return typeDef + " " + name;
 	}
 
-	public int getPointer(NCompileGraph g) {
-		if (getLocation() == VarLoc.STACK) {
-			return (index + (g.provider.getMemoryInfo().isStackOrderNatural() ? 1 : 0)) * g.provider.getMemoryInfo().getStackIndexingStep();
-		} else {
-			return index * g.provider.getMemoryInfo().getGlobalsIndexingStep();
-		}
-	}
-
 	public enum VarLoc {
 		STACK,
+		STACK_UNDER,
 		DATA
 	}
 
@@ -78,10 +76,10 @@ public abstract class Variable implements IModifiable {
 		public List<AInstruction> init_from = new ArrayList<>();
 		public List<CompilerAnnotation> annotations = new ArrayList<>();
 
-		public Global(String name, List<Modifier> modifiers, TypeDef type, NExpression init_from, NCompileGraph cg) {
-			super(name, modifiers, type, cg);
+		public Global(String name, List<Modifier> modifiers, TypeDef type, AST init_from, NCompileGraph cg) {
+			super(name, modifiers, type, cg, cg.globals);
 			if (init_from != null) {
-				Throughput iptp = init_from.toThroughput(cg);
+				Throughput iptp = init_from.toThroughput();
 				if (iptp != null) {
 					this.init_from.addAll(iptp.getCode(type));
 					optimizeInitFrom(cg);
@@ -90,7 +88,7 @@ public abstract class Variable implements IModifiable {
 		}
 
 		public Global(String name, List<Modifier> modifiers, TypeDef type, NCompileGraph cg, int value) {
-			super(name, modifiers, type, cg);
+			super(name, modifiers, type, cg, cg.globals);
 			init_from.add(cg.getPlain(APlainOpCode.CONST_PRI, value));
 		}
 
@@ -142,19 +140,19 @@ public abstract class Variable implements IModifiable {
 			if (hasModifier(Modifier.FINAL) && isImmediate()) {
 				return cg.getPlain(APlainOpCode.CONST_PRI, getImmediateValue());
 			}
-			return cg.provider.getGlobalRead(name);
+			return cg.getVarRead(this);
 		}
 
 		@Override
 		public AInstruction getWriteIns(NCompileGraph cg) {
-			return cg.provider.getGlobalWrite(name);
+			return cg.getVarWrite(this);
 		}
 	}
 
 	public static class Local extends Variable {
 
-		public Local(String name, List<Modifier> modifiers, TypeDef type, NCompileGraph cg) {
-			super(name, modifiers, type, cg);
+		public Local(String name, List<Modifier> modifiers, TypeDef type, NCompileGraph cg, LocalDataGraph parent) {
+			super(name, modifiers, type, cg, parent);
 		}
 
 		@Override
@@ -164,12 +162,24 @@ public abstract class Variable implements IModifiable {
 
 		@Override
 		public AInstruction getReadIns(NCompileGraph cg) {
-			return cg.getPlain(APlainOpCode.LOAD_STACK_PRI, getPointer(cg));
+			return cg.getVarRead(this);
 		}
 
 		@Override
 		public AInstruction getWriteIns(NCompileGraph cg) {
-			return cg.getPlain(APlainOpCode.STORE_PRI_STACK, getPointer(cg));
+			return cg.getVarWrite(this);
+		}
+	}
+
+	public static class LocalArgument extends Local {
+
+		public LocalArgument(String name, List<Modifier> modifiers, TypeDef type, NCompileGraph cg, LocalDataGraph parent) {
+			super(name, modifiers, type, cg, parent);
+		}
+
+		@Override
+		public VarLoc getLocation() {
+			return VarLoc.STACK_UNDER;
 		}
 	}
 }

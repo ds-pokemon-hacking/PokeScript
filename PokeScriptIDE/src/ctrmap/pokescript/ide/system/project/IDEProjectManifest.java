@@ -4,9 +4,9 @@ import ctrmap.pokescript.LangPlatform;
 import ctrmap.pokescript.ide.system.project.include.Dependency;
 import ctrmap.scriptformats.pkslib.LibraryManifest;
 import ctrmap.scriptformats.pkslib.PlatformSourceTarget;
-import ctrmap.stdlib.formats.yaml.YamlListElement;
-import ctrmap.stdlib.formats.yaml.YamlNode;
-import ctrmap.stdlib.fs.FSFile;
+import xstandard.formats.yaml.YamlListElement;
+import xstandard.formats.yaml.YamlNode;
+import xstandard.fs.FSFile;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -55,12 +55,14 @@ public class IDEProjectManifest extends LibraryManifest {
 		return l;
 	}
 
-	public void addDependency(Dependency dep) {
+	public boolean addDependency(Dependency dep) {
 		YamlNode depsNode = getEnsureRootNodeKeyNode(ProjectAttributes.AK_PROJECT_DEPS);
 		if (!getProjectDependencies().contains(dep)) {
 			depsNode.addChild(dep.createNode());
+			saveProjectData();
+			return true;
 		}
-		saveProjectData();
+		return false;
 	}
 
 	public List<String> getCompilerDefinitions() {
@@ -83,6 +85,7 @@ public class IDEProjectManifest extends LibraryManifest {
 			YamlNode listElem = new YamlNode(new YamlListElement());
 			listElem.addChildValue(def);
 			getEnsureRootNodeKeyNode(ProjectAttributes.AK_COMPILE_DEFS).addChild(listElem);
+			saveProjectData();
 		}
 	}
 

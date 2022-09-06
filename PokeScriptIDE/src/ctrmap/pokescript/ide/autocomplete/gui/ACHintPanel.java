@@ -1,12 +1,13 @@
 package ctrmap.pokescript.ide.autocomplete.gui;
 
+import ctrmap.pokescript.ide.IDEResources;
 import ctrmap.pokescript.stage0.Modifier;
 import ctrmap.pokescript.stage0.NMember;
 import ctrmap.pokescript.ide.autocomplete.nodes.AbstractNode;
 import ctrmap.pokescript.ide.autocomplete.nodes.ClassNode;
 import ctrmap.pokescript.ide.autocomplete.nodes.MemberNode;
 import ctrmap.pokescript.ide.autocomplete.nodes.PackageNode;
-import ctrmap.stdlib.res.ResourceAccess;
+import xstandard.res.ResourceAccess;
 import java.awt.Dimension;
 import javax.swing.ImageIcon;
 
@@ -51,7 +52,7 @@ public class ACHintPanel extends javax.swing.JPanel {
 	}
 	
 	private static ImageIcon createScrUiImageIcon(String name){
-		return new ImageIcon(ResourceAccess.getByteArray("scripting/ui/ac/" + name + ".png"));
+		return new ImageIcon(IDEResources.ACCESSOR.getByteArray("scripting/ui/ac/" + name + ".png"));
 	}
 
 	/**

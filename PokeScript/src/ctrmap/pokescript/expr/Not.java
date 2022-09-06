@@ -9,13 +9,13 @@ import ctrmap.pokescript.types.TypeDef;
 import java.util.ArrayList;
 import java.util.List;
 
-public class Not extends Operator{
-	
+public class Not extends Operator {
+
 	@Override
 	public TypeDef getInputTypeLHS() {
 		return DataType.VOID.typeDef();
 	}
-	
+
 	@Override
 	public TypeDef getInputTypeRHS() {
 		return DataType.BOOLEAN.typeDef();
@@ -27,21 +27,23 @@ public class Not extends Operator{
 	}
 
 	@Override
-	protected List<AInstruction> createOperation(NCompileGraph cg) {
-		throw new UnsupportedOperationException("This method should never have been called on this class.");
+	public OperatorOperation getOperationType() {
+		return OperatorOperation.NOT;
 	}
-		
+
 	@Override
-	public List<AInstruction> getOperation(Throughput left, Throughput right, EffectiveLine line, NCompileGraph cg) {
+	public List<AInstruction> getOperation(EffectiveLine line, NCompileGraph cg, Throughput... inputs) {
 		List<AInstruction> r = new ArrayList<>();
 		//not only takes one input, the parser has adjusted that to always be right
-		r.addAll(right.getCode(getInputTypeRHS()));
+		if (inputs.length > 0 && inputs[0] != null) {
+			r.addAll(inputs[0].getCode(getInputTypeRHS()));
+		}
 		r.add(cg.getPlain(APlainOpCode.NOT));
 		return r;
 	}
 
 	@Override
 	public Priority getPriority() {
-		return Priority.NORMAL;
+		return Priority.NEGATE;
 	}
 }

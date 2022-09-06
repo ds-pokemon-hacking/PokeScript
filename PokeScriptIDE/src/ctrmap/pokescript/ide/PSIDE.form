@@ -229,7 +229,7 @@
                 </Component>
               </SubComponents>
             </Container>
-            <Container class="ctrmap.stdlib.gui.components.tabbedpane.JTabbedPaneEx" name="fileTabs">
+            <Container class="xstandard.gui.components.tabbedpane.JTabbedPaneEx" name="fileTabs">
               <Properties>
                 <Property name="closeable" type="boolean" value="true"/>
               </Properties>

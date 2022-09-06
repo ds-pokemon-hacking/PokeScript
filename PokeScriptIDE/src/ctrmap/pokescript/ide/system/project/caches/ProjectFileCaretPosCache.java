@@ -2,8 +2,8 @@ package ctrmap.pokescript.ide.system.project.caches;
 
 import ctrmap.pokescript.ide.FileEditorRSTA;
 import ctrmap.pokescript.ide.system.project.IDEProject;
-import ctrmap.stdlib.formats.yaml.Yaml;
-import ctrmap.stdlib.formats.yaml.YamlNode;
+import xstandard.formats.yaml.Yaml;
+import xstandard.formats.yaml.YamlNode;
 import java.util.HashMap;
 import java.util.Map;
 

@@ -1,24 +1,28 @@
 package ctrmap.pokescript;
 
 import ctrmap.scriptformats.gen6.GFLPawnScript;
-import ctrmap.pokescript.instructions.providers.CTRInstructionProvider;
+import ctrmap.pokescript.instructions.providers.PawnInstructionProvider;
 import ctrmap.pokescript.instructions.providers.AInstructionProvider;
 import ctrmap.pokescript.instructions.providers.VInstructionProvider;
 import ctrmap.pokescript.stage0.CompilerPragma;
+import ctrmap.pokescript.stage0.NMember;
 import ctrmap.pokescript.stage0.Preprocessor;
 import ctrmap.pokescript.stage1.NCompileGraph;
-import ctrmap.pokescript.stage2.CTRAssembler;
-import ctrmap.pokescript.stage2.VAssembler;
+import ctrmap.pokescript.stage2.AbstractExecMaker;
+import ctrmap.pokescript.stage2.PawnExecMaker;
+import ctrmap.pokescript.stage2.VExecMaker;
 import ctrmap.scriptformats.gen5.VScriptFile;
+import ctrmap.scriptformats.gen5.optimizer.VAsmOptimizer;
 import ctrmap.scriptformats.pkslib.LibraryFile;
-import ctrmap.stdlib.cli.ArgumentBuilder;
-import ctrmap.stdlib.cli.ArgumentContent;
-import ctrmap.stdlib.cli.ArgumentPattern;
-import ctrmap.stdlib.cli.ArgumentType;
-import ctrmap.stdlib.fs.FSFile;
-import ctrmap.stdlib.fs.FSUtil;
-import ctrmap.stdlib.fs.accessors.DiskFile;
-import ctrmap.stdlib.io.base.iface.ReadableStream;
+import ctrmap.scriptformats.pkslib.LibraryManifest;
+import xstandard.cli.ArgumentBuilder;
+import xstandard.cli.ArgumentContent;
+import xstandard.cli.ArgumentPattern;
+import xstandard.cli.ArgumentType;
+import xstandard.fs.FSFile;
+import xstandard.fs.FSUtil;
+import xstandard.fs.accessors.DiskFile;
+import xstandard.io.base.iface.ReadableStream;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -29,10 +33,10 @@ import java.util.Map;
  */
 public class LangCompiler {
 
-	public static final String COMPILER_VERSION = "0.6.9@2021/08/22";
+	public static final String COMPILER_VERSION = "0.10.4@2022/03/28";
 
 	public static final ArgumentPattern[] langCompilerArgConfig = new ArgumentPattern[]{
-		new ArgumentPattern("target", "Target platform (ntrv/ctr)", ArgumentType.STRING, LangPlatform.AMX_CTR.name, true, "-t", "--target"),
+		new ArgumentPattern("target", "Target platform (ntrv/ctr/nx)", ArgumentType.STRING, LangPlatform.AMX_CTR.name, true, "-t", "--target"),
 		new ArgumentPattern("defines", "Preprocessor definitions (can be chained)", ArgumentType.STRING, null, true, "-D", "--define"),
 		new ArgumentPattern("includes", "Include directory paths (can be chained)", ArgumentType.STRING, null, true, "-I", "--include"),
 		new ArgumentPattern("inputs", "List of files to compile (can be chained, default)", ArgumentType.STRING, null, true, "-i", "--input"),
@@ -44,8 +48,10 @@ public class LangCompiler {
 	};
 
 	public static void main(String[] args) {
-		args = new String[]{"-i D:\\_REWorkspace\\scr\\debug.pks -D SANGO"};
-		
+		if (args.length == 0) {
+			args = new String[]{"-i \"D:\\_REWorkspace\\scr\\globtest\\globtest.pks\" -t ntrv"};
+		}
+
 		System.out.println("* * * New PokéScript compiler U version " + COMPILER_VERSION + " * * *\n");
 		System.out.println("PokéScript is part of CTRMap at https://github.com/HelloOO7/CTRMap-BleedingEdge\n");
 		ArgumentBuilder bld = new ArgumentBuilder(langCompilerArgConfig);
@@ -77,12 +83,12 @@ public class LangCompiler {
 
 			LangPlatform plaf = LangPlatform.fromName(target);
 
-			binaryExtension = plaf.extensionFilter.getPrimaryExtension();
-			ca.platform = plaf;
-
-			if (target == null) {
+			if (plaf == null) {
 				throw new IllegalArgumentException("Invalid target platform: " + target);
 			}
+
+			binaryExtension = plaf.extensionFilter.getPrimaryExtension();
+			ca.setPlatform(plaf);
 
 			//Build input file list
 			List<FSFile> inputs = new ArrayList<>();
@@ -111,10 +117,16 @@ public class LangCompiler {
 
 			for (int i = 0; i < incArg.contents.size(); i++) {
 				FSFile df = new DiskFile(incArg.stringValue(i));
-				if (LangConstants.isLangLib(df.getName())) {
-					df = new LibraryFile(df);
+
+				FSFile libManifest = df.getChild(LibraryManifest.LIBRARY_MANIFEST_NAME);
+
+				if (LangConstants.isLangLib(df.getName()) || (libManifest != null && libManifest.exists())) {
+					LibraryFile lib = new LibraryFile(df);
+					df = lib.getSourceDirForPlatform(ca.platform);
 				}
-				commonIncludes.add(df);
+				if (df != null) {
+					commonIncludes.add(df);
+				}
 			}
 
 			//BUILD DEFINES
@@ -127,24 +139,28 @@ public class LangCompiler {
 			ca.includeRoots = commonIncludes;
 			ca.preprocessorDefinitions = commonDefinitions;
 
-			for (FSFile in : inputs) {
-				if (!in.exists() || in.isDirectory()) {
-					System.err.println("Could not read file " + in);
-					continue;
+			try {
+				for (FSFile in : inputs) {
+					if (!in.exists() || in.isDirectory()) {
+						ca.logger.println(CompilerLogger.LogLevel.ERROR, "Could not read file " + in);
+						continue;
+					}
+					CompilerArguments a2 = new CompilerArguments(ca);
+					a2.addInclude(in.getParent());
+					ca.logger.println(CompilerLogger.LogLevel.INFO, "Compiling file " + in + " for target " + a2.platform + "...");
+					FSFile out;
+					if (outputFile != null) {
+						out = outputFile;
+					} else {
+						out = in.getParent().getChild(FSUtil.getFileNameWithoutExtension(in.getName()) + binaryExtension);
+					}
+					byte[] exe = compileFileToBinary(in, a2);
+					if (exe != null) {
+						FSUtil.writeBytesToFile(out, exe);
+					}
 				}
-				CompilerArguments a2 = new CompilerArguments(ca);
-				a2.includeRoots.add(in.getParent());
-				System.out.println("Compiling file " + in + "...");
-				FSFile out;
-				if (outputFile != null) {
-					out = outputFile;
-				} else {
-					out = in.getParent().getChild(FSUtil.getFileNameWithoutExtension(in.getName()) + binaryExtension);
-				}
-				byte[] exe = compileFileToBinary(in, a2);
-				if (exe != null) {
-					FSUtil.writeBytesToFile(out, exe);
-				}
+			} catch (Exception ex) {
+				ex.printStackTrace();
 			}
 
 			if (fileLog != null) {
@@ -156,10 +172,10 @@ public class LangCompiler {
 	public static AInstructionProvider getInstructionProvider(LangPlatform platform) {
 		switch (platform) {
 			case AMX_CTR:
-				return new CTRInstructionProvider();
+			case AMX_NX:
+				return new PawnInstructionProvider();
 			case EV_SWAN:
 				return new VInstructionProvider();
-			case AMX_NX:
 			case EV_PL:
 				throw new UnsupportedOperationException("Platform " + platform + " not yet supported!");
 		}
@@ -169,7 +185,8 @@ public class LangCompiler {
 	public static byte[] compileFileToBinary(FSFile fsf, CompilerArguments args) {
 		switch (args.platform) {
 			case AMX_CTR:
-				GFLPawnScript scr = compileFileCTR(fsf, args);
+			case AMX_NX:
+				GFLPawnScript scr = compileFilePawn(fsf, args);
 				return scr == null ? null : scr.getScriptBytes();
 			case EV_SWAN:
 				return compileFileV(fsf, args).getBinaryData();
@@ -180,21 +197,22 @@ public class LangCompiler {
 	public static byte[] compileStreamToBinary(ReadableStream strm, CompilerArguments args) {
 		switch (args.platform) {
 			case AMX_CTR:
-				return compileStreamCTR(strm, args).getScriptBytes();
+			case AMX_NX:
+				return compileStreamPawn(strm, args).getScriptBytes();
 			case EV_SWAN:
 				return compileStreamV(strm, args).getBinaryData();
 		}
 		return null;
 	}
 
-	public static GFLPawnScript compileFileCTR(FSFile fsf, CompilerArguments args) {
+	public static GFLPawnScript compileFilePawn(FSFile fsf, CompilerArguments args) {
 		Preprocessor preprocessor = new Preprocessor(fsf, args);
-		return compileImplCTR(preprocessor);
+		return compileImplPawn(preprocessor);
 	}
 
-	public static GFLPawnScript compileStreamCTR(ReadableStream strm, CompilerArguments args) {
+	public static GFLPawnScript compileStreamPawn(ReadableStream strm, CompilerArguments args) {
 		Preprocessor preprocessor = new Preprocessor(strm, "UnnamedContext", args);
-		return compileImplCTR(preprocessor);
+		return compileImplPawn(preprocessor);
 	}
 
 	public static VScriptFile compileFileV(FSFile fsf, CompilerArguments args) {
@@ -207,22 +225,20 @@ public class LangCompiler {
 		return compileImplGenV(preprocessor);
 	}
 
-	private static GFLPawnScript compileImplCTR(Preprocessor preprocessor) {
-		NCompileGraph cg = preprocessor.getCompileGraph();
-		if (cg == null) {
-			return null;
-		}
-		GFLPawnScript gflPawnScript = new GFLPawnScript();
-		CTRAssembler.assemble(cg, gflPawnScript);
-		return gflPawnScript;
+	private static GFLPawnScript compileImplPawn(Preprocessor preprocessor) {
+		return (GFLPawnScript) compileScriptImpl(preprocessor);
 	}
 
 	private static VScriptFile compileImplGenV(Preprocessor preprocessor) {
+		return (VScriptFile) compileScriptImpl(preprocessor);
+	}
+
+	private static Object compileScriptImpl(Preprocessor preprocessor) {
 		NCompileGraph cg = preprocessor.getCompileGraph();
 		if (cg == null) {
 			return null;
 		}
-		return VAssembler.assemble(cg);
+		return cg.getArgs().createExecMaker().bindCG(cg).compileCode().openNewExecutable().linkCode();
 	}
 
 	public static class CompilerArguments {
@@ -241,15 +257,34 @@ public class LangCompiler {
 			setPlatform(LangPlatform.AMX_CTR);
 		}
 
-		public void setPlatform(LangPlatform plaf) {
+		public void addInclude(FSFile fsf) {
+			if (!includeRoots.contains(fsf)) {
+				includeRoots.add(fsf);
+			}
+		}
+
+		public CompilerArguments setPlatform(LangPlatform plaf) {
 			this.platform = plaf;
 			provider = getInstructionProvider(plaf);
 			optimizationPassCount = plaf == LangPlatform.AMX_CTR ? 2 : 1;
-			optimizationLevel = plaf == LangPlatform.EV_SWAN ? 5 : 2;
+			optimizationLevel = plaf == LangPlatform.EV_SWAN ? VAsmOptimizer.OPTIMIZATION_TABLE.length : 2;
+			return this;
 		}
 
 		public LangPlatform getPlatform() {
 			return platform;
+		}
+
+		public AbstractExecMaker createExecMaker() {
+			switch (platform) {
+				case AMX_CTR:
+					return new PawnExecMaker(PawnExecMaker.PawnExecType.PAWN32);
+				case AMX_NX:
+					return new PawnExecMaker(PawnExecMaker.PawnExecType.PAWN64);
+				case EV_SWAN:
+					return new VExecMaker();
+			}
+			return null;
 		}
 
 		public CompilerArguments(CompilerArguments mirror) {

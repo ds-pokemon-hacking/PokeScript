@@ -1,6 +1,6 @@
 package ctrmap.pokescript.stage0;
 
-import ctrmap.stdlib.util.ArraysEx;
+import xstandard.util.ArraysEx;
 import java.util.List;
 
 public interface IModifiable {

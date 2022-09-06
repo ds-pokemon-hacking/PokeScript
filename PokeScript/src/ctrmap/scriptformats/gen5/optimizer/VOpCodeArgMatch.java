@@ -8,7 +8,7 @@ public enum VOpCodeArgMatch {
 	TERTIARY_GPR(VConstants.GP_REG_3, CmpType.EQUAL),
 	ANY_GPR(new int[]{VConstants.GP_REG_PRI, VConstants.GP_REG_3}, new CmpType[]{CmpType.GEQUAL, CmpType.LEQUAL}),
 
-	VARIABLE(VConstants.GP_REG_PRI, CmpType.GEQUAL),
+	VARIABLE(new int[]{VConstants.WKVAL_START, VConstants.WKVAL_END}, new CmpType[]{CmpType.GEQUAL, CmpType.LESS}),
 	CONSTANT(VConstants.WKVAL_START, CmpType.LESS),
 	ZERO(0, CmpType.EQUAL),
 	ONE(1, CmpType.EQUAL),
@@ -52,7 +52,7 @@ public enum VOpCodeArgMatch {
 					b &= test != checkValue;
 					break;
 			}
-			if (!b){
+			if (!b) {
 				break;
 			}
 		}

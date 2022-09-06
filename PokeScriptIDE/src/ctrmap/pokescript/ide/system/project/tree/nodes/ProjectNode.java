@@ -11,13 +11,21 @@ import ctrmap.pokescript.ide.system.project.include.ProjectInclude;
 import ctrmap.pokescript.ide.system.project.include.SimpleInclude;
 import java.awt.event.ActionEvent;
 import java.awt.event.MouseEvent;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 import javax.swing.JMenuItem;
 
 public class ProjectNode extends IDENodeBase {
-	
+
 	public static int RESID = 0;
 
 	private IDEProject project;
+
+	private Map<IInclude, IDENodeBase> depNodes = new HashMap<>();
+	private final ContainerNode libs = new ContainerNode(ide, ContainerNode.Type.LIBRARIES);
 
 	public ProjectNode(PSIDE ide, IDEProject proj) {
 		super(ide);
@@ -27,30 +35,49 @@ public class ProjectNode extends IDENodeBase {
 			add(new SourceDirNode(ide, sourceDir));
 		}
 
-		ContainerNode libs = new ContainerNode(ide, ContainerNode.Type.LIBRARIES);
+		updateDependencyNodes();
 
-		for (IInclude inc : project.includes) {
-			switch (inc.getDepType()) {
-				case LIBRARY:
-					libs.add(new LibraryReferenceNode(ide, ((LibraryInclude) inc).getLibrary()));
-					break;
-				case DIRECTORY:
-					libs.add(new SourceDirNode(ide, new IDEFile(proj, ((SimpleInclude)inc).getDir())));
-					break;
-				case PROJECT:
-					libs.add(new ProjectReferenceNode(ide, ((ProjectInclude)inc).getProject()));
-					break;
-				case INVALID:
-					libs.add(new InvalidReferenceNode(ide, ((InvalidInclude)inc).invalidPath));
-					break;
-			}
-		}
-		
 		add(libs);
 	}
-	
+
+	public void updateDependencyNodes() {
+		Collection<IInclude> includes = project.includes.values();
+		for (IInclude inc : includes) {
+			if (!depNodes.containsKey(inc)) {
+				IDENodeBase n = null;
+				switch (inc.getDepType()) {
+					case LIBRARY:
+						n = new LibraryReferenceNode(ide, ((LibraryInclude) inc).getLibrary());
+						break;
+					case DIRECTORY:
+						n = new SourceDirNode(ide, new IDEFile(project, ((SimpleInclude) inc).getDir()));
+						break;
+					case PROJECT:
+						n = new ProjectReferenceNode(ide, ((ProjectInclude) inc).getProject());
+						break;
+					case INVALID:
+						n = new InvalidReferenceNode(ide, ((InvalidInclude) inc).invalidPath);
+						break;
+				}
+				if (n != null) {
+					depNodes.put(inc, n);
+					libs.add(n);
+				}
+			}
+		}
+		List<IInclude> childrenToRemove = new ArrayList<>();
+		for (IInclude i : depNodes.keySet()) {
+			if (!includes.contains(i)) {
+				childrenToRemove.add(i);
+			}
+		}
+		for (IInclude i : childrenToRemove) {
+			libs.remove(depNodes.remove(i));
+		}
+	}
+
 	@Override
-	public void onNodePopupInvoke(MouseEvent evt){
+	public void onNodePopupInvoke(MouseEvent evt) {
 		JMenuItem close = new JMenuItem("Close");
 		close.addActionListener((ActionEvent e) -> {
 			ide.closeProject(project);
@@ -65,8 +92,8 @@ public class ProjectNode extends IDENodeBase {
 		});
 		showPopupMenu(evt, close, delete, properties);
 	}
-	
-	public IDEProject getProject(){
+
+	public IDEProject getProject() {
 		return project;
 	}
 

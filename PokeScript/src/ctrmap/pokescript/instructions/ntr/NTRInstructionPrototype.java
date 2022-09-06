@@ -12,6 +12,10 @@ public class NTRInstructionPrototype {
 		parameters = args;
 	}
 	
+	public NTRInstructionCall createCall(int... args) {
+		return new NTRInstructionCall(this, args);
+	}
+	
 	public int getIndexOfFirstReturnArgument(){
 		int i = 0;
 		for (NTRArgument a : parameters){

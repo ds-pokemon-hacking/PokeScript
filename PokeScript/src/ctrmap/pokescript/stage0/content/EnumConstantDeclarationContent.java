@@ -7,9 +7,9 @@ import ctrmap.pokescript.stage0.Modifier;
 import ctrmap.pokescript.stage1.NCompileGraph;
 import ctrmap.pokescript.types.TypeDef;
 import ctrmap.pokescript.types.declarers.DeclarerController;
-import ctrmap.stdlib.text.StringEx;
-import ctrmap.stdlib.util.ArraysEx;
-import ctrmap.stdlib.util.ParsingUtils;
+import xstandard.text.StringEx;
+import xstandard.util.ArraysEx;
+import xstandard.util.ParsingUtils;
 import java.util.ArrayList;
 import java.util.List;
 

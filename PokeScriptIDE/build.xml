@@ -81,8 +81,8 @@
         <mkdir dir="${store.dir}"/>
         <jar destfile="${store.dir}/temp_final.jar" filesetmanifest="skip">
           <zipfileset src="${srconly.jar}" excludes="META-INF/*.SF, META-INF/*.DSA, META-INF/*.RSA"/>
-          <zipgroupfileset dir="../../CTRMapStandardLibrary/lib" includes="*.jar"/>
-          <zipgroupfileset dir="../../CTRMapStandardLibrary/dist" includes="*.jar"/>
+          <zipgroupfileset dir="../../XStandard/lib" includes="*.jar"/>
+          <zipgroupfileset dir="../../XStandard/dist" includes="*.jar"/>
           <zipgroupfileset dir="../PokeScript/dist" includes="*.jar"/>
           <zipgroupfileset dir="submodules/RSyntaxTextArea/RSyntaxTextArea/build/libs" includes="*.jar"/>
           <manifest>

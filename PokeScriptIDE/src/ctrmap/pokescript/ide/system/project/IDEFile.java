@@ -3,9 +3,11 @@ package ctrmap.pokescript.ide.system.project;
 import ctrmap.pokescript.LangConstants;
 import ctrmap.pokescript.ide.FileEditorRSTA;
 import ctrmap.pokescript.stage0.Preprocessor;
-import ctrmap.stdlib.fs.FSFile;
-import ctrmap.stdlib.fs.accessors.FSFileAdapter;
-import ctrmap.stdlib.util.ArraysEx;
+import xstandard.fs.FSFile;
+import xstandard.fs.FSUtil;
+import xstandard.fs.accessors.FSFileAdapter;
+import xstandard.io.base.iface.ReadableStream;
+import xstandard.util.ArraysEx;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -47,10 +49,22 @@ public class IDEFile extends FSFileAdapter {
 		}
 	}
 
+	private void fillCompiler() {
+		compiler.setArgs(project.getCompilerArguments());
+		compiler.read(source);
+	}
+
+	public void fillCompiler(ReadableStream stream) {
+		if (compiler != null) {
+			compiler.setArgs(project.getCompilerArguments());
+			compiler.read(stream);
+		}
+	}
+
 	public void saveNotify(FileEditorRSTA.SaveResult result) {
 		if (source.canRead()) {
 			if (compiler != null) {
-				compiler.read(source);
+				fillCompiler();
 				for (IDEFileListener l : listeners) {
 					l.onSaved(this, result);
 				}
@@ -60,7 +74,7 @@ public class IDEFile extends FSFileAdapter {
 
 	public void closeNotify() {
 		if (source.canRead()) {
-			compiler.read(source);
+			fillCompiler();
 			for (IDEFileListener l : listeners) {
 				l.onClosed(this);
 			}
@@ -110,7 +124,7 @@ public class IDEFile extends FSFileAdapter {
 	}
 
 	public String getClasspathInProject() {
-		return getPathInProject().replace('/', LangConstants.CH_PATH_SEPARATOR);
+		return FSUtil.getFilePathWithoutExtension(getPathInProject().replace('/', LangConstants.CH_PATH_SEPARATOR));
 	}
 
 	public Preprocessor getCompiler() {

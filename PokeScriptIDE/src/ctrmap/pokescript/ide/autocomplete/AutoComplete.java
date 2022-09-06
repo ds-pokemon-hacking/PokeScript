@@ -4,7 +4,7 @@ import ctrmap.pokescript.LangCompiler;
 import ctrmap.pokescript.LangConstants;
 import ctrmap.pokescript.stage0.NMember;
 import ctrmap.pokescript.stage0.Preprocessor;
-import ctrmap.stdlib.fs.FSFile;
+import xstandard.fs.FSFile;
 import ctrmap.pokescript.ide.FileEditorRSTA;
 import ctrmap.pokescript.ide.autocomplete.gui.ACDocWindow;
 import ctrmap.pokescript.ide.autocomplete.gui.ACLayoutScout;
@@ -17,7 +17,7 @@ import ctrmap.pokescript.ide.autocomplete.nodes.NodeResultFactory;
 import ctrmap.pokescript.ide.autocomplete.nodes.PackageNode;
 import ctrmap.pokescript.ide.system.project.IDEProject;
 import ctrmap.pokescript.stage0.Statement;
-import ctrmap.stdlib.gui.components.CaretMotion;
+import xstandard.gui.components.CaretMotion;
 import java.awt.Point;
 import java.awt.Rectangle;
 import java.util.ArrayList;
@@ -258,7 +258,7 @@ public class AutoComplete {
 			if (LangConstants.isLangFile(f.getName())) {
 				acRoot.addChildUnbound(new ClassNode(f, cfg));
 			} else {
-				throw new UnsupportedOperationException("Cannot explicitly include a non-language file.");
+				throw new UnsupportedOperationException("Cannot explicitly include a non-language file. (" + f + ")");
 			}
 		}
 	}
@@ -266,7 +266,7 @@ public class AutoComplete {
 	private List<AbstractNode> localNodes = new ArrayList<>();
 	private Map<AbstractNode, String> localAliases = new HashMap<>();
 
-	public void rebuildNodeTree(Preprocessor script) {
+	public synchronized void rebuildNodeTree(Preprocessor script) {
 		if (script == null || script.cg == null) {
 			return;
 		}

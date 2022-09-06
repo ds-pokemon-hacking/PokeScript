@@ -1,9 +1,10 @@
 package ctrmap.pokescript.ide.forms;
 
 import ctrmap.pokescript.ide.system.savedata.IDEWorkspace;
-import ctrmap.stdlib.fs.accessors.DiskFile;
-import ctrmap.stdlib.gui.DialogUtils;
-import ctrmap.stdlib.gui.file.CMFileDialog;
+import xstandard.fs.FSFile;
+import xstandard.fs.accessors.DiskFile;
+import xstandard.gui.DialogUtils;
+import xstandard.gui.file.XFileDialog;
 import java.awt.Component;
 import java.io.File;
 
@@ -124,18 +125,18 @@ public class WorkspaceCreationDialog extends javax.swing.JDialog {
 
     private void btnBrowseActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_btnBrowseActionPerformed
 		String currentPath = getTargetPath();
-		File initDir = null;
+		DiskFile initDir = null;
 		if (currentPath != null) {
-			initDir = new File(currentPath);
+			initDir = new DiskFile(currentPath);
 			if (!initDir.exists() || !initDir.isDirectory()) {
 				initDir = null;
 			}
 		}
 
-		File target = CMFileDialog.openDirectoryDialog(initDir);
+		FSFile target = XFileDialog.openDirectoryDialog(initDir);
 
 		if (target != null) {
-			workspaceDirField.setText(target.getAbsolutePath());
+			workspaceDirField.setText(target.getPath());
 		}
     }//GEN-LAST:event_btnBrowseActionPerformed
 

@@ -1,10 +1,10 @@
 package ctrmap.pokescript.stage0.content;
 
 import ctrmap.pokescript.expr.Throughput;
+import ctrmap.pokescript.expr.ast.AST;
 import ctrmap.pokescript.stage0.Preprocessor;
 import ctrmap.pokescript.stage0.EffectiveLine;
 import ctrmap.pokescript.stage1.NCompileGraph;
-import ctrmap.pokescript.stage1.NExpression;
 import ctrmap.pokescript.types.DataType;
 
 public class ExpressionContent extends AbstractContent {
@@ -25,7 +25,7 @@ public class ExpressionContent extends AbstractContent {
 	@Override
 	public void addToGraph(NCompileGraph graph) {
 		//create an NExpression that compiles into the method
-		Throughput tp = new NExpression(trimmedData, line, graph).toThroughput(graph);
+		Throughput tp = new AST(line, graph, trimmedData).toThroughput();
 		if (tp != null) {
 			graph.addInstructions(tp.getCode(DataType.ANY.typeDef()));
 		}

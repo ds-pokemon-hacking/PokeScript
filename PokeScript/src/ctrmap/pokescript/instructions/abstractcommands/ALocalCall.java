@@ -1,34 +1,42 @@
 package ctrmap.pokescript.instructions.abstractcommands;
 
+import ctrmap.pokescript.InboundDefinition;
 import ctrmap.pokescript.OutboundDefinition;
-import ctrmap.pokescript.expr.Throughput;
+import ctrmap.pokescript.stage0.Modifier;
 import ctrmap.pokescript.stage1.NCompileGraph;
-import ctrmap.pokescript.stage1.NExpression;
 import ctrmap.pokescript.types.DataType;
-import ctrmap.stdlib.util.ArraysEx;
+import xstandard.util.ArraysEx;
 import java.util.List;
 
-public abstract class ALocalCall extends AInstruction {
+public class ALocalCall extends AInstruction {
 
 	public OutboundDefinition call;
 
-	public ALocalCall(String target, NExpression[] arguments, NCompileGraph graph) {
-		DataType[] argsTypes = new DataType[arguments.length];
-		Throughput[] args = new Throughput[arguments.length];
-		for (int i = 0; i < argsTypes.length; i++) {
-			args[i] = arguments[i].toThroughput(graph);
-		}
-		call = new OutboundDefinition(target, args);
-	}
+	public int localsSize;
 
 	public ALocalCall(OutboundDefinition out) {
 		call = out;
 	}
-	
+
+	public void init(NCompileGraph cg) {
+		localsSize = cg.getCurrentMethod().locals.variables.size();
+
+		InboundDefinition def = cg.findMethod(call);
+		if (def != null) {
+			for (int i = 0; i < call.args.length; i++) {
+				if (def.args[i].requestedModifiers.contains(Modifier.FINAL)) {
+					if (!call.args[i].isImmediate()) {
+						cg.currentCompiledLine.throwException("Constant argument required.");
+					}
+				}
+			}
+		}
+	}
+
 	public int getArgCount() {
 		return call.args.length;
 	}
-	
+
 	@Override
 	public List<AInstruction> getAllInstructions() {
 		List<AInstruction> l = ArraysEx.asList(this);
@@ -38,5 +46,15 @@ public abstract class ALocalCall extends AInstruction {
 			}
 		}
 		return l;
+	}
+
+	@Override
+	public AInstructionType getType() {
+		return AInstructionType.CALL_LOCAL;
+	}
+	
+	@Override
+	public String toString() {
+		return "CallLocal:" + call.name;
 	}
 }

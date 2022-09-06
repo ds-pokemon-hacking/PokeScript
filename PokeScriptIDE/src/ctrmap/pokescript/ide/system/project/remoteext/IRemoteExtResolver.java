@@ -1,7 +1,7 @@
 package ctrmap.pokescript.ide.system.project.remoteext;
 
 import ctrmap.pokescript.ide.system.project.IDEContext;
-import ctrmap.stdlib.fs.FSFile;
+import xstandard.fs.FSFile;
 
 public interface IRemoteExtResolver {
 	public String getName();

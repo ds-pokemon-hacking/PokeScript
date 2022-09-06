@@ -6,7 +6,7 @@
 
 package ctrmap.pokescript.ide.forms.settings.project;
 
-import ctrmap.stdlib.gui.components.tree.CustomJTreeNode;
+import xstandard.gui.components.tree.CustomJTreeNode;
 
 /**
  *

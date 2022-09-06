@@ -64,7 +64,7 @@ public class DocumentationHTMLFactory {
 			}
 			sb.appendUnpairedTag(HTML_LINEBREAK_TAG);
 			sb.appendUnpairedTag(HTML_LINEBREAK_TAG);
-			sb.append(m.doc.header);
+			sb.append(m.doc.header.replace("\n", "<br/>"));
 
 			if (!m.hasModifier(Modifier.VARIABLE)) {
 				if (!(m.doc.params.isEmpty() && m.doc.returns.isEmpty() && m.doc.exceptions.isEmpty())) {

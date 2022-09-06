@@ -13,9 +13,9 @@ import ctrmap.pokescript.stage1.NCompilableMethod;
 import ctrmap.pokescript.stage1.NCompileGraph;
 import ctrmap.pokescript.types.DataType;
 import ctrmap.pokescript.types.declarers.DeclarerController;
-import ctrmap.stdlib.fs.FSFile;
-import ctrmap.stdlib.io.base.iface.ReadableStream;
-import ctrmap.stdlib.util.ArraysEx;
+import xstandard.fs.FSFile;
+import xstandard.io.base.iface.ReadableStream;
+import xstandard.util.ArraysEx;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
@@ -32,8 +32,6 @@ public class Preprocessor {
 
 	private List<EffectiveLine> lines = new ArrayList<>();
 	private List<CommentDump> comments = new ArrayList<>();
-
-	public List<FSFile> include = new ArrayList<>();
 
 	private CompilerLogger log;
 	private LangCompiler.CompilerArguments args;
@@ -54,13 +52,16 @@ public class Preprocessor {
 	public Preprocessor(ReadableStream stream, String contextName, LangCompiler.CompilerArguments args) {
 		log = args.logger;
 		this.contextName = contextName;
-		include = args.includeRoots;
 		this.args = args;
 		read(stream);
 	}
 
 	public LangCompiler.CompilerArguments getArgs() {
 		return args;
+	}
+	
+	public void setArgs(LangCompiler.CompilerArguments args) {
+		this.args = args;
 	}
 
 	public void read(FSFile fsf) {
@@ -255,7 +256,7 @@ public class Preprocessor {
 		if (parentGraph != null) {
 			cg.merge(parentGraph);
 		}
-		cg.includePaths = include;
+		cg.includePaths = args.includeRoots;
 
 		DeclarerController declarer = new DeclarerController(cg);
 
@@ -287,6 +288,7 @@ public class Preprocessor {
 		for (CompilerExceptionData d : exc) {
 			log.println(CompilerLogger.LogLevel.ERROR, d.toString());
 		}
+		
 		if (!exc.isEmpty()) {
 			return null;
 		}

@@ -16,13 +16,12 @@ import ctrmap.pokescript.ide.system.project.tree.nodes.PackageNode;
 import ctrmap.pokescript.ide.system.project.tree.nodes.ProjectNode;
 import ctrmap.pokescript.ide.system.project.tree.nodes.ProjectReferenceNode;
 import ctrmap.pokescript.ide.system.project.tree.nodes.SourceDirNode;
-import ctrmap.stdlib.gui.components.tree.CustomJTree;
-import ctrmap.stdlib.res.ResourceAccess;
+import xstandard.gui.components.tree.CustomJTree;
+import xstandard.res.ResourceAccess;
 import java.util.ArrayList;
 import java.util.List;
 import javax.swing.tree.MutableTreeNode;
 import javax.swing.tree.TreeNode;
-import javax.swing.tree.TreePath;
 
 public class IDEProjectTree extends CustomJTree {
 
@@ -75,6 +74,19 @@ public class IDEProjectTree extends CustomJTree {
 		return nodes;
 	}
 
+	public ProjectNode findProjectNode(IDEProject proj) {
+		for (int i = 0; i < root.getChildCount(); i++) {
+			TreeNode ch = root.getChildAt(i);
+			if (ch instanceof ProjectNode) {
+				ProjectNode pn = (ProjectNode) ch;
+				if (pn.getProject() == proj) {
+					return pn;
+				}
+			}
+		}
+		return null;
+	}
+	
 	public void addFileByNode(IDENodeBase node, IDENodeBase parent, int index) {
 		model.insertNodeInto(node, parent, index);
 	}
@@ -84,6 +96,6 @@ public class IDEProjectTree extends CustomJTree {
 	}
 
 	private void registerIconResource(int resID, String name) {
-		registerIconResourceImpl(resID, "scripting/ui/tree/" + name + ".png");
+		registerIconResourceImpl(resID, "ctrmap/resources/scripting/ui/tree/" + name + ".png");
 	}
 }

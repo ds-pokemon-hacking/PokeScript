@@ -2,9 +2,10 @@
 package ctrmap.pokescript.types;
 
 import ctrmap.pokescript.expr.Throughput;
+import ctrmap.pokescript.instructions.abstractcommands.AFloatOpCode;
 import ctrmap.pokescript.stage0.CompilerPragma;
 import ctrmap.pokescript.stage1.NCompileGraph;
-import ctrmap.stdlib.util.ParsingUtils;
+import xstandard.util.ParsingUtils;
 
 /**
  *
@@ -32,7 +33,7 @@ public class IntegerTypeHandler implements AbstractTypeHandler{
 			case INT:
 				return r;
 			case FLOAT:
-				cg.provider.getFloatingPointHandler().castIntToFloat(r, cg);
+				r.instructions.add(cg.getPlainFloat(AFloatOpCode.VCVT_TOFLOAT));
 				return r;
 			default:
 				if (cg.getIsBoolPragmaEnabledSimple(CompilerPragma.ALLOW_UNSAFE_CASTS)) {

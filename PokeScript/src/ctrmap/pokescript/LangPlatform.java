@@ -1,11 +1,11 @@
 
 package ctrmap.pokescript;
 
-import ctrmap.stdlib.gui.file.ExtensionFilter;
+import xstandard.gui.file.ExtensionFilter;
 
 public enum LangPlatform {
-	AMX_CTR("ctr", LangConstants.LANG_BINARY_EXTENSION_FILTER_CTR),
-	AMX_NX("nx", LangConstants.LANG_BINARY_EXTENSION_FILTER_NTR),
+	AMX_CTR("ctr", LangConstants.LANG_BINARY_EXTENSION_FILTER_PAWN),
+	AMX_NX("nx", LangConstants.LANG_BINARY_EXTENSION_FILTER_PAWN),
 	EV_PL("ntrpl", LangConstants.LANG_BINARY_EXTENSION_FILTER_NTR),
 	EV_SWAN("ntrv", LangConstants.LANG_BINARY_EXTENSION_FILTER_NTR);
 	

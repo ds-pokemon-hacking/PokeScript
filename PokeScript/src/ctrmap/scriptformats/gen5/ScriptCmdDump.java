@@ -1,13 +1,13 @@
 package ctrmap.scriptformats.gen5;
 
 import ctrmap.pokescript.instructions.ntr.NTRDataType;
-import ctrmap.stdlib.formats.yaml.Key;
-import ctrmap.stdlib.formats.yaml.Yaml;
-import ctrmap.stdlib.formats.yaml.YamlListElement;
-import ctrmap.stdlib.formats.yaml.YamlNode;
-import ctrmap.stdlib.fs.FSFile;
-import ctrmap.stdlib.fs.accessors.DiskFile;
-import ctrmap.stdlib.io.base.impl.ext.data.DataIOStream;
+import xstandard.formats.yaml.Key;
+import xstandard.formats.yaml.Yaml;
+import xstandard.formats.yaml.YamlListElement;
+import xstandard.formats.yaml.YamlNode;
+import xstandard.fs.FSFile;
+import xstandard.fs.accessors.DiskFile;
+import xstandard.io.base.impl.ext.data.DataIOStream;
 import java.io.DataInput;
 import java.io.IOException;
 import java.util.ArrayList;
@@ -22,6 +22,8 @@ import java.util.logging.Logger;
  */
 public class ScriptCmdDump {
 
+	public static final int MAIN_CMD_TABLE_OVERLAY_NO = 12;
+	
 	public static final int MAIN_CMD_TABLE_OFFS = 0x216B578;
 	public static final int SCR_PLUGIN_INFO_ADDRESSES = 0x216C1EC;
 	public static final int SCR_PLUGIN_INFO_COUNT = 17;
@@ -49,10 +51,9 @@ public class ScriptCmdDump {
 
 	public static final int OFFS_BASE_OVL12 = 0x02150400;
 	public static final int OFFS_BASE_PLUGINS = 0x021E5800;
-
-	public static final int OVL_RAM_LOCATION = 0x0;
-	public static final int PTR_TO_CMD_TABLE_IN_OVL = 0x0;
-	public static final int PTR_TO_CMD_TABLE_IN_MAIN = 0x0;
+	
+	public static final String OVERLAY_ROOT_DIR_DECOMPRESSED = "D:\\_REWorkspace\\pokescript_genv\\overlays_dec";
+	public static final String OUTPUT_DIR = "D:\\_REWorkspace\\pokescript_genv\\decomp";
 
 	public static class OvlScrData {
 
@@ -79,7 +80,7 @@ public class ScriptCmdDump {
 	}
 
 	private static void dumpZonePluginTable() throws IOException {
-		DiskFile decompressedOverlayRoot = new DiskFile("D:\\_REWorkspace\\pokescript_genv\\overlays_dec");
+		DiskFile decompressedOverlayRoot = new DiskFile(OVERLAY_ROOT_DIR_DECOMPRESSED);
 		DataIOStream io = getOverlay(decompressedOverlayRoot, 12).getDataIOStream();
 		
 		Yaml yml = new Yaml();
@@ -104,17 +105,17 @@ public class ScriptCmdDump {
 			}
 			yml.root.addChild(node);
 		}
-		yml.writeToFile(new DiskFile("D:\\_REWorkspace\\pokescript_genv\\decomp\\MapsPerPlugin.yml"));
+		yml.writeToFile(new DiskFile(OUTPUT_DIR + "\\MapsPerPlugin.yml"));
 	}
 
 	public static void main(String[] args) {
-		DiskFile decompressedOverlayRoot = new DiskFile("D:\\_REWorkspace\\pokescript_genv\\overlays_dec");
+		DiskFile decompressedOverlayRoot = new DiskFile(OVERLAY_ROOT_DIR_DECOMPRESSED);
 
 		try {
 			dumpZonePluginTable();
 			List<OvlScrData> osd = new ArrayList<>();
 
-			DataIOStream io = getOverlay(decompressedOverlayRoot, 12).getDataIOStream();
+			DataIOStream io = getOverlay(decompressedOverlayRoot, MAIN_CMD_TABLE_OVERLAY_NO).getDataIOStream();
 
 			io.setBase(OFFS_BASE_OVL12);
 			io.seek(SCR_PLUGIN_INFO_ADDRESSES);
@@ -125,7 +126,7 @@ public class ScriptCmdDump {
 			io.close();
 
 			List<FuncData> funcs = new ArrayList<>();
-			funcs.addAll(readFuncData(getOverlay(decompressedOverlayRoot, 12), OFFS_BASE_OVL12, MAIN_CMD_TABLE_OFFS, MAIN_CMD_TABLE_OFFS, MAIN_CMD_COUNT, -1, -1));
+			funcs.addAll(readFuncData(getOverlay(decompressedOverlayRoot, MAIN_CMD_TABLE_OVERLAY_NO), OFFS_BASE_OVL12, MAIN_CMD_TABLE_OFFS, MAIN_CMD_TABLE_OFFS, MAIN_CMD_COUNT, -1, -1));
 			for (OvlScrData d : osd) {
 				if (d.mapNoTableStart != 0) {
 					funcs.addAll(readFuncData(getOverlay(decompressedOverlayRoot, d.overlayNo), OFFS_BASE_PLUGINS, d.cmdTableSrcOffs, d.mapNoTableStart, -1, d.overlayNo, d.overlayNo2));
@@ -196,7 +197,7 @@ public class ScriptCmdDump {
 			}
 			//yml.writeToFile(new DiskFile("D:\\_REWorkspace\\pokescript_genv\\decomp\\binfuncs.yml"));
 			for (Map.Entry<String, Yaml> e : ymls.entrySet()) {
-				e.getValue().writeToFile(new DiskFile("D:\\_REWorkspace\\pokescript_genv\\decomp\\" + e.getKey() + ".yml"));
+				e.getValue().writeToFile(new DiskFile(OUTPUT_DIR + e.getKey() + ".yml"));
 			}
 
 			io.close();

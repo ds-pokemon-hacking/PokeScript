@@ -5,11 +5,11 @@ import ctrmap.pokescript.instructions.ntr.NTRDataType;
 import ctrmap.pokescript.instructions.ntr.NTRInstructionPrototype;
 import ctrmap.scriptformats.gen5.VCommandDataBase;
 import ctrmap.scriptformats.gen5.VScriptFile;
-import ctrmap.stdlib.io.base.impl.ext.data.DataIOStream;
-import ctrmap.stdlib.text.FormattingUtils;
+import xstandard.fs.accessors.DiskFile;
+import xstandard.io.base.impl.ext.data.DataIOStream;
+import xstandard.text.FormattingUtils;
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Comparator;
 import java.util.List;
 import java.util.logging.Level;
@@ -157,6 +157,28 @@ public class VDisassembler {
 		}
 		return null;
 	}
+	
+	public static void main(String[] args) {
+		try {
+			DataIOStream io = new DiskFile("D:\\_REWorkspace\\pokescript_genv\\6\\6_1244.bin").getDataIOStream();
+			
+			int pos = 0;
+			int len = io.getLength();
+			
+			while (pos + 4 < len) {
+				io.seek(pos);
+				int val = io.readInt();
+				if (io.getPosition() + val == 0x35f) {
+					System.out.println("fdf");
+				}
+				pos++;
+			}
+			
+			io.close();
+		} catch (IOException ex) {
+			Logger.getLogger(VDisassembler.class.getName()).log(Level.SEVERE, null, ex);
+		}
+	}
 
 	private DisassembledMethod readMethod(DataIOStream dis, LinkPrototype lp) throws IOException {
 		if (findMethodByPtr(lp.targetOffset) != null) {
@@ -168,6 +190,8 @@ public class VDisassembler {
 		int max = dis.getLength() - 2;
 
 		DisassembledMethod m = new DisassembledMethod(methodPtr);
+		List<LinkPrototype> localJumpLinks = new ArrayList<>();
+		List<LinkPrototype> localCallLinks = new ArrayList<>();
 
 		FuncReader:
 		while (dis.getPosition() < max) {
@@ -223,25 +247,33 @@ public class VDisassembler {
 				call.command = c;
 
 				m.instructions.add(call);
+				
 
 				switch (c.type) {
 					case HALT:
 					case RETURN:
-						boolean hasJumpTo = false;
-						for (LinkPrototype jumpTo : jumpLinks) {
-							if (jumpTo.targetOffset == dis.getPosition()) {
-								hasJumpTo = true;
-								break;
+						//boolean hasJumpTo = false;
+						LinkPrototype closestLinkJump = null;
+						int closestLinkJumpPtr = Integer.MAX_VALUE;
+						int pos = dis.getPosition();
+						for (LinkPrototype jumpTo : localJumpLinks) {
+							if (jumpTo.targetOffset >= pos) {
+								if (jumpTo.targetOffset < closestLinkJumpPtr) {
+									closestLinkJumpPtr = jumpTo.targetOffset;
+									closestLinkJump = jumpTo;
+								}
 							}
 						}
-						if (hasJumpTo) {
+						if (closestLinkJump != null) {
 							//WORKAROUND: If there is a forward jump to this instruction, keep reading
+							dis.seek(closestLinkJumpPtr);
 							break;
 						}
 						break FuncReader;
 					case JUMP: {
 						LinkPrototype link = new LinkPrototype(dis, call.args[call.args.length - 1]);
 						jumpLinks.add(link);
+						localJumpLinks.add(link);
 						break;
 					}
 					case ACTION_JUMP:
@@ -251,7 +283,7 @@ public class VDisassembler {
 						if (!call.command.callsExtern) {
 							LinkPrototype link = new LinkPrototype(dis, call.args[call.args.length - 1]);
 							System.out.println("Function call to " + Integer.toHexString(link.targetOffset) + " from " + Integer.toHexString(link.sourceOffset));
-							functionCalls.add(link);
+							localCallLinks.add(link);
 						}
 						break;
 					}
@@ -268,13 +300,15 @@ public class VDisassembler {
 				readActionSeq(dis, actionSeqCall);
 			}
 		}
+		
+		functionCalls.addAll(localCallLinks);
 
-		List<LinkPrototype> currentFuncCalls = new ArrayList<>(functionCalls);
-		for (LinkPrototype funcCall : currentFuncCalls) {
+		for (LinkPrototype funcCall : localCallLinks) {
 			if (findMethodByPtr(funcCall.targetOffset) == null) {
 				readMethod(dis, funcCall);
 			}
 		}
+		
 		return m;
 	}
 

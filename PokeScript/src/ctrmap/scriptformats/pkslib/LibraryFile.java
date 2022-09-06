@@ -1,9 +1,9 @@
 package ctrmap.scriptformats.pkslib;
 
 import ctrmap.pokescript.LangPlatform;
-import ctrmap.stdlib.fs.FSFile;
-import ctrmap.stdlib.formats.zip.ZipArchive;
-import ctrmap.stdlib.fs.accessors.FSFileAdapter;
+import xstandard.fs.FSFile;
+import xstandard.formats.zip.ZipArchive;
+import xstandard.fs.accessors.FSFileAdapter;
 
 public class LibraryFile extends FSFileAdapter {
 

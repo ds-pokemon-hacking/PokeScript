@@ -7,13 +7,13 @@ import java.util.List;
  *
  */
 public enum Statement {
-	WHILE("while", EffectiveLine.StatementFlags.NEEDS_ARGUMENTS, EffectiveLine.StatementFlags.HAS_ARGUMENTS_IN_BRACES),
-	IF("if", EffectiveLine.StatementFlags.NEEDS_ARGUMENTS, EffectiveLine.StatementFlags.HAS_ARGUMENTS_IN_BRACES),
+	WHILE("while", EffectiveLine.StatementFlags.NEEDS_ARGUMENTS, EffectiveLine.StatementFlags.HAS_ARGUMENTS_IN_BRACES, EffectiveLine.StatementFlags.ARGUMENT_IS_EXPRESSION),
+	IF("if", EffectiveLine.StatementFlags.NEEDS_ARGUMENTS, EffectiveLine.StatementFlags.HAS_ARGUMENTS_IN_BRACES, EffectiveLine.StatementFlags.ARGUMENT_IS_EXPRESSION),
 	ELSE("else", EffectiveLine.StatementFlags.FORBIDS_ARGUMENTS),
-	ELSE_IF("else", "if", EffectiveLine.StatementFlags.NEEDS_ARGUMENTS, EffectiveLine.StatementFlags.HAS_ARGUMENTS_IN_BRACES),
-	FOR("for", EffectiveLine.StatementFlags.NEEDS_ARGUMENTS, EffectiveLine.StatementFlags.HAS_ARGUMENTS_IN_BRACES),
-	SWITCH("switch", EffectiveLine.StatementFlags.NEEDS_ARGUMENTS, EffectiveLine.StatementFlags.HAS_ARGUMENTS_IN_BRACES),
-	RETURN("return"), 
+	ELSE_IF("else", "if", EffectiveLine.StatementFlags.NEEDS_ARGUMENTS, EffectiveLine.StatementFlags.HAS_ARGUMENTS_IN_BRACES, EffectiveLine.StatementFlags.ARGUMENT_IS_EXPRESSION),
+	FOR("for", EffectiveLine.StatementFlags.NEEDS_ARGUMENTS, EffectiveLine.StatementFlags.HAS_ARGUMENTS_IN_BRACES, EffectiveLine.StatementFlags.ARGUMENT_IS_EXPRESSION),
+	SWITCH("switch", EffectiveLine.StatementFlags.NEEDS_ARGUMENTS, EffectiveLine.StatementFlags.HAS_ARGUMENTS_IN_BRACES, EffectiveLine.StatementFlags.ARGUMENT_IS_EXPRESSION),
+	RETURN("return", EffectiveLine.StatementFlags.ARGUMENT_IS_EXPRESSION), 
 	PAUSE("pause", EffectiveLine.StatementFlags.FORBIDS_ARGUMENTS),
 	IMPORT("import", EffectiveLine.StatementFlags.NEEDS_ARGUMENTS, EffectiveLine.StatementFlags.ALLOWS_GLOBAL_EXPLICIT),
 	PACKAGE("package", EffectiveLine.StatementFlags.ALLOWS_GLOBAL_EXPLICIT),

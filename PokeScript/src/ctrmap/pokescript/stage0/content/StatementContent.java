@@ -2,6 +2,7 @@ package ctrmap.pokescript.stage0.content;
 
 import ctrmap.pokescript.LangConstants;
 import ctrmap.pokescript.expr.Throughput;
+import ctrmap.pokescript.expr.ast.AST;
 import ctrmap.pokescript.stage0.Preprocessor;
 import ctrmap.pokescript.instructions.abstractcommands.AInstruction;
 import ctrmap.pokescript.instructions.abstractcommands.APlainOpCode;
@@ -13,12 +14,11 @@ import ctrmap.pokescript.stage1.BlockStack;
 import ctrmap.pokescript.stage1.CompileBlock;
 import ctrmap.pokescript.stage1.NCompilableMethod;
 import ctrmap.pokescript.stage1.NCompileGraph;
-import ctrmap.pokescript.stage1.NExpression;
 import ctrmap.pokescript.stage1.PendingLabel;
 import ctrmap.pokescript.types.DataType;
 import ctrmap.pokescript.types.declarers.DeclarerController;
-import ctrmap.stdlib.text.StringEx;
-import ctrmap.stdlib.util.ArraysEx;
+import xstandard.text.StringEx;
+import xstandard.util.ArraysEx;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -62,31 +62,37 @@ public class StatementContent extends AbstractContent {
 				String[] argsSplit = StringEx.splitOnecharFastNoBlank(args.getContentInBraces(), LangConstants.CH_STATEMENT_SEPARATOR);
 				arguments.addAll(ArraysEx.asList(argsSplit));
 			} else {
-				//arguments separated with gaps
 				String at = Preprocessor.getStrWithoutTerminator(source.substring(realStart)).trim();
-				if (!at.isEmpty()) {
-					StringBuilder sb = new StringBuilder();
-					int bl = 0;
-					for (int i = 0; i < at.length(); i++) {
-						char c = at.charAt(i);
-						switch (c) {
-							case '(':
-								bl++;
-								break;
-							case ')':
-								bl--;
-								break;
-							case ' ':
-								if (bl == 0) {
-									arguments.add(sb.toString());
-									sb = new StringBuilder();
-								}
-								break;
-						}
-						sb.append(c);
+				if (statement.hasFlag(EffectiveLine.StatementFlags.ARGUMENT_IS_EXPRESSION)) {
+					if (!at.isEmpty()) {
+						arguments.add(at);
 					}
-					if (sb.length() != 0) {
-						arguments.add(sb.toString());
+				} else {
+					//arguments separated with gaps
+					if (!at.isEmpty()) {
+						StringBuilder sb = new StringBuilder();
+						int bl = 0;
+						for (int i = 0; i < at.length(); i++) {
+							char c = at.charAt(i);
+							switch (c) {
+								case '(':
+									bl++;
+									break;
+								case ')':
+									bl--;
+									break;
+								case ' ':
+									if (bl == 0) {
+										arguments.add(sb.toString());
+										sb = new StringBuilder();
+									}
+									break;
+							}
+							sb.append(c);
+						}
+						if (sb.length() != 0) {
+							arguments.add(sb.toString());
+						}
 					}
 				}
 			}
@@ -146,13 +152,19 @@ public class StatementContent extends AbstractContent {
 					label = arguments.get(0);
 				}
 				BlockStack.BlockResult b = graph.currentBlocks.getBlocksToAttribute(CompileBlock.BlockAttribute.BREAKABLE, label);
-				if (b.blocks.isEmpty()) {
-					line.throwException("Nothing to break out of.");
+				CompileBlock bb = b.getBlockByAttr(CompileBlock.BlockAttribute.BREAKABLE, label);
+				if (bb == null) {
+					if (label != null) {
+						line.throwException("Could not find breakable block by label " + label);
+					} else {
+						line.throwException("Nothing to break out of.");
+					}
+				} else {
+					l.add(graph.getLocalsRemoveIns(b.collectLocalsNoBottom(bb)));
+					//jump to the end of the block
+					//System.out.println("break " + bb.fullBlockName);
+					l.add(graph.getConditionJump(APlainOpCode.JUMP, bb.getBlockTermFullLabel()));
 				}
-				l.add(graph.getLocalsRemoveIns(b.collectLocalsNoBottom()));
-				//jump to the end of the block
-				CompileBlock bb = b.getBottomBlock();
-				l.add(graph.provider.getConditionJump(APlainOpCode.JUMP, bb.getBlockTermFullLabel()));
 				break;
 			}
 			case CONTINUE: {
@@ -161,23 +173,29 @@ public class StatementContent extends AbstractContent {
 					label = arguments.get(0);
 				}
 				BlockStack.BlockResult b = graph.currentBlocks.getBlocksToAttribute(CompileBlock.BlockAttribute.LOOP, label);
-				if (b.blocks.isEmpty()) {
-					line.throwException("No loop found to continue.");
+				CompileBlock bb = b.getBlockByAttr(CompileBlock.BlockAttribute.LOOP, label);
+				if (bb == null) {
+					if (label != null) {
+						line.throwException("No breakable loop found for label " + label);
+					} else {
+						line.throwException("No loop found to continue.");
+					}
+				} else {
+					l.add(graph.getLocalsRemoveIns(b.collectLocalsNoBottom(bb)));
+					//jump to the beginning of the block
+					l.add(graph.getConditionJump(APlainOpCode.JUMP, bb.fullBlockName));
 				}
-				l.add(graph.getLocalsRemoveIns(b.collectLocalsNoBottom()));
-				//jump to the beginning of the block
-				CompileBlock bb = b.getBottomBlock();
-				l.add(graph.provider.getConditionJump(APlainOpCode.JUMP, bb.fullBlockName));
 				break;
 			}
 			case RETURN: {
-				NExpression expr = getExprArg(graph);
+				AST expr = getExprArg(graph);
 
 				NCompilableMethod m = graph.getCurrentMethod();
 
 				if (m != null) {
-					if (expr != null) {
-						l.addAll(expr.toThroughput(graph).getCode(m.def.retnType));
+					Throughput tp;
+					if (expr != null && (tp = expr.toThroughput()) != null) {
+						l.addAll(tp.getCode(m.def.retnType));
 					} else {
 						if (m.def.retnType.baseType != DataType.VOID) {
 							line.throwException("Expected a return value.");
@@ -186,8 +204,7 @@ public class StatementContent extends AbstractContent {
 					}
 					if (m.locals != null) {
 						l.add(graph.getLocalsRemoveIns(m.locals.getNonArgVars())); //removes all the locals used in the method so far
-					}
-					else {
+					} else {
 						line.throwException("Internal error: method not initialized " + m.def);
 					}
 					l.add(graph.getPlain(APlainOpCode.RETURN));
@@ -199,11 +216,11 @@ public class StatementContent extends AbstractContent {
 			case SWITCH: {
 				CompileBlock switchBlock = new CompileBlock(statement, graph);
 				graph.pushBlock(switchBlock);
-				NExpression expr = getExprArg(graph);
-				if (expr != null) {
-					Throughput tp = expr.toThroughput(graph);
+				AST expr = getExprArg(graph);
+				Throughput tp;
+				if (expr != null && (tp = expr.toThroughput()) != null) {
 					if (tp.checkImplicitCast(DataType.INT.typeDef(), line)) {
-						l.addAll(expr.toThroughput(graph).getCode(DataType.INT.typeDef()));
+						l.addAll(expr.toThroughput().getCode(DataType.INT.typeDef()));
 					} else {
 						line.throwException("A switch statement requires an integer target.");
 					}
@@ -211,9 +228,9 @@ public class StatementContent extends AbstractContent {
 					line.throwException("A switch statement requires a target.");
 				}
 
-				l.add(graph.provider.getConditionJump(APlainOpCode.SWITCH, switchBlock.fullBlockName + "_casetbl"));
-				switchBlock.blockEndControlInstruction = graph.provider.getCaseTable();
-				switchBlock.blockEndInstructions.add(graph.provider.getConditionJump(APlainOpCode.JUMP, switchBlock.getBlockTermFullLabel()));
+				l.add(graph.getConditionJump(APlainOpCode.SWITCH, switchBlock.fullBlockName + "_casetbl"));
+				switchBlock.blockEndControlInstruction = graph.getCaseTable();
+				switchBlock.blockEndInstructions.add(graph.getConditionJump(APlainOpCode.JUMP, switchBlock.getBlockTermFullLabel()));
 				switchBlock.blockEndControlInstruction.addLabel(switchBlock.fullBlockName + "_casetbl");
 				//now the compilation follows like normal, adding the casetbl labels to the switch by recognizing the block's control instruction
 				break;
@@ -222,15 +239,15 @@ public class StatementContent extends AbstractContent {
 				CompileBlock ifBlock = new CompileBlock(statement, graph);
 				ifBlock.explicitAdjustStack = true;
 				graph.pushBlock(ifBlock);
-				NExpression expr = getExprArg(graph);
+				AST expr = getExprArg(graph);
 				if (expr != null) {
-					addCondToList(expr, l, graph.provider.getConditionJump(APlainOpCode.JUMP_IF_ZERO, ifBlock.getBlockHaltFullLabel()), graph);
+					addCondToList(expr, l, graph.getConditionJump(APlainOpCode.JUMP_IF_ZERO, ifBlock.getBlockHaltFullLabel()), graph);
 				} else {
 					line.throwException("An if statement requires a condition.");
 				}
 
 				//l.add(ifBlock.blockBeginAdjustStackIns);
-				ifBlock.blockEndControlInstruction = graph.provider.getConditionJump(APlainOpCode.JUMP, ifBlock.getBlockHaltFullLabel());
+				ifBlock.blockEndControlInstruction = graph.getConditionJump(APlainOpCode.JUMP, ifBlock.getBlockHaltFullLabel());
 				break;
 			}
 			case ELSE:
@@ -244,18 +261,18 @@ public class StatementContent extends AbstractContent {
 				elseBlock.explicitAdjustStack = true;
 				elseBlock.chainPredecessor = lastHistoryBlock;
 				graph.pushBlock(elseBlock);
-				NExpression expr = getExprArg(graph);
+				AST expr = getExprArg(graph);
 				if (expr != null) {
 					if (statement == Statement.ELSE) {
 						line.throwException("An else statement can not have a condition.");
 					} else {
-						addCondToList(expr, l, graph.provider.getConditionJump(APlainOpCode.JUMP_IF_ZERO, elseBlock.getBlockHaltFullLabel()), graph);
+						addCondToList(expr, l, graph.getConditionJump(APlainOpCode.JUMP_IF_ZERO, elseBlock.getBlockHaltFullLabel()), graph);
 					}
 				} else if (statement == Statement.ELSE_IF) {
 					line.throwException("An else-if statement requires a condition.");
 				}
 				if (statement == Statement.ELSE_IF) {
-					elseBlock.blockEndControlInstruction = graph.provider.getConditionJump(APlainOpCode.JUMP, elseBlock.getBlockHaltFullLabel());
+					elseBlock.blockEndControlInstruction = graph.getConditionJump(APlainOpCode.JUMP, elseBlock.getBlockHaltFullLabel());
 				}
 				//l.add(elseBlock.blockBeginAdjustStackIns);
 				//The if statement jumps to the beginning to the else statement if it fails naturally.
@@ -267,15 +284,15 @@ public class StatementContent extends AbstractContent {
 				CompileBlock whileBlock = new CompileBlock(statement, graph);
 				whileBlock.explicitAdjustStack = true;
 				graph.pushBlock(whileBlock);
-				NExpression expr = getExprArg(graph);
+				AST expr = getExprArg(graph);
 				if (expr != null) {
-					addCondToList(expr, l, graph.provider.getConditionJump(APlainOpCode.JUMP_IF_ZERO, whileBlock.getBlockHaltFullLabel()), graph);
+					addCondToList(expr, l, graph.getConditionJump(APlainOpCode.JUMP_IF_ZERO, whileBlock.getBlockHaltFullLabel()), graph);
 				} else {
 					line.throwException("A while statement requires a condition.");
 				}
 
 				//l.add(whileBlock.blockBeginAdjustStackIns);
-				whileBlock.blockEndControlInstruction = graph.provider.getConditionJump(APlainOpCode.JUMP, whileBlock.fullBlockName);
+				whileBlock.blockEndControlInstruction = graph.getConditionJump(APlainOpCode.JUMP, whileBlock.fullBlockName);
 				break;
 			}
 			case FOR: {
@@ -300,17 +317,17 @@ public class StatementContent extends AbstractContent {
 					}
 					graph.pushBlock(forBlock);
 					PendingLabel effectiveStart = graph.addPendingLabel("FOR_effective_start");
-					NExpression condition = getExprArg(graph, 1);
-					addCondToList(condition, l, graph.provider.getConditionJump(APlainOpCode.JUMP_IF_ZERO, forBlock.getBlockHaltFullLabel()), graph);
+					AST condition = getExprArg(graph, 1);
+					addCondToList(condition, l, graph.getConditionJump(APlainOpCode.JUMP_IF_ZERO, forBlock.getBlockHaltFullLabel()), graph);
 					//l.add(forBlock.blockBeginAdjustStackIns);
-					NExpression expr = getExprArg(graph, 2);
+					AST expr = getExprArg(graph, 2);
 					if (expr != null) {
-						Throughput tp = expr.toThroughput(graph);
+						Throughput tp = expr.toThroughput();
 						if (tp != null) {
 							forBlock.blockEndInstructions.addAll(tp.getCode(DataType.ANY.typeDef()));
 						}
 					}
-					forBlock.blockEndControlInstruction = graph.provider.getConditionJump(APlainOpCode.JUMP, effectiveStart.getFullLabel());
+					forBlock.blockEndControlInstruction = graph.getConditionJump(APlainOpCode.JUMP, effectiveStart.getFullLabel());
 				} else {
 					line.throwException("A for exception requires a declaration, condition and expression.");
 				}
@@ -324,7 +341,7 @@ public class StatementContent extends AbstractContent {
 					} else {
 						String label = arguments.get(0);
 						graph.addLabelRequest(label);
-						l.add(graph.provider.getConditionJump(APlainOpCode.JUMP, label));
+						l.add(graph.getConditionJump(APlainOpCode.JUMP, label));
 					}
 				} else {
 					line.throwException("This compiler does not support the goto statement.");
@@ -342,23 +359,25 @@ public class StatementContent extends AbstractContent {
 		graph.addInstructions(l);
 	}
 
-	private void addCondToList(NExpression expr, List<AInstruction> l, AInstruction endJump, NCompileGraph cg) {
+	private void addCondToList(AST expr, List<AInstruction> l, AInstruction endJump, NCompileGraph cg) {
 		if (expr != null) {
-			Throughput tp = expr.toThroughput(cg);
-			if (tp.checkImplicitCast(DataType.BOOLEAN.typeDef(), line)) {
-				l.addAll(tp.getCode(DataType.BOOLEAN.typeDef()));
-				l.add(endJump);
+			Throughput tp = expr.toThroughput();
+			if (tp != null) {
+				if (tp.checkImplicitCast(DataType.BOOLEAN.typeDef(), line)) {
+					l.addAll(tp.getCode(DataType.BOOLEAN.typeDef()));
+					l.add(endJump);
+				}
 			}
 		}
 	}
 
-	private NExpression getExprArg(NCompileGraph g) {
+	private AST getExprArg(NCompileGraph g) {
 		return getExprArg(g, 0);
 	}
 
-	private NExpression getExprArg(NCompileGraph g, int idx) {
+	private AST getExprArg(NCompileGraph g, int idx) {
 		if (!arguments.isEmpty()) {
-			NExpression ex = new NExpression(arguments.get(idx), line, g);
+			AST ex = new AST(line, g, arguments.get(idx));
 			if (line.exceptions.isEmpty()) {
 				return ex;
 			}

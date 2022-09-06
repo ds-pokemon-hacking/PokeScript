@@ -1,16 +1,15 @@
 package ctrmap.pokescript.instructions.providers;
 
-import ctrmap.pokescript.instructions.abstractcommands.ACompiledInstruction;
+import ctrmap.pokescript.instructions.abstractcommands.AInstruction;
 import ctrmap.pokescript.instructions.abstractcommands.MetaCall;
 import ctrmap.pokescript.stage0.content.DeclarationContent;
-import ctrmap.pokescript.stage1.NCompilableMethod;
 import ctrmap.pokescript.stage1.NCompileGraph;
-import java.util.List;
+import ctrmap.pokescript.stage2.AbstractCodeFactory;
 
-public interface MetaFunctionHandler {
+public interface MetaFunctionHandler<I> {
 	public void onDeclare(DeclarationContent cnt);
-	public void onCompileBegin(NCompileGraph graph, NCompilableMethod method);
-	public void onCompileEnd(NCompileGraph graph, NCompilableMethod method);
-	
-	public List<ACompiledInstruction> compileMetaCall(MetaCall call, NCompileGraph graph);
+		
+	public boolean assembleMetaInstruction(AbstractCodeFactory<I> assembler, AInstruction instruction, NCompileGraph graph);
+	public I compileMetaCall(AbstractCodeFactory<I> assembler, MetaCall call, NCompileGraph graph);
+	public void linkCall(I source, I target);
 }

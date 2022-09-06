@@ -24,6 +24,18 @@ public enum DataType {
 	
 	CLASS("class", new ClassTypeHandler());
 	
+	private static final TypeDef[] PRIMITIVE_TYPEDEFS;
+	
+	static {
+		DataType[] v = values();
+		
+		PRIMITIVE_TYPEDEFS = new TypeDef[v.length];
+		
+		for (int i = 0; i < v.length; i++) {
+			PRIMITIVE_TYPEDEFS[i] = new TypeDef(v[i]);
+		}
+	}
+	
 	private String name;
 	private AbstractTypeHandler handler;
 	private DataTypeAttrib[] attribs;
@@ -79,8 +91,9 @@ public enum DataType {
 			case CLASS:
 			case ENUM:
 				return new TypeDef(getFriendlyName(), this == ENUM); 
+			default:
+				return PRIMITIVE_TYPEDEFS[ordinal()];
 		}
-		return new TypeDef(this);
 	}
 	
 	public boolean isNumber(){

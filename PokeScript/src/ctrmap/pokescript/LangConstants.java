@@ -1,7 +1,7 @@
 package ctrmap.pokescript;
 
-import ctrmap.stdlib.gui.file.ExtensionFilter;
-import ctrmap.stdlib.util.ArraysEx;
+import xstandard.gui.file.ExtensionFilter;
+import xstandard.util.ArraysEx;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -26,7 +26,7 @@ public class LangConstants {
 	public static final ExtensionFilter LANG_COMPILABLES_FILTER_COMB = ExtensionFilter.combine(LANG_SOURCE_FILE_EXTENSION_FILTER, LANG_HEADER_EXTENSION_FILTER);
 	public static final ExtensionFilter LANG_LIBRARY_EXTENSION_FILTER = new ExtensionFilter("PokéScript Library", "*.lib");
 
-	public static final ExtensionFilter LANG_BINARY_EXTENSION_FILTER_CTR = new ExtensionFilter("Abstract Machine Executable", "*.amx");
+	public static final ExtensionFilter LANG_BINARY_EXTENSION_FILTER_PAWN = new ExtensionFilter("Abstract Machine Executable", "*.amx");
 	public static final ExtensionFilter LANG_BINARY_EXTENSION_FILTER_NTR = new ExtensionFilter("Event binary", "*.ev");
 
 	public static final char CH_PP_KW_IDENTIFIER = '#';
@@ -69,7 +69,7 @@ public class LangConstants {
 		}
 		int didx = path.lastIndexOf('.');
 		if (didx != -1) {
-			return path.substring(didx + 1, path.length());
+			return path.substring(didx + 1);
 		}
 		return path;
 	}

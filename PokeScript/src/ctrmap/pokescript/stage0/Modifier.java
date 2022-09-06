@@ -18,6 +18,8 @@ public enum Modifier {
 	CLASSDEF,
 	ENUMDEF;
 
+	public static final Modifier[] MODIFIERS_ALL = values();
+	
 	public final String name;
 	private ModifierTarget[] targets;
 

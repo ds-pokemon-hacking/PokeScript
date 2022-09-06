@@ -5,7 +5,7 @@ import ctrmap.pokescript.ide.autocomplete.nodes.ClassNode;
 import ctrmap.pokescript.ide.autocomplete.nodes.MemberNode;
 import ctrmap.pokescript.ide.autocomplete.nodes.PackageNode;
 import ctrmap.pokescript.stage0.Modifier;
-import ctrmap.stdlib.math.MathEx;
+import xstandard.math.MathEx;
 import java.awt.Color;
 import java.awt.Component;
 import java.util.ArrayList;

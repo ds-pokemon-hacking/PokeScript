@@ -38,7 +38,6 @@ public class DataGraph implements Iterable<Variable>{
 	public Variable getVariable(String name) {
 		for (Variable v : variables) {
 			if (v.name.equals(name)) {
-				v.timesUsed++;
 				return v;
 			}
 		}

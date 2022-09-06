@@ -1,6 +1,6 @@
 package ctrmap.scriptformats.gen6;
 
-import ctrmap.stdlib.text.StringEx;
+import xstandard.text.StringEx;
 
 public enum PawnOpCode {
 	NONE,

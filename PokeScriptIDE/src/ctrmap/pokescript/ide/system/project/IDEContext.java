@@ -3,9 +3,9 @@ package ctrmap.pokescript.ide.system.project;
 import ctrmap.pokescript.ide.system.IDEResourceReference;
 import ctrmap.pokescript.ide.system.project.remoteext.IRemoteExtResolver;
 import ctrmap.pokescript.ide.system.savedata.IDEWorkspace;
-import ctrmap.stdlib.fs.FSFile;
-import ctrmap.stdlib.fs.accessors.DiskFile;
-import ctrmap.stdlib.gui.DialogUtils;
+import xstandard.fs.FSFile;
+import xstandard.fs.accessors.DiskFile;
+import xstandard.gui.DialogUtils;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -77,7 +77,7 @@ public class IDEContext {
 	public IDEProject getLoadedProject(FSFile projectFile) {
 		FSFile projectRoot = projectFile.getParent();
 		for (IDEProject prj : openedProjects) {
-			if (prj.getRoot().equals(projectRoot)) {
+			if (prj.getIDERoot().equals(projectRoot)) {
 				return prj;
 			}
 		}

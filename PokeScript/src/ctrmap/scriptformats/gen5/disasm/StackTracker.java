@@ -67,7 +67,7 @@ public class StackTracker {
 					break;
 				case PUSH_VAR:
 					int param = call.args[0];
-					StackElementType t = param < VConstants.WKVAL_START ? StackElementType.CONSTANT : StackElementType.VARIABLE;
+					StackElementType t = VConstants.isWk(param) ? StackElementType.VARIABLE : StackElementType.CONSTANT;
 					push(new StackElement(t, param));
 					break;
 				case ADD:

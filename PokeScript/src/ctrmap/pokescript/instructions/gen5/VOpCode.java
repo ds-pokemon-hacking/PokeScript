@@ -74,7 +74,7 @@ public enum VOpCode {
 	}
 
 	public NTRInstructionCall createCall(int... args) {
-		return new NTRInstructionCall(proto, args);
+		return proto.createCall(args);
 	}
 
 	public int getSize() {

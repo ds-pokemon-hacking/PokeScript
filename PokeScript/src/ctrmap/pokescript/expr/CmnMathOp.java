@@ -1,5 +1,6 @@
 package ctrmap.pokescript.expr;
 
+import ctrmap.pokescript.instructions.abstractcommands.AFloatOpCode;
 import ctrmap.pokescript.types.DataType;
 import ctrmap.pokescript.instructions.abstractcommands.AInstruction;
 import ctrmap.pokescript.instructions.abstractcommands.APlainOpCode;
@@ -9,19 +10,22 @@ import ctrmap.pokescript.types.TypeDef;
 import java.util.ArrayList;
 import java.util.List;
 
-public abstract class CmnMathOp extends Operator {
+public abstract class CmnMathOp extends NumerableOperator {
 
-	private boolean isSetTo = false;
-	private boolean isDoubleOp = false;
-
-	public abstract APlainOpCode getSimpleOperationCommand();
-
-	public CmnMathOp(String source) {
-		if (source != null && source.endsWith("=")) {
-			isSetTo = true;
-		}
-		isDoubleOp = (source != null && source.length() > 1) ? source.charAt(0) == source.charAt(1) : false;
-		isSetTo |= isDoubleOp;
+	public final boolean isSetTo;
+	public final boolean isDoubleOp;
+	
+	public abstract APlainOpCode getIntegerOperationOpcode();
+	public abstract AFloatOpCode getFloatOperationOpcode();
+	
+	public CmnMathOp(boolean isDoubleOp, boolean isSetTo) {
+		this.isDoubleOp = isDoubleOp;
+		this.isSetTo = isSetTo | isDoubleOp;
+	}
+	
+	@Override
+	public String toString() {
+		return getClass().getSimpleName() + "; SetTo=" + isSetTo + "; Double=" + isDoubleOp;
 	}
 
 	@Override
@@ -36,12 +40,7 @@ public abstract class CmnMathOp extends Operator {
 
 	@Override
 	public TypeDef getOutputType() {
-		return DataType.INT.typeDef();
-	}
-
-	@Override
-	protected List<AInstruction> createOperation(NCompileGraph cg) {
-		throw new UnsupportedOperationException("This method should never have been called on this class.");
+		return highestNumberType;
 	}
 
 	@Override
@@ -54,11 +53,11 @@ public abstract class CmnMathOp extends Operator {
 	}
 
 	@Override
-	public List<AInstruction> getOperation(Throughput left, Throughput right, EffectiveLine line, NCompileGraph cg) {
+	public List<AInstruction> getOperation(EffectiveLine line, NCompileGraph cg, Throughput... inputs) {
 		if (isDoubleOp) {
 			if (!getSupportsDoubleOp()) {
 				if (line != null) {
-					line.throwException("Double operator not supported here.");
+					line.throwException("Double operator not supported here. (" + getClass().getSimpleName() + ")");
 					return new ArrayList<>();
 				} else {
 					throw new UnsupportedOperationException("Double operator not supported here.");
@@ -66,17 +65,33 @@ public abstract class CmnMathOp extends Operator {
 			}
 		}
 
-		List<AInstruction> l = createCommonMathOpSequence(left == null ? null : left.getCode(getInputTypeLHS()), right == null ? null : right.getCode(getInputTypeRHS()), isDoubleOp, cg);
+		List<AInstruction> l = createCommonMathOpSequence(
+			(inputs.length < 1 || inputs[0] == null) ? null : inputs[0].getCode(getInputTypeLHS()), 
+			(inputs.length < 2 || inputs[1] == null) ? null : inputs[1].getCode(getInputTypeRHS()), 
+			isDoubleOp, 
+			cg
+		);
 
-		l.add(cg.getPlain(getSimpleOperationCommand()));
+		if (useFloatingOps()) {
+			AFloatOpCode opcode = getFloatOperationOpcode();
+			if (opcode != null) {
+				l.add(cg.getPlainFloat(opcode));
+			}
+			else {
+				l.add(cg.getPlain(getIntegerOperationOpcode()));
+			}
+		}
+		else {
+			l.add(cg.getPlain(getIntegerOperationOpcode()));
+		}
 
 		if (isResultInAlt()) {
 			l.add(cg.getPlain(APlainOpCode.MOVE_ALT_TO_PRI));
 		}
 
 		if (isSetTo) {
-			if (left instanceof VariableThroughput) {
-				l.add(((VariableThroughput) left).getWriteIns(cg)); //result is now stored
+			if (inputs[0] instanceof VariableThroughput) {
+				l.add(((VariableThroughput) inputs[0]).getWriteIns(cg)); //result is now stored
 			} else {
 				if (line != null) {
 					line.throwException("The left hand side of a set operator must be a variable.");
@@ -90,10 +105,11 @@ public abstract class CmnMathOp extends Operator {
 		return l;
 	}
 
-	public static List<AInstruction> createCommonMathOpSequence(List<AInstruction> leftSource, List<AInstruction> rightSource, boolean doubleOp, NCompileGraph cg) {
+	public List<AInstruction> createCommonMathOpSequence(List<AInstruction> leftSource, List<AInstruction> rightSource, boolean doubleOp, NCompileGraph cg) {
 		List<AInstruction> l = new ArrayList<>();
 		if (leftSource != null) {
 			l.addAll(leftSource);
+			addFloatCvtIfNeeded(l, cg);
 		}
 		l.add(cg.getPlain(APlainOpCode.PUSH_PRI));
 		if (doubleOp) {
@@ -101,6 +117,7 @@ public abstract class CmnMathOp extends Operator {
 		} else {
 			if (rightSource != null) {
 				l.addAll(rightSource);
+				addFloatCvtIfNeeded(l, cg);
 			}
 			l.add(cg.getPlain(APlainOpCode.MOVE_PRI_TO_ALT));
 		}
@@ -113,13 +130,13 @@ public abstract class CmnMathOp extends Operator {
 	}
 
 	public static class Add extends CmnMathOp {
-
-		public Add(String source) {
-			super(source);
+		
+		public Add(boolean isDoubleOp, boolean isSetTo) {
+			super(isDoubleOp, isSetTo);
 		}
 
 		@Override
-		public APlainOpCode getSimpleOperationCommand() {
+		public APlainOpCode getIntegerOperationOpcode() {
 			return APlainOpCode.ADD;
 		}
 
@@ -127,16 +144,26 @@ public abstract class CmnMathOp extends Operator {
 		public boolean getSupportsDoubleOp() {
 			return true;
 		}
+
+		@Override
+		public OperatorOperation getOperationType() {
+			return OperatorOperation.ADD;
+		}
+
+		@Override
+		public AFloatOpCode getFloatOperationOpcode() {
+			return AFloatOpCode.VADD;
+		}
 	}
 
 	public static class Sub extends CmnMathOp {
 
-		public Sub(String source) {
-			super(source);
+		public Sub(boolean isDoubleOp, boolean isSetTo) {
+			super(isDoubleOp, isSetTo);
 		}
 
 		@Override
-		public APlainOpCode getSimpleOperationCommand() {
+		public APlainOpCode getIntegerOperationOpcode() {
 			return APlainOpCode.SUBTRACT;
 		}
 
@@ -144,16 +171,26 @@ public abstract class CmnMathOp extends Operator {
 		public boolean getSupportsDoubleOp() {
 			return true;
 		}
+
+		@Override
+		public OperatorOperation getOperationType() {
+			return OperatorOperation.SUB;
+		}
+
+		@Override
+		public AFloatOpCode getFloatOperationOpcode() {
+			return AFloatOpCode.VSUB;
+		}
 	}
 
 	public static class Mul extends CmnMathOp {
 
-		public Mul(String source) {
-			super(source);
+		public Mul(boolean isDoubleOp, boolean isSetTo) {
+			super(isDoubleOp, isSetTo);
 		}
-
+		
 		@Override
-		public APlainOpCode getSimpleOperationCommand() {
+		public APlainOpCode getIntegerOperationOpcode() {
 			return APlainOpCode.MULTIPLY;
 		}
 
@@ -161,29 +198,59 @@ public abstract class CmnMathOp extends Operator {
 		public Priority getPriority() {
 			return Priority.ALG_MULT;
 		}
-	}
 
-	public static class Div extends Mul {
-
-		public Div(String source) {
-			super(source);
+		@Override
+		public OperatorOperation getOperationType() {
+			return OperatorOperation.MUL;
 		}
 
 		@Override
-		public APlainOpCode getSimpleOperationCommand() {
+		public AFloatOpCode getFloatOperationOpcode() {
+			return AFloatOpCode.VMULTIPLY;
+		}
+	}
+
+	public static class Div extends Mul {
+		
+		public Div(boolean isDoubleOp, boolean isSetTo) {
+			super(isDoubleOp, isSetTo);
+		}
+		
+		@Override
+		public APlainOpCode getIntegerOperationOpcode() {
 			return APlainOpCode.DIVIDE;
+		}
+		
+		@Override
+		public OperatorOperation getOperationType() {
+			return OperatorOperation.DIV;
+		}
+		
+		@Override
+		public AFloatOpCode getFloatOperationOpcode() {
+			return AFloatOpCode.VDIVIDE;
 		}
 	}
 
 	public static class Mod extends Div {
 
-		public Mod(String source) {
-			super(source);
+		public Mod(boolean isDoubleOp, boolean isSetTo) {
+			super(isDoubleOp, isSetTo);
 		}
 
 		@Override
-		public APlainOpCode getSimpleOperationCommand() {
+		public APlainOpCode getIntegerOperationOpcode() {
 			return APlainOpCode.MODULO;
+		}
+		
+		@Override
+		public OperatorOperation getOperationType() {
+			return OperatorOperation.MOD;
+		}
+		
+		@Override
+		public AFloatOpCode getFloatOperationOpcode() {
+			return AFloatOpCode.VMODULO;
 		}
 
 		@Override
@@ -195,12 +262,12 @@ public abstract class CmnMathOp extends Operator {
 	//bitwise ops
 	public static class BitAnd extends Mul {
 
-		public BitAnd(String source) {
-			super(source);
+		public BitAnd(boolean isDoubleOp, boolean isSetTo) {
+			super(isDoubleOp, isSetTo);
 		}
 
 		@Override
-		public APlainOpCode getSimpleOperationCommand() {
+		public APlainOpCode getIntegerOperationOpcode() {
 			return APlainOpCode.AND;
 		}
 
@@ -208,16 +275,26 @@ public abstract class CmnMathOp extends Operator {
 		public Priority getPriority() {
 			return Priority.BOOLOPS;
 		}
+		
+		@Override
+		public OperatorOperation getOperationType() {
+			return OperatorOperation.BIT_AND;
+		}
+		
+		@Override
+		public AFloatOpCode getFloatOperationOpcode() {
+			return null;
+		}
 	}
 
 	public static class BitOr extends Mul {
 
-		public BitOr(String source) {
-			super(source);
+		public BitOr(boolean isDoubleOp, boolean isSetTo) {
+			super(isDoubleOp, isSetTo);
 		}
 
 		@Override
-		public APlainOpCode getSimpleOperationCommand() {
+		public APlainOpCode getIntegerOperationOpcode() {
 			return APlainOpCode.OR;
 		}
 
@@ -225,22 +302,42 @@ public abstract class CmnMathOp extends Operator {
 		public Priority getPriority() {
 			return Priority.BOOLOPS;
 		}
+		
+		@Override
+		public OperatorOperation getOperationType() {
+			return OperatorOperation.BIT_OR;
+		}
+		
+		@Override
+		public AFloatOpCode getFloatOperationOpcode() {
+			return null;
+		}
 	}
 
 	public static class Xor extends Mul {
-
-		public Xor(String source) {
-			super(source);
+		
+		public Xor(boolean isDoubleOp, boolean isSetTo) {
+			super(isDoubleOp, isSetTo);
 		}
 
 		@Override
-		public APlainOpCode getSimpleOperationCommand() {
+		public APlainOpCode getIntegerOperationOpcode() {
 			return APlainOpCode.XOR;
 		}
 
 		@Override
 		public Priority getPriority() {
 			return Priority.BOOLOPS;
+		}
+		
+		@Override
+		public OperatorOperation getOperationType() {
+			return OperatorOperation.BIT_XOR;
+		}
+		
+		@Override
+		public AFloatOpCode getFloatOperationOpcode() {
+			return null;
 		}
 	}
 }

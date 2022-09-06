@@ -3,7 +3,7 @@ package ctrmap.pokescript.ide.autocomplete.nodes;
 
 import ctrmap.pokescript.LangCompiler;
 import ctrmap.pokescript.LangConstants;
-import ctrmap.stdlib.fs.FSFile;
+import xstandard.fs.FSFile;
 import java.util.List;
 
 public class PackageNode extends AbstractNode{

@@ -1,7 +1,7 @@
 package ctrmap.pokescript.stage1;
 
 import ctrmap.pokescript.data.Variable;
-import ctrmap.pokescript.instructions.ctr.instructions.PConditionJump;
+import ctrmap.pokescript.instructions.abstractcommands.AConditionJump;
 import ctrmap.pokescript.instructions.abstractcommands.AInstruction;
 import ctrmap.pokescript.instructions.abstractcommands.APlainInstruction;
 import ctrmap.pokescript.instructions.abstractcommands.APlainOpCode;
@@ -61,7 +61,7 @@ public class CompileBlock {
 
 	public void setChainJumpArg0(String chainTarget) {
 		if (blockEndControlInstruction != null) {
-			((PConditionJump) blockEndControlInstruction).targetLabel = chainTarget;
+			((AConditionJump) blockEndControlInstruction).targetLabel = chainTarget;
 		}
 		if (chainPredecessor != null) {
 			chainPredecessor.setChainJumpArg0(chainTarget);
@@ -115,7 +115,7 @@ public class CompileBlock {
 	}
 	
 	public void updateBlockStackIns(){
-		blockBeginAdjustStackIns.args[0] = localsOfThisBlock.size() * graph.provider.getMemoryInfo().getStackIndexingStep();
+		blockBeginAdjustStackIns.args[0] = localsOfThisBlock.size();
 	}
 
 	public static enum BlockAttribute {

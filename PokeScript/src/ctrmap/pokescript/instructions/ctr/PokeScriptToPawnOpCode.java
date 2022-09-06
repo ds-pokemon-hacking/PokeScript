@@ -1,15 +1,12 @@
-
 package ctrmap.pokescript.instructions.ctr;
 
 import ctrmap.pokescript.instructions.abstractcommands.APlainOpCode;
 import ctrmap.scriptformats.gen6.PawnOpCode;
 
-/**
- *
- */
 public class PokeScriptToPawnOpCode {
-	public static PawnOpCode getOpCode(APlainOpCode plain){
-		switch (plain){
+
+	public static PawnOpCode getDirectConvOpCode(APlainOpCode plain) {
+		switch (plain) {
 			case ABORT_EXECUTION:
 				return PawnOpCode.HALT;
 			case BEGIN_METHOD:
@@ -18,8 +15,6 @@ public class PokeScriptToPawnOpCode {
 				return PawnOpCode.CONST_ALT;
 			case CONST_PRI:
 				return PawnOpCode.CONST_PRI;
-			case LOAD_STACK_PRI:
-				return PawnOpCode.LOAD_S_PRI;
 			case POP_ALT:
 				return PawnOpCode.PALT;
 			case POP_PRI:
@@ -32,8 +27,6 @@ public class PokeScriptToPawnOpCode {
 				return PawnOpCode.STACK;
 			case RETURN:
 				return PawnOpCode.RETN;
-			case STORE_PRI_STACK:
-				return PawnOpCode.STOR_S_PRI;
 			case ZERO_ALT:
 				return PawnOpCode.ZERO_ALT;
 			case ZERO_PRI:

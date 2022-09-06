@@ -11,8 +11,8 @@ import ctrmap.pokescript.stage0.content.LabelContent;
 import ctrmap.pokescript.stage0.content.NullContent;
 import ctrmap.pokescript.stage0.content.StatementContent;
 import ctrmap.pokescript.types.classes.ClassDefinition;
-import ctrmap.stdlib.fs.FSUtil;
-import ctrmap.stdlib.fs.accessors.DiskFile;
+import xstandard.fs.FSUtil;
+import xstandard.fs.accessors.DiskFile;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -65,6 +65,9 @@ public class EffectiveLine {
 	}
 
 	public void throwException(String cause) {
+		/*if (true) {
+			throw new RuntimeException(cause);
+		}*/
 		exceptions.add(cause);
 	}
 
@@ -454,6 +457,7 @@ public class EffectiveLine {
 		HAS_ARGUMENTS_IN_BRACES,
 		FORBIDS_ARGUMENTS,
 		PREPROCESSOR_STATEMENT,
+		ARGUMENT_IS_EXPRESSION,
 		ALLOWS_GLOBAL_EXPLICIT
 	}
 

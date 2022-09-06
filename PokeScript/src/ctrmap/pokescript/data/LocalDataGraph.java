@@ -8,10 +8,8 @@ public class LocalDataGraph extends DataGraph {
 
 	private int stk = 0;
 
-	private int argOffset;
-
 	public LocalDataGraph(NCompileGraph g) {
-		argOffset = g.provider.getMemoryInfo().getFuncArgOffset();
+		
 	}
 
 	@Override
@@ -36,6 +34,9 @@ public class LocalDataGraph extends DataGraph {
 		//that means that the stack index values should remain unchanged
 		//however, we can easily check this
 		for (Variable v : toRemove) {
+			if (v.getLocation() == Variable.VarLoc.STACK_UNDER) {
+				throw new RuntimeException("STACK_UNDER variables should not be removed!");
+			}
 			//System.out.println("removing local " + v.name);
 			stackTop -= v.getSizeOf(cg);
 		}
@@ -46,9 +47,8 @@ public class LocalDataGraph extends DataGraph {
 			//System.out.println("Checking variable " + variables.get(i).index);
 			int expectedIndex = i;
 			if (i < argCount) {
-				expectedIndex = -argOffset - argCount + i;
-			}
-			else {
+				expectedIndex = argCount - i - 1;
+			} else {
 				//System.out.println("nonarg var " + variables.get(i).name);
 				expectedIndex -= argCount;
 			}
@@ -62,14 +62,8 @@ public class LocalDataGraph extends DataGraph {
 	}
 
 	public void addVariableUnderStackFrame(Variable v, NCompileGraph cg) {
-		if (cg.provider.getMemoryInfo().isArgsUnderStackFrame()) {
-			variables.add(0, v);
-			stk += v.getSizeOf(cg);
-			v.setNumeric(-argOffset - stk); //before stack frame
-			//System.out.println("adding " + v.name + " at " + v.index);
-		}
-		else {
-			addVariable(v, cg);
-		}
+		variables.add(0, v);
+		v.setNumeric(stk); //before stack frame
+		stk += v.getSizeOf(cg);
 	}
 }

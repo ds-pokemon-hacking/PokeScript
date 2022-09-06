@@ -2,11 +2,11 @@ package ctrmap.pokescript.ide.system.project.tree.nodes;
 
 import ctrmap.pokescript.ide.PSIDE;
 import ctrmap.pokescript.ide.system.project.IDEFile;
-import ctrmap.stdlib.fs.FSUtil;
-import ctrmap.stdlib.gui.DialogUtils;
 import java.awt.event.ActionEvent;
 import java.awt.event.MouseEvent;
 import javax.swing.JMenuItem;
+import xstandard.fs.FSUtil;
+import xstandard.gui.DialogUtils;
 
 public class ClassNode extends IDENodeBase {
 
@@ -30,7 +30,7 @@ public class ClassNode extends IDENodeBase {
 
 	private boolean isMainClass() {
 		String projectMainClass = ascendToProjectNode().getProject().getManifest().getMainClass();
-		if (classFile.getPathInProject().equals(projectMainClass)) {
+		if (classFile.getClasspathInProject().equals(projectMainClass)) {
 			return true;
 		}
 		return false;
@@ -41,7 +41,8 @@ public class ClassNode extends IDENodeBase {
 		if (classFile.canWrite()) {
 			JMenuItem setMainClass = new JMenuItem("Set Main class");
 			setMainClass.addActionListener((ActionEvent e) -> {
-				ascendToProjectNode().getProject().getManifest().setMainClass(classFile.getPathInProject());
+				ascendToProjectNode().getProject().setMainClass(classFile);
+				ide.getProjectTree().getModel().nodeChanged(this);
 				ide.getProjectTree().repaint();
 			});
 			if (isMainClass()){

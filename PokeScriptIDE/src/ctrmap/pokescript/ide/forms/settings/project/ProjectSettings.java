@@ -3,9 +3,9 @@ package ctrmap.pokescript.ide.forms.settings.project;
 import ctrmap.pokescript.ide.PSIDE;
 import ctrmap.pokescript.ide.forms.settings.project.panes.ProjectDefinitionsPane;
 import ctrmap.pokescript.ide.system.project.IDEProject;
-import ctrmap.stdlib.gui.components.tree.CustomJTreeNode;
-import ctrmap.stdlib.gui.components.tree.CustomJTreeRootNode;
-import ctrmap.stdlib.gui.components.tree.CustomJTreeSelectionListener;
+import xstandard.gui.components.tree.CustomJTreeNode;
+import xstandard.gui.components.tree.CustomJTreeRootNode;
+import xstandard.gui.components.tree.CustomJTreeSelectionListener;
 import javax.swing.tree.DefaultTreeModel;
 
 public class ProjectSettings extends javax.swing.JFrame {
@@ -72,7 +72,7 @@ public class ProjectSettings extends javax.swing.JFrame {
 
         settingsSubPanel = new javax.swing.JScrollPane();
         treeSP = new javax.swing.JScrollPane();
-        settingsMenuTree = new ctrmap.stdlib.gui.components.tree.CustomJTree();
+        settingsMenuTree = new xstandard.gui.components.tree.CustomJTree();
         btnSave = new javax.swing.JButton();
 
         setDefaultCloseOperation(javax.swing.WindowConstants.DISPOSE_ON_CLOSE);
@@ -135,7 +135,7 @@ public class ProjectSettings extends javax.swing.JFrame {
 
     // Variables declaration - do not modify//GEN-BEGIN:variables
     private javax.swing.JButton btnSave;
-    private ctrmap.stdlib.gui.components.tree.CustomJTree settingsMenuTree;
+    private xstandard.gui.components.tree.CustomJTree settingsMenuTree;
     private javax.swing.JScrollPane settingsSubPanel;
     private javax.swing.JScrollPane treeSP;
     // End of variables declaration//GEN-END:variables

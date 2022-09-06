@@ -8,8 +8,8 @@ package ctrmap.pokescript.ide.system.project.include;
 
 import ctrmap.pokescript.LangPlatform;
 import ctrmap.scriptformats.pkslib.LibraryFile;
-import ctrmap.stdlib.fs.FSFile;
-import ctrmap.stdlib.util.ArraysEx;
+import xstandard.fs.FSFile;
+import xstandard.util.ArraysEx;
 import java.util.List;
 
 /**
