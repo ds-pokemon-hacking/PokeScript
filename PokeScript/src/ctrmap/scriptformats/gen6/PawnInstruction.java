@@ -191,7 +191,7 @@ public class PawnInstruction {
 			}
 			if (ret.opCode.isJump() && ret.arguments.length == 1 && jmpBldr.toString().length() > 0) {
 				try {
-					ret.arguments[0] = Integer.parseInt(StringEx.deleteAllString(jmpBldr.toString(), "0x"), 16);
+					ret.arguments[0] = Long.parseLong(StringEx.deleteAllString(jmpBldr.toString(), "0x"), 16);
 				} catch (NumberFormatException ex) {
 					if (doOutput) {
 						System.err.println("[ERR] 0x" + Integer.toHexString(ptr).toUpperCase() + " : " + "Argument is not a number.");
@@ -223,7 +223,7 @@ public class PawnInstruction {
 								}
 								//System.out.println("floatarg " + src + " at " + Integer.toHexString(ptr));
 							} else {
-								ret.arguments[i] = Integer.parseInt(argsUnparsed[i]);
+								ret.arguments[i] = Long.parseLong(argsUnparsed[i]);
 							}
 						} catch (NumberFormatException e) {
 							if (doOutput) {
@@ -357,7 +357,7 @@ public class PawnInstruction {
 						if (src.endsWith("f")) {
 							arguments[i] = Float.floatToIntBits(Float.parseFloat(StringEx.deleteAllChars(src, 'f')));
 						} else {
-							arguments[i] = Integer.parseInt(argsUnparsed[i]);
+							arguments[i] = Long.parseLong(argsUnparsed[i]);
 						}
 					} catch (NumberFormatException e) {
 						return false;
@@ -369,7 +369,7 @@ public class PawnInstruction {
 		} else {
 			String jumpOnly = StringEx.deleteAllString(StringEx.deleteAllString(StringEx.deleteAllChars(str, ' ', 'n'), "=>"), "0x");
 			try {
-				arguments[0] = Integer.parseInt(jumpOnly.trim(), 16) - pointer;
+				arguments[0] = Long.parseLong(jumpOnly.trim(), 16) - pointer;
 				jmpListeners.clear();
 				chkAddJumpListener();
 			} catch (NumberFormatException e) {

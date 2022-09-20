@@ -73,7 +73,7 @@ public class PawnSubroutine {
 			PawnInstruction newIns = PawnInstruction.fromString(ptr, line, cellSize, doOutput);
 			newIns.checkJmpConvertArgs();
 			if (newIns.opCode == PawnOpCode.CASETBL) {
-				newIns = caseTblFromString(newIns.pointer, code);
+				newIns = caseTblFromString(newIns.pointer, cellSize, code);
 			}
 			if (newIns.opCode != PawnOpCode.NONE) {
 				ret.instructions.add(newIns);
@@ -90,27 +90,27 @@ public class PawnSubroutine {
 		return ret;
 	}
 
-	public static PawnInstruction caseTblFromString(int ptr, LineReader code) {
+	public static PawnInstruction caseTblFromString(int ptr, int cellSize, LineReader code) {
 		PawnInstruction newIns = new PawnInstruction(PawnOpCode.CASETBL);
 		newIns.pointer = ptr;
 		while (!code.nextLine().replaceAll("\t", "").equals("{")) {
 			//await casetbl beginning
 		}
-		Map<Integer, Integer> cases = new HashMap<>();
-		int defaultCaseJmp = 0;
+		Map<Long, Long> cases = new HashMap<>();
+		long defaultCaseJmp = 0;
 		String line;
 		while (!(line = code.nextLine().replaceAll("\t", "")).equals("}")) {
 			if (line.startsWith("*")) {
 				int chara = line.lastIndexOf("=>") + 2;
-				defaultCaseJmp = Integer.parseInt(line.substring(chara).trim().replaceAll("x", ""), 16);
+				defaultCaseJmp = Long.parseLong(line.substring(chara).trim().replaceAll("x", ""), 16);
 			} else {
 				if (line.contains("=>")) {
 					try {
 						int firstGap = line.trim().indexOf(' ');
-						int id = Integer.parseInt(line.trim().substring(0, firstGap));
+						long id = Long.parseLong(line.trim().substring(0, firstGap));
 						int chara = line.lastIndexOf("=>") + 2;
 						if (line.length() > chara) {
-							int caseJmp = Integer.parseInt(line.substring(chara).trim().replaceAll("0x", ""), 16);
+							long caseJmp = Long.parseLong(line.substring(chara).trim().replaceAll("0x", ""), 16);
 							cases.put(id, caseJmp);
 						}
 					} catch (NumberFormatException e) {
@@ -120,19 +120,19 @@ public class PawnSubroutine {
 			}
 			//await casetbl end
 		}
-		List<Map.Entry<Integer, Integer>> l = new ArrayList<>();
+		List<Map.Entry<Long, Long>> l = new ArrayList<>();
 		l.addAll(cases.entrySet());
-		Collections.sort(l, (Map.Entry<Integer, Integer> o1, Map.Entry<Integer, Integer> o2) -> o1.getKey() - o2.getKey());
+		Collections.sort(l, Map.Entry.comparingByKey());
 
 		newIns.arguments = new long[cases.size() * 2 + 2];
 		newIns.arguments[0] = cases.size();
 		int idx = 2;
 		for (Map.Entry e : l) {
-			newIns.arguments[idx + 1] = (Integer) e.getValue() - (ptr + idx * 4) - 4;
-			newIns.arguments[idx] = (Integer) e.getKey();
+			newIns.arguments[idx + 1] = (Long) e.getValue() - (ptr + idx * cellSize) - cellSize;
+			newIns.arguments[idx] = (Long) e.getKey();
 			idx += 2;
 		}
-		newIns.arguments[1] = defaultCaseJmp - (ptr + 4);
+		newIns.arguments[1] = defaultCaseJmp - (ptr + cellSize);
 		return newIns;
 	}
 

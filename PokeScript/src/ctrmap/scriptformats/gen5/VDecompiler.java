@@ -44,13 +44,13 @@ public class VDecompiler {
 	}
 
 	public static void main(String[] args) {
-		FSFile scrFile = new DiskFile("D:\\_REWorkspace\\pokescript_genv\\6\\6_84.bin");
+		FSFile scrFile = new DiskFile("D:\\_REWorkspace\\pokescript_genv\\6\\6_1262.bin");
 		//FSFile scrFile = new DiskFile("D:\\_REWorkspace\\CTRMapProjects\\BW1\\vfs\\data\\a\\0\\5\\7\\782");
 		FSFile[] cdbFiles = new FSFile[]{
 			new DiskFile("C:\\Users\\Čeněk\\eclipse-workspace\\BsYmlGen\\B2W2\\Base.yml"),
-			new DiskFile("C:\\Users\\Čeněk\\eclipse-workspace\\BsYmlGen\\B2W2\\Overlay 66.yml")
+			new DiskFile("C:\\Users\\Čeněk\\eclipse-workspace\\BsYmlGen\\B2W2\\Overlay 65.yml")
 		};
-		FSFile outFile = new DiskFile("D:\\_REWorkspace\\pokescript_genv\\decomp\\castelia_city_42.pks");
+		FSFile outFile = new DiskFile("D:\\_REWorkspace\\pokescript_genv\\decomp\\pgl_postman_scr.pks");
 		
 		List<VCommandDataBase> dbs = new ArrayList<>();
 		for (FSFile f : cdbFiles) {
@@ -223,7 +223,7 @@ public class VDecompiler {
 				break;
 			}
 		}
-		out.println(") {");
+		out.println(") { // @ 0x" + Integer.toHexString(m.ptr));
 		out.incrementIndentLevel();
 
 		List<Integer> usedRegisters = new ArrayList<>();
@@ -449,7 +449,7 @@ public class VDecompiler {
 
 	private static void printVarSet(PrintStream out, int target, String rhs) {
 		if (VConstants.isLowWk(target)) {
-			out.print("EventWorks.WorkSet(");
+			out.print("EventWorks.Set(");
 			out.print(target);
 			out.print(", ");
 			if (rhs != null) {
@@ -467,11 +467,11 @@ public class VDecompiler {
 
 	private static void printVarUpdate(PrintStream out, String operator, int target, int rhs, NTRDataType rhsType) {
 		if (VConstants.isLowWk(target)) {
-			out.print("EventWorks.WorkSet(");
+			out.print("EventWorks.Set(");
 			out.print(target);
 			out.print(", ");
 			if (operator != null) {
-				out.print("EventWorks.WorkGet(");
+				out.print("EventWorks.Get(");
 				out.print(target);
 				out.print(") ");
 				out.print(operator);
@@ -673,13 +673,14 @@ public class VDecompiler {
 					out.incrementIndentLevel();
 				}
 
+				String erroneousTarget = "[LINK ERROR -> 0x" + Integer.toHexString(call.args[call.args.length - 1]) + "]";
 				if (call.link == null && !call.command.callsExtern) {
 					System.err.println("Link error at " + call.command.name + "(" + Integer.toHexString(call.pointer) + ")");
 					System.err.println("Desired link target " + Integer.toHexString(call.pointer + call.getSize() + call.args[call.args.length - 1]));
-					out.println("goto [LINK ERROR];");
+					out.println("goto " + erroneousTarget + ";");
 				} else {
 					NTRInstructionLink link = call.link;
-					String targetLabel = "[LINK ERROR]";
+					String targetLabel = erroneousTarget;
 					int targetAddress = -1;
 					if (link != null && link.target != null) {
 						targetLabel = ((DisassembledCall) link.target).label;
@@ -913,7 +914,7 @@ public class VDecompiler {
 
 	public static String flex2Str(int av) {
 		if (VConstants.isLowWk(av)) {
-			return "EventWorks.WorkGet(" + (av /*- 0x4000*/) + ")";
+			return "EventWorks.Get(" + (av /*- 0x4000*/) + ")";
 		} else if (VConstants.isHighWk(av)) {
 			return "v" + (av - VConstants.GP_REG_PRI);
 		}

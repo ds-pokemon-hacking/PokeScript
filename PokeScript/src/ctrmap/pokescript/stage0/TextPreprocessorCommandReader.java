@@ -1,6 +1,6 @@
 package ctrmap.pokescript.stage0;
 
-import ctrmap.pokescript.CompilerLogger;
+import ctrmap.pokescript.util.CompilerLogger;
 import ctrmap.pokescript.stage0.content.StatementContent;
 
 /**

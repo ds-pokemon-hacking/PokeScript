@@ -1,7 +1,7 @@
 package ctrmap.pokescript.stage0;
 
 import ctrmap.pokescript.CompilerExceptionData;
-import ctrmap.pokescript.CompilerLogger;
+import ctrmap.pokescript.util.CompilerLogger;
 import ctrmap.pokescript.InboundDefinition;
 import ctrmap.pokescript.LangCompiler;
 import ctrmap.pokescript.LangConstants;

@@ -79,7 +79,6 @@ public class FileEditorRSTA extends RSyntaxTextArea {
 		setSyntaxEditingStyle(SYNTAX_STYLE_PP);
 		parser = new PPParser();
 		addParser(parser);
-		getDocument().addDocumentListener(ac.getACDocListener());
 		getDocument().addDocumentListener(marks);
 
 		getInputMap().put(KeyStroke.getKeyStroke(KeyEvent.VK_SPACE, KeyEvent.CTRL_DOWN_MASK), "AutoCompleteHotkey");

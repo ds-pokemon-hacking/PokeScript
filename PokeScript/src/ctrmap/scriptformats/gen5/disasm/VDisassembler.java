@@ -37,7 +37,7 @@ public class VDisassembler {
 
 	public void disassemble() {
 		if (scr.getSourceFile() != null) {
-			System.out.println("Disassembling file " + scr.getSourceFile() + " with database command maximum " + Integer.toHexString(cdb.getCommandMax()));
+			System.out.println("Disassembling file " + scr.getSourceFile() + " with database command maximum 0x" + Integer.toHexString(cdb.getCommandMax()));
 			try {
 				DataIOStream dis = scr.getSourceFile().getDataIOStream();
 

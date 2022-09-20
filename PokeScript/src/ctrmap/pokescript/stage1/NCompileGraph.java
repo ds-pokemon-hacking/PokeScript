@@ -108,10 +108,12 @@ public class NCompileGraph {
 	}
 
 	public NCompilableMethod getMainMethod() {
-		String desiredName = LangConstants.makePath(currentClass.className, LangConstants.MAIN_METHOD_NAME);
-		for (NCompilableMethod m : methods) {
-			if (m.def.name.equals(desiredName) && !m.hasModifier(Modifier.NATIVE)) {
-				return m;
+		if (currentClass != null) {
+			String desiredName = LangConstants.makePath(currentClass.className, LangConstants.MAIN_METHOD_NAME);
+			for (NCompilableMethod m : methods) {
+				if (m.def.name.equals(desiredName) && !m.hasModifier(Modifier.NATIVE)) {
+					return m;
+				}
 			}
 		}
 		return null;

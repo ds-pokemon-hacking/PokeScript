@@ -128,25 +128,31 @@ public class PSIDE extends javax.swing.JFrame {
 		fileTabs.addTabRemovedListener(new JTabbedPaneEx.TabRemovedListener() {
 			@Override
 			public boolean onTabIsRemoving(TabbedPaneTab tab) {
+				boolean willRemove = false;
 				FileEditorRSTA rsta = (FileEditorRSTA) ((RTextScrollPane) tab.getComponent()).getTextArea();
 				if (!rsta.getEditedFile().exists() || !rsta.getEditedFile().canWrite()) {
-					return true;
+					willRemove = true;
 				} else {
 					rsta.getEditedFile().getProject().caretPosCache.storeCaretPositionOfEditor(rsta);
-					return saveFile(rsta, true);
+					willRemove = saveFile(rsta, true);
 				}
+				if (willRemove) {
+					//Moving this here instead of onTabRemoved because ChangeListeners fire first
+					FileEditorRSTA editor = fileEditors.remove(tab.getIndex());
+					if (context.getWorkspace() != null) {
+						IDEFile f = editor.getEditedFile();
+						if (f != null) {
+							context.getWorkspace().saveData.removeOpenFile(f);
+							f.closeNotify();
+						}
+					}
+				}
+				return willRemove;
 			}
 
 			@Override
 			public void onTabRemoved(TabbedPaneTab tab) {
-				FileEditorRSTA editor = fileEditors.remove(tab.getIndex());
-				if (context.getWorkspace() != null) {
-					IDEFile f = editor.getEditedFile();
-					if (f != null) {
-						context.getWorkspace().saveData.removeOpenFile(f);
-						f.closeNotify();
-					}
-				}
+				
 			}
 		});
 	}

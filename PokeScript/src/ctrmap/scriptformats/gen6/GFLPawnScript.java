@@ -1,7 +1,6 @@
 package ctrmap.scriptformats.gen6;
 
 import xstandard.fs.FSFile;
-import xstandard.fs.accessors.DiskFile;
 import xstandard.io.base.iface.DataInputEx;
 import xstandard.io.base.iface.DataOutputEx;
 import xstandard.io.base.impl.ext.data.DataIOStream;
@@ -742,8 +741,8 @@ public class GFLPawnScript {
 	 * C source available at https://github.com/compuphase/pawn/blob/6d82fa4bfa3df019f8144dcb75b994240f8b9a7e/compiler/sc6.c#L193
 	 */
 	public static void write_encoded(DataOutput out, DataInput in, int count, int cellSize) throws IOException {
-		int ENC_MAX = cellSize + 1;
-		int ENC_MASK = BitMath.makeMask(cellSize);
+		int ENC_MAX = cellSize == 8 ? 10 : cellSize == 4 ? 5 : 3;
+		int ENC_MASK = cellSize == 8 ? 1 : cellSize == 4 ? 15 : 3;
 
 		while (count-- > 0) {
 			long p = PawnInstruction.readCell(in, cellSize);
@@ -753,7 +752,7 @@ public class GFLPawnScript {
 			for (index = 0; index < ENC_MAX; index++) {
 				t[index] = (byte) (p & 0x7f);
 				/* store 7 bits */
-				p >>= 7;
+				p >>>= 7;
 			}
 			/* for */
  /* skip leading zeros */

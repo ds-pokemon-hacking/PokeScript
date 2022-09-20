@@ -1,11 +1,11 @@
 package ctrmap.pokescript;
 
+import ctrmap.pokescript.util.CompilerLogger;
 import ctrmap.scriptformats.gen6.GFLPawnScript;
 import ctrmap.pokescript.instructions.providers.PawnInstructionProvider;
 import ctrmap.pokescript.instructions.providers.AInstructionProvider;
 import ctrmap.pokescript.instructions.providers.VInstructionProvider;
 import ctrmap.pokescript.stage0.CompilerPragma;
-import ctrmap.pokescript.stage0.NMember;
 import ctrmap.pokescript.stage0.Preprocessor;
 import ctrmap.pokescript.stage1.NCompileGraph;
 import ctrmap.pokescript.stage2.AbstractExecMaker;
@@ -49,7 +49,7 @@ public class LangCompiler {
 
 	public static void main(String[] args) {
 		if (args.length == 0) {
-			args = new String[]{"-i \"D:\\_REWorkspace\\scr\\globtest\\globtest.pks\" -t ntrv"};
+			args = new String[]{"-i \"D:\\_REWorkspace\\scr\\globtest\\commenttest.pks\" -t ntrv"};
 		}
 
 		System.out.println("* * * New PokéScript compiler U version " + COMPILER_VERSION + " * * *\n");

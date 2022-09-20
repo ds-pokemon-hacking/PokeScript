@@ -1,5 +1,6 @@
 package ctrmap.pokescript.expr.ast;
 
+import ctrmap.pokescript.util.Tokenizer;
 import ctrmap.pokescript.LangCompiler;
 import ctrmap.pokescript.expr.OperatorType;
 import ctrmap.pokescript.data.Variable;
@@ -9,6 +10,7 @@ import ctrmap.pokescript.stage1.NCompilableMethod;
 import ctrmap.pokescript.stage1.NCompileGraph;
 import ctrmap.pokescript.types.DataType;
 import ctrmap.pokescript.types.classes.ClassDefinition;
+import ctrmap.pokescript.util.Token;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -72,7 +74,7 @@ public class AST {
 		OPERATOR_MATCHERS_TOKEN_MAX = max;
 	}
 
-	private List<ASTToken> tokens = new ArrayList<>();
+	private List<Token<ASTContentType>> tokens = new ArrayList<>();
 
 	private ASTNode root = new ASTOperatorNode(null);
 
@@ -161,29 +163,15 @@ public class AST {
 	}
 
 	private void tokenize(String s) {
-		ASTContentType type = ASTContentType.GAP;
-		ASTToken currentToken = new ASTToken(type);
-		for (int i = 0; i < s.length(); i++) {
-			char c = s.charAt(i);
-			ASTContentType newType = ASTContentType.getCharTokenType(c);
-			if (newType != type || !type.repeatableChars) {
-				if (type != ASTContentType.GAP) {
-					tokens.add(currentToken);
-				}
-				type = newType;
-				currentToken = new ASTToken(type);
-			}
-			currentToken.append(c);
-		}
-		if (currentToken.type != ASTContentType.GAP) {
-			tokens.add(currentToken);
-		}
+		tokens = Tokenizer.tokenize(s, ASTContentType.RECOGNIZER);
 	}
 
 	private boolean isCharTypeUnaryOnlyAfter(ASTContentType type) {
+		if (type == null) {
+			return false;
+		}
 		switch (type) {
 			case SYMBOL:
-			case GAP:
 			case BRACKET_END:
 			case ARRAY_BRACKET_END:
 				return false;
@@ -382,7 +370,7 @@ public class AST {
 			return false;
 		}
 		for (int inTokenIdx = offs, matcherTokenIdx = 0; matcherTokenIdx < size; inTokenIdx++, matcherTokenIdx++) {
-			if (!matcher.matchType(this, matcherTokenIdx, inTokenIdx >= 0 ? tokens.get(inTokenIdx).type : ASTContentType.GAP)) {
+			if (!matcher.matchType(this, matcherTokenIdx, inTokenIdx >= 0 ? tokens.get(inTokenIdx).type : ASTContentType.INVALID)) {
 				return false;
 			}
 		}
@@ -397,7 +385,7 @@ public class AST {
 		}
 		for (int i = offs, j = 0; j < conLen; i++, j++) {
 			//null = allow any content
-			if (!matcher.matchContent(this, j, i >= 0 ? tokens.get(i).content.toString() : "")) {
+			if (!matcher.matchContent(this, j, i >= 0 ? tokens.get(i).getContent() : "")) {
 				return false;
 			}
 		}
@@ -407,7 +395,7 @@ public class AST {
 	private String[] getTokenContents(int offs, int count) {
 		String[] arr = new String[count];
 		for (int i = offs, j = 0; j < count; i++, j++) {
-			arr[j] = i >= 0 ? tokens.get(i).content.toString() : "";
+			arr[j] = i >= 0 ? tokens.get(i).getContent() : "";
 		}
 		return arr;
 	}
@@ -431,24 +419,24 @@ public class AST {
 				}
 			}
 		}
-		ASTToken t = tokens.get(tokenOffs);
+		Token<ASTContentType> t = tokens.get(tokenOffs);
 		if (t.type == ASTContentType.OP_CHAR) {
 			//throw invalid operator error
-			throwException("Unexpected operator " + t.content);
+			throwException("Unexpected operator " + t.getContent());
 			return tokenOffs + 1;
 		}
-		ASTOperandNode op = new ASTOperandNode(t.type, t.content.toString());
+		ASTOperandNode op = new ASTOperandNode(t.type, t.getContent());
 		nodes.add(op);
 		return tokenOffs + 1;
 	}
 
 	public String printTokens() {
 		StringBuilder sb = new StringBuilder();
-		for (ASTToken t : tokens) {
+		for (Token t : tokens) {
 			sb.append("[");
 			sb.append(t.type);
 			sb.append("]");
-			sb.append(t.content);
+			sb.append(t.getContent());
 		}
 		return sb.toString();
 	}

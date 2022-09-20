@@ -6,7 +6,6 @@ import xstandard.fs.accessors.DiskFile;
 import xstandard.gui.DialogUtils;
 import xstandard.gui.components.ComponentUtils;
 import java.util.prefs.Preferences;
-import javax.swing.JFrame;
 import javax.swing.SwingUtilities;
 
 public class PSIDELauncherNew {

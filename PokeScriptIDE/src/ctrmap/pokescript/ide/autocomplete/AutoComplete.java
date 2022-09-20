@@ -64,9 +64,15 @@ public class AutoComplete {
 	}
 
 	public void attachTextArea(FileEditorRSTA area) {
+		if (this.area != null) {
+			this.area.getDocument().removeDocumentListener(documentListener);
+		}
 		closeAndInvalidate();
 		this.area = area;
-		loadProject(area.getEditedFile().getProject());
+		if (area != null) {
+			area.getDocument().addDocumentListener(documentListener);
+			loadProject(area.getEditedFile().getProject());
+		}
 	}
 
 	private Stack<NodeResult.Handler> resultHandlers = new Stack<>();
@@ -86,7 +92,7 @@ public class AutoComplete {
 				rslHandlerHighLights.addAll(getCurrentRslHandler().getHighLights());
 				area.addAllCustomHighlights(rslHandlerHighLights);
 			}
-			
+
 			area.repaint();
 		}
 	}
@@ -442,7 +448,7 @@ public class AutoComplete {
 	public boolean isVisible() {
 		return acMainWindow.isVisible();
 	}
-	
+
 	public boolean isCaretInACLine() {
 		if (area != null) {
 			int caretLineNo = area.getCaretLineNumber();

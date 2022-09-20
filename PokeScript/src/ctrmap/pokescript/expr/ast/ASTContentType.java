@@ -1,9 +1,10 @@
 package ctrmap.pokescript.expr.ast;
 
+import ctrmap.pokescript.util.Tokenizer;
 import ctrmap.pokescript.LangConstants;
 
 public enum ASTContentType {
-	GAP,
+	INVALID,
 	SYMBOL(true),
 	BRACKET_START,
 	BRACKET_END,
@@ -21,24 +22,32 @@ public enum ASTContentType {
 		this.repeatableChars = repeatableChars;
 	}
 
-	public static ASTContentType getCharTokenType(char c) {
-		switch (c) {
-			case ' ':
-				return ASTContentType.GAP;
-			case '(':
-				return ASTContentType.BRACKET_START;
-			case ')':
-				return ASTContentType.BRACKET_END;
-			case '[':
-				return ASTContentType.ARRAY_BRACKET_START;
-			case ']':
-				return ASTContentType.ARRAY_BRACKET_END;
-			case ',':
-				return ASTContentType.COMMA;
+	public static Tokenizer.Recognizer<ASTContentType> RECOGNIZER = new Tokenizer.Recognizer<>(
+			new Tokenizer.CharMapping<>(BRACKET_START, '('),
+			new Tokenizer.CharMapping<>(BRACKET_END, ')'),
+			new Tokenizer.CharMapping<>(ARRAY_BRACKET_START, '['),
+			new Tokenizer.CharMapping<>(ARRAY_BRACKET_END, ']'),
+			new Tokenizer.CharMapping<>(COMMA, ','),
+			
+			//Gap
+			new Tokenizer.CharFunctionMapping<ASTContentType>(null, true) {
+		@Override
+		public boolean recognize(char c) {
+			return Character.isWhitespace(c);
 		}
-		if (LangConstants.isAllowedNameChar(c)) {
-			return ASTContentType.SYMBOL;
+	},
+			new Tokenizer.CharFunctionMapping<ASTContentType>(SYMBOL, true) {
+		@Override
+		public boolean recognize(char c) {
+			return LangConstants.isAllowedNameChar(c);
 		}
-		return ASTContentType.OP_CHAR;
+	},
+			//Default - operator character
+			new Tokenizer.CharFunctionMapping<ASTContentType>(OP_CHAR, false) {
+		@Override
+		public boolean recognize(char c) {
+			return true;
+		}
 	}
+	);
 }
