@@ -16,26 +16,18 @@ import java.util.List;
 import java.util.Map;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import xstandard.fs.FSUtil;
+import xstandard.io.base.iface.ReadableStream;
+import xstandard.io.base.impl.ext.data.DataInStream;
 
 /**
  *
  */
 public class ScriptCmdDump {
 
-	public static final int MAIN_CMD_TABLE_OVERLAY_NO = 12;
-	
-	public static final int MAIN_CMD_TABLE_OFFS = 0x216B578;
-	public static final int SCR_PLUGIN_INFO_ADDRESSES = 0x216C1EC;
-	public static final int SCR_PLUGIN_INFO_COUNT = 17;
-	public static final int MAIN_CMD_COUNT = 755;
-
-	public static final int SUB_LOAD_VARADDR = 0x02154928;
-	public static final int SUB_DEREF_VAR = 0x02154950;
-	public static final int SUB_SCR_READ16 = 0x020159E8;
-	public static final int SUB_SCR_READ32 = 0x02015A04;
-
 	public static final int STR_PLUS0x20_BITS = 0b0110001000000000;
-	public static final int STR_PLUS0x20_MASK = 0b1111111111000000;
+	public static final int STR_PLUS0x14_BITS = 0b0110000101000000;
+	public static final int STR_MASK = 0b1111111111000000;
 
 	public static final int BX_LR = 0x4770;
 	public static final int BX = 0x4700;
@@ -49,11 +41,105 @@ public class ScriptCmdDump {
 	public static final int BRANCH_ANY_MASK = (0b11110 << 11);
 	public static final int BRANCH_MASK = (0b11111 << 11);
 
-	public static final int OFFS_BASE_OVL12 = 0x02150400;
 	public static final int OFFS_BASE_PLUGINS = 0x021E5800;
+
+	public static final Config CONFIG_W2U = new Config(
+		new ReadRoutines(
+			0x020159E8,
+			0x02154928,
+			0x02154950,
+			0x02015A04,
+			false
+		),
+		new OverlayInfo(12),
+		new CommandSetInfo(0x216B578, 755),
+		0x216C1EC,
+		17,
+		new OverlayInfo(36)
+	);
 	
-	public static final String OVERLAY_ROOT_DIR_DECOMPRESSED = "D:\\_REWorkspace\\pokescript_genv\\overlays_dec";
-	public static final String OUTPUT_DIR = "D:\\_REWorkspace\\pokescript_genv\\decomp";
+	public static final Config CONFIG_W1U = new Config(
+		new ReadRoutines(
+			0x02011330,
+			0x02159B08,
+			0x02159B30,
+			0x0201134C,
+			true
+		),
+		new OverlayInfo(10),
+		new CommandSetInfo(0x217064C, 609),
+		new OverlayInfo(21)
+	);
+
+	public static class Config {
+
+		public final ReadRoutines routines;
+
+		public final OverlayInfo mainOverlay;
+		public final CommandSetInfo mainCommandSet;
+
+		public final int pluginInfoOffset;
+		public final int pluginCount;
+
+		public OverlayInfo[] additionalResidentOverlays;
+
+		public Config(ReadRoutines routines, OverlayInfo mainOverlay, CommandSetInfo mainCommandSet, OverlayInfo... additionalResidentOverlays) {
+			this(routines, mainOverlay, mainCommandSet, -1, 0, additionalResidentOverlays);
+		}
+
+		public Config(ReadRoutines routines, OverlayInfo mainOverlay, CommandSetInfo mainCommandSet, int pluginInfoOffset, int pluginCount, OverlayInfo... additionalResidentOverlays) {
+			this.routines = routines;
+			this.mainOverlay = mainOverlay;
+			this.mainCommandSet = mainCommandSet;
+			this.pluginInfoOffset = pluginInfoOffset;
+			this.pluginCount = pluginCount;
+			this.additionalResidentOverlays = additionalResidentOverlays;
+		}
+	}
+
+	public static class OverlayInfo {
+
+		public final int id;
+		private int baseAddress;
+
+		public OverlayInfo(int id) {
+			this.id = id;
+		}
+	}
+
+	public static class CommandSetInfo {
+
+		public final int cmdTableOffs;
+		public final int cmdCount;
+		public final int idBase;
+
+		public CommandSetInfo(int cmdTableOffs, int cmdCount) {
+			this(cmdTableOffs, cmdCount, 0);
+		}
+
+		public CommandSetInfo(int cmdTableOffs, int cmdCount, int idBase) {
+			this.cmdTableOffs = cmdTableOffs;
+			this.cmdCount = cmdCount;
+			this.idBase = idBase;
+		}
+	}
+
+	public static class ReadRoutines {
+
+		public final int read16Offs;
+		public final int readVarOffs;
+		public final int readAnyOffs;
+		public final int read32Offs;
+		public final boolean read8Is0x14;
+
+		public ReadRoutines(int read16, int readVar, int readAny, int read32, boolean read8Is0x14) {
+			this.read16Offs = read16;
+			this.readVarOffs = readVar;
+			this.readAnyOffs = readAny;
+			this.read32Offs = read32;
+			this.read8Is0x14 = read8Is0x14;
+		}
+	}
 
 	public static class OvlScrData {
 
@@ -65,7 +151,7 @@ public class ScriptCmdDump {
 
 		public OvlScrData(DataInput in) throws IOException {
 			cmdTableSrcOffs = in.readInt();
-			if (cmdTableSrcOffs != 0){
+			if (cmdTableSrcOffs != 0) {
 				cmdTableSrcOffs -= 0x40;
 			}
 			mapNoTableStart = in.readInt();
@@ -75,61 +161,114 @@ public class ScriptCmdDump {
 		}
 	}
 
-	private static FSFile getOverlay(DiskFile ovlRoot, int ovlNo) {
+	private static FSFile getOverlay(FSFile ovlRoot, int ovlNo) {
 		return ovlRoot.getChild(String.format("overlay_%04d.bin", ovlNo));
 	}
 
-	private static void dumpZonePluginTable() throws IOException {
-		DiskFile decompressedOverlayRoot = new DiskFile(OVERLAY_ROOT_DIR_DECOMPRESSED);
-		DataIOStream io = getOverlay(decompressedOverlayRoot, 12).getDataIOStream();
-		
+	private static void dumpZonePluginTable(FSFile outRoot, FSFile ovlRoot, Config cfg) throws IOException {
+		if (cfg.pluginCount == 0) {
+			return;
+		}
+		DataIOStream io = getOverlay(ovlRoot, cfg.mainOverlay.id).getDataIOStream();
+
 		Yaml yml = new Yaml();
 
 		List<OvlScrData> osd = new ArrayList<>();
-		io.setBase(OFFS_BASE_OVL12);
-		io.seek(SCR_PLUGIN_INFO_ADDRESSES);
-		for (int i = 0; i < SCR_PLUGIN_INFO_COUNT; i++) {
+		io.setBase(cfg.mainOverlay.baseAddress);
+		io.seek(cfg.pluginInfoOffset);
+		for (int i = 0; i < cfg.pluginCount; i++) {
 			osd.add(new OvlScrData(io));
 		}
-		
-		for (OvlScrData o : osd){
-			if (o.cmdTableSrcOffs == 0){
+
+		for (OvlScrData o : osd) {
+			if (o.cmdTableSrcOffs == 0) {
 				continue;
 			}
 			io.seek(o.mapNoTableStart);
 			YamlNode node = new YamlNode(new Key("ovl" + o.overlayNo + (o.overlayNo2 != -1 ? ("_ovl" + o.overlayNo2) : "")));
-			for (int i = 0; i < o.mapNoCount; i++){
+			for (int i = 0; i < o.mapNoCount; i++) {
 				YamlNode elem = new YamlNode(new YamlListElement());
 				elem.addChild(new YamlNode(String.valueOf(io.readShort())));
 				node.addChild(elem);
 			}
 			yml.root.addChild(node);
 		}
-		yml.writeToFile(new DiskFile(OUTPUT_DIR + "\\MapsPerPlugin.yml"));
+		yml.writeToFile(outRoot.getChild("MapsPerPlugin.yml"));
+	}
+
+	private static DataIOStream ramInit() {
+		DataIOStream io = new DataIOStream(new byte[0x200000]); //2 MiB
+		io.setBase(0x02000000);
+		return io;
+	}
+
+	private static void ramLoadOverlay(DataIOStream ram, OverlayInfo info, FSFile ovlRoot) throws IOException {
+		ram.seek(info.baseAddress);
+		ReadableStream in = getOverlay(ovlRoot, info.id).getInputStream();
+		FSUtil.transferStreams(in, ram);
+		in.close();
+	}
+	
+	private static int getOvlBaseAddr(FSFile ovlTable, int ovlId) {
+		try {
+			DataInStream in = ovlTable.getDataInputStream();
+			in.seekNext(ovlId * 0x20 + 4);
+			int addr = in.readInt();
+			in.close();
+			return addr;
+		} catch (IOException ex) {
+			Logger.getLogger(ScriptCmdDump.class.getName()).log(Level.SEVERE, null, ex);
+		}
+		return -1;
+	}
+	
+	private static void resolveOverlay(OverlayInfo info, FSFile ovlTable) {
+		info.baseAddress = getOvlBaseAddr(ovlTable, info.id);
 	}
 
 	public static void main(String[] args) {
-		DiskFile decompressedOverlayRoot = new DiskFile(OVERLAY_ROOT_DIR_DECOMPRESSED);
+		Config cfg = CONFIG_W1U;
+		FSFile outRoot = new DiskFile("D:\\_REWorkspace\\pokescript_genv\\dump_w1");
+		FSFile ovlRoot = new DiskFile("D:\\_REWorkspace\\pokescript_genv\\dump_w1\\overlay");
+		FSFile ovlTable = new DiskFile("D:\\_REWorkspace\\pokescript_genv\\dump_w1\\y9.bin");
+		DataIOStream ram = ramInit();
 
 		try {
-			dumpZonePluginTable();
+			dumpZonePluginTable(outRoot, ovlRoot, cfg);
 			List<OvlScrData> osd = new ArrayList<>();
+			
+			resolveOverlay(cfg.mainOverlay, ovlTable);
 
-			DataIOStream io = getOverlay(decompressedOverlayRoot, MAIN_CMD_TABLE_OVERLAY_NO).getDataIOStream();
-
-			io.setBase(OFFS_BASE_OVL12);
-			io.seek(SCR_PLUGIN_INFO_ADDRESSES);
-			for (int i = 0; i < SCR_PLUGIN_INFO_COUNT; i++) {
-				osd.add(new OvlScrData(io));
+			ramLoadOverlay(ram, cfg.mainOverlay, ovlRoot);
+			for (OverlayInfo additional : cfg.additionalResidentOverlays) {
+				resolveOverlay(additional, ovlTable);
+				ramLoadOverlay(ram, additional, ovlRoot);
 			}
 
-			io.close();
+			if (cfg.pluginCount != 0) {
+				ram.seek(cfg.pluginInfoOffset);
+				for (int i = 0; i < cfg.pluginInfoOffset; i++) {
+					osd.add(new OvlScrData(ram));
+				}
+
+				ram.close();
+			}
 
 			List<FuncData> funcs = new ArrayList<>();
-			funcs.addAll(readFuncData(getOverlay(decompressedOverlayRoot, MAIN_CMD_TABLE_OVERLAY_NO), OFFS_BASE_OVL12, MAIN_CMD_TABLE_OFFS, MAIN_CMD_TABLE_OFFS, MAIN_CMD_COUNT, -1, -1));
+			funcs.addAll(readFuncData(ram, cfg.mainCommandSet, cfg.routines));
 			for (OvlScrData d : osd) {
 				if (d.mapNoTableStart != 0) {
-					funcs.addAll(readFuncData(getOverlay(decompressedOverlayRoot, d.overlayNo), OFFS_BASE_PLUGINS, d.cmdTableSrcOffs, d.mapNoTableStart, -1, d.overlayNo, d.overlayNo2));
+					CommandSetInfo cmdSet = new CommandSetInfo(d.cmdTableSrcOffs, -1);
+					OverlayInfo[] ovlInfos = new OverlayInfo[2];
+					ovlInfos[0] = new OverlayInfo(d.overlayNo);
+					ovlInfos[0] = new OverlayInfo(d.overlayNo2);
+					for (OverlayInfo i : ovlInfos) {
+						if (i.id != -1) {
+							resolveOverlay(i, ovlTable);
+							ramLoadOverlay(ram, i, ovlRoot);
+						}
+					}
+					funcs.addAll(readFuncData(ram, cmdSet, cfg.routines, ovlInfos));
 				}
 			}
 
@@ -197,32 +336,39 @@ public class ScriptCmdDump {
 			}
 			//yml.writeToFile(new DiskFile("D:\\_REWorkspace\\pokescript_genv\\decomp\\binfuncs.yml"));
 			for (Map.Entry<String, Yaml> e : ymls.entrySet()) {
-				e.getValue().writeToFile(new DiskFile(OUTPUT_DIR + e.getKey() + ".yml"));
+				e.getValue().writeToFile(outRoot.getChild(e.getKey() + ".yml"));
 			}
 
-			io.close();
+			ram.close();
 		} catch (IOException ex) {
 			Logger.getLogger(ScriptCmdDump.class.getName()).log(Level.SEVERE, null, ex);
 		}
 	}
 
-	private static List<FuncData> readFuncData(FSFile bin, int binaryOffsetBase, int commandTableOffset, int commandTableTargetOffset, int commandCount, int ovlNo, int ovl2No) throws IOException {
-		System.out.println("Reading function data " + bin);
-		DataIOStream io = bin.getDataIOStream();
+	private static List<FuncData> readFuncData(
+		DataIOStream ram,
+		CommandSetInfo cmdSet,
+		ReadRoutines routines,
+		OverlayInfo... overlays
+	) throws IOException {
+		System.out.print("Reading function data ");
+		if (overlays.length > 0) {
+			System.out.print(String.valueOf(overlays[0].id));
+		}
+		System.out.println();
 
-		io.setBase(binaryOffsetBase);
-
-		io.seek(commandTableOffset);
+		ram.seek(cmdSet.cmdTableOffs);
 		Integer[] commands;
+		int commandCount = cmdSet.cmdCount;
 		if (commandCount != -1) {
 			commands = new Integer[commandCount];
 			for (int i = 0; i < commandCount; i++) {
-				commands[i] = io.readInt();
+				commands[i] = ram.readInt();
 			}
 		} else {
 			List<Integer> cmdList = new ArrayList<>();
 			while (true) {
-				int cmd = io.readInt();
+				int cmd = ram.readInt();
 				if (cmd == -1) {
 					break;
 				} else {
@@ -235,15 +381,21 @@ public class ScriptCmdDump {
 
 		List<FuncData> funcs = new ArrayList<>();
 
-		int cmdNumReloc = (commandTableTargetOffset - MAIN_CMD_TABLE_OFFS) / 4;
-		cmdNumReloc = cmdNumReloc > 0 ? 1000 : 0;
-
-		int len = io.getLength() - 2 + binaryOffsetBase;
+		int len = ram.getLength() - 2;
 		for (int i = 0; i < commandCount; i++) {
 			FuncData fd = new FuncData();
-			fd.ovl2No = ovl2No;
-			fd.cmd = i + cmdNumReloc;
-			fd.ovlNo = ovlNo;
+			fd.cmd = i + cmdSet.idBase;
+			for (int j = 0; j < 2; j++) {
+				int id = -1;
+				if (j < overlays.length) {
+					id = overlays[j].id;
+				}
+				if (j == 0) {
+					fd.ovlNo = id;
+				} else {
+					fd.ovl2No = id;
+				}
+			}
 
 			if (commands[i] == 0) {
 				fd.exists = false;
@@ -251,19 +403,18 @@ public class ScriptCmdDump {
 				continue;
 			}
 
-			int tgt = commands[i];
-			if ((tgt & 1) != 0) {
-				tgt--;
-			}
-			io.seek(tgt);
+			int tgt = commands[i] & 0xFFFFFFFE; //discard Thumb bit
+			ram.seek(tgt);
 
-			if (io.getPosition() > len || io.readInt() == 0) {
+			if (ram.getPosition() > len || ram.readInt() == 0) {
 				fd.outOfRange = true;
 			}
-			io.seek(io.getPosition() - 4);
+			ram.seek(ram.getPosition() - 4);
 
-			while (io.getPosition() < len) {
-				int opcode = io.readShort();
+			int read8Bits = routines.read8Is0x14 ? STR_PLUS0x14_BITS : STR_PLUS0x20_BITS;
+			
+			while (ram.getPosition() < len) {
+				int opcode = ram.readUnsignedShort();
 
 				if (opcode == BX_LR) {
 					break;
@@ -273,11 +424,11 @@ public class ScriptCmdDump {
 					fd.badExit = true;
 					break;
 				} else {
-					if ((opcode & STR_PLUS0x20_MASK) == STR_PLUS0x20_BITS) {
+					if ((opcode & STR_MASK) == read8Bits) {
 						fd.args.add(NTRDataType.U8);
 					} else if ((opcode & BRANCH_ANY_MASK) == BRANCH_HIGH_BITS) {
 						int branchHigh = opcode;
-						int branchLow = io.readShort();
+						int branchLow = ram.readShort();
 						if ((opcode & BRANCH_MASK) == BRANCH_LOW_BITS) {
 							int temp = branchLow;
 							branchLow = branchHigh;
@@ -286,26 +437,27 @@ public class ScriptCmdDump {
 
 						int branchTargetRel = (branchLow & 0x7FF) | ((branchHigh & 0x7FF) << 11);
 						branchTargetRel = (branchTargetRel << 10 >> 10) * 2; //this should sign extend..?
-						int branchTargetAbs = branchTargetRel + io.getPosition();
-						if (ovlNo != -1) {
+						int branchTargetAbs = branchTargetRel + ram.getPosition();
+						/*if (ovlNo != -1) {
+							//leftover from B2 overlays being used in W2
 							if ((branchTargetAbs & 0xFFFF0000) == 0x02150000) {
 								branchTargetAbs += 0x40;
 							}
+						}*/
+
+						NTRDataType type = null;
+						if (branchTargetAbs == routines.read16Offs) {
+							type = NTRDataType.U16;
+						} else if (branchTargetAbs == routines.read32Offs) {
+							type = NTRDataType.S32;
+						} else if (branchTargetAbs == routines.readAnyOffs) {
+							type = NTRDataType.FLEX;
+						} else if (branchTargetAbs == routines.readVarOffs) {
+							type = NTRDataType.VAR;
 						}
 
-						switch (branchTargetAbs) {
-							case SUB_DEREF_VAR:
-								fd.args.add(NTRDataType.FLEX);
-								break;
-							case SUB_SCR_READ32:
-								fd.args.add(NTRDataType.S32);
-								break;
-							case SUB_SCR_READ16:
-								fd.args.add(NTRDataType.U16);
-								break;
-							case SUB_LOAD_VARADDR:
-								fd.args.add(NTRDataType.VAR);
-								break;
+						if (type != null) {
+							fd.args.add(type);
 						}
 					}
 				}

@@ -10,7 +10,7 @@ public class IDEResources {
 	public static final ResourceAccessor ACCESSOR = new ResourceAccessor("ctrmap/resources");
 	
 	public static void load(){
-		ResourceAccess.loadResourceTable("ctrmap/resources/res_ide.tbl");
+		ResourceAccess.loadResourceTable(IDEResources.class.getClassLoader(), "ctrmap/resources/res_ide.tbl");
 	}
 	
 	public static void main(String[] args){
