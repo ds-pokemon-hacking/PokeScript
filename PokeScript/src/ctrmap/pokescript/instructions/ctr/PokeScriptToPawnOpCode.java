@@ -67,6 +67,14 @@ public class PokeScriptToPawnOpCode {
 				return PawnOpCode.SUB_ALT;
 			case XOR:
 				return PawnOpCode.XOR;
+			case SHL:
+				return PawnOpCode.SHL;
+			case SHR:
+				return PawnOpCode.SHR;
+			case SHL_C:
+				return PawnOpCode.SHL_C_PRI;
+			case SHR_C:
+				return PawnOpCode.SHR_C_PRI;
 			case JUMP:
 				return PawnOpCode.JUMP;
 			case JUMP_IF_ZERO:

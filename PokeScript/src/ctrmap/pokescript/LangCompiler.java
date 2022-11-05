@@ -33,7 +33,7 @@ import java.util.Map;
  */
 public class LangCompiler {
 
-	public static final String COMPILER_VERSION = "0.10.4@2022/03/28";
+	public static final String COMPILER_VERSION = "0.11.4@2022/11/04";
 
 	public static final ArgumentPattern[] langCompilerArgConfig = new ArgumentPattern[]{
 		new ArgumentPattern("target", "Target platform (ntrv/ctr/nx)", ArgumentType.STRING, LangPlatform.AMX_CTR.name, true, "-t", "--target"),
@@ -49,7 +49,7 @@ public class LangCompiler {
 
 	public static void main(String[] args) {
 		if (args.length == 0) {
-			args = new String[]{"-i \"D:\\_REWorkspace\\scr\\globtest\\commenttest.pks\" -t ntrv"};
+			args = new String[]{"-i \"D:\\_REWorkspace\\scr\\globtest\\shifttest.pks\" -t ntrv"};
 		}
 
 		System.out.println("* * * New PokéScript compiler U version " + COMPILER_VERSION + " * * *\n");

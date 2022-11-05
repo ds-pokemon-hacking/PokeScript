@@ -20,10 +20,10 @@ public class AST {
 		//Math + math assignment
 		new ASTMathOperatorMatcher(CmnMathOp.Add.class, "+"),
 		new ASTMathOperatorMatcher(CmnMathOp.Add.class, "+", "="),
-		new ASTMathOperatorMatcher(CmnMathOp.Add.class, "+", "+"),
+		new ASTMathOperatorMatcher(CmnMathOp.Add.class, true, "+", "+"),
 		new ASTMathOperatorMatcher(CmnMathOp.Sub.class, "-"),
 		new ASTMathOperatorMatcher(CmnMathOp.Sub.class, "-", "="),
-		new ASTMathOperatorMatcher(CmnMathOp.Sub.class, "-", "-"),
+		new ASTMathOperatorMatcher(CmnMathOp.Sub.class, true, "-", "-"),
 		new ASTMathOperatorMatcher(CmnMathOp.Mul.class, "*"),
 		new ASTMathOperatorMatcher(CmnMathOp.Mul.class, "*", "="),
 		new ASTMathOperatorMatcher(CmnMathOp.Div.class, "/"),
@@ -36,9 +36,13 @@ public class AST {
 		new ASTMathOperatorMatcher(CmnMathOp.BitOr.class, "|", "="),
 		new ASTMathOperatorMatcher(CmnMathOp.Xor.class, "^"),
 		new ASTMathOperatorMatcher(CmnMathOp.Xor.class, "^", "="),
+		new ASTMathOperatorMatcher(CmnMathOp.ShiftLeft.class, "<", "<"),
+		new ASTMathOperatorMatcher(CmnMathOp.ShiftLeft.class, "<", "<", "="),
+		new ASTMathOperatorMatcher(CmnMathOp.ShiftRight.class, ">", ">"),
+		new ASTMathOperatorMatcher(CmnMathOp.ShiftRight.class, ">", ">", "="),
 		//Boolops
-		new ASTMathOperatorMatcher(And.class, false, "&", "&"),
-		new ASTMathOperatorMatcher(Or.class, false, "|", "|"),
+		new ASTMathOperatorMatcher(And.class, "&", "&"),
+		new ASTMathOperatorMatcher(Or.class, "|", "|"),
 		//Comparators
 		new ASTOperatorMatcher(CmnCompOp.Less.class, "<"),
 		new ASTOperatorMatcher(CmnCompOp.LessOrEqual.class, "<", "="),
@@ -155,7 +159,7 @@ public class AST {
 	public static void main(String[] args) {
 		//AST ast = new AST(null, new NCompileGraph(new LangCompiler.CompilerArguments()), "i = (new i + j) * -4096 + test(i = 4 * 4, i / (69f * -420f), 3(4), true && false)");
 		//AST ast = new AST(null, new NCompileGraph(new LangCompiler.CompilerArguments()), "i = test[0][usu(2, 3)][2]");
-		AST ast = new AST(null, new NCompileGraph(new LangCompiler.CompilerArguments()), "(boolean)Test.Test2()");
+		AST ast = new AST(null, new NCompileGraph(new LangCompiler.CompilerArguments()), "(boolean)Test.Test2(a <<= 3, (i & 1) >> 5)");
 		ast.analyze();
 		ast.simplify();
 		System.out.println(ast.printTokens());

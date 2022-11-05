@@ -120,6 +120,10 @@ public class ASTOperatorNode extends ASTNode {
 				return new ASTOperandNode(int1 | int2);
 			case BIT_XOR:
 				return new ASTOperandNode(int1 ^ int2);
+			case SHL:
+				return new ASTOperandNode(int1 << int2);
+			case SHR:
+				return new ASTOperandNode(int1 >> int2);
 		}
 		return this;
 	}

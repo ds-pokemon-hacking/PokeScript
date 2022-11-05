@@ -44,13 +44,13 @@ public class VDecompiler {
 	}
 
 	public static void main(String[] args) {
-		FSFile scrFile = new DiskFile("D:\\_REWorkspace\\pokescript_genv\\6\\6_1262.bin");
+		FSFile scrFile = new DiskFile("D:\\_REWorkspace\\pokescript_genv\\6\\6_1239.bin");
 		//FSFile scrFile = new DiskFile("D:\\_REWorkspace\\CTRMapProjects\\BW1\\vfs\\data\\a\\0\\5\\7\\782");
 		FSFile[] cdbFiles = new FSFile[]{
 			new DiskFile("C:\\Users\\Čeněk\\eclipse-workspace\\BsYmlGen\\B2W2\\Base.yml"),
 			new DiskFile("C:\\Users\\Čeněk\\eclipse-workspace\\BsYmlGen\\B2W2\\Overlay 65.yml")
 		};
-		FSFile outFile = new DiskFile("D:\\_REWorkspace\\pokescript_genv\\decomp\\pgl_postman_scr.pks");
+		FSFile outFile = new DiskFile("D:\\_REWorkspace\\pokescript_genv\\decomp\\trainer.pks");
 		
 		List<VCommandDataBase> dbs = new ArrayList<>();
 		for (FSFile f : cdbFiles) {

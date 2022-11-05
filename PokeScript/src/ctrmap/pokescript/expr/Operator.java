@@ -53,6 +53,7 @@ public abstract class Operator {
 		ASSIGNMENT,
 		BOOLOPS,
 		COMPARE,
+		BITSHIFT,
 		NORMAL,
 		ALG_MULT,
 		NEGATE,

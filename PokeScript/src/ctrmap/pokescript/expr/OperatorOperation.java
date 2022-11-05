@@ -9,6 +9,8 @@ public enum OperatorOperation {
 	BIT_AND,
 	BIT_OR,
 	BIT_XOR,
+	SHL,
+	SHR,
 	
 	BOOL_AND,
 	BOOL_OR,

@@ -17,21 +17,13 @@ import java.util.Map;
 public class VAsmOptimizer {
 
 	//Optimization level 1 - variable calls to constant calls, remove useless jumps
-	public static final Pattern[] OPTFUNC_STREAMLINE_CALLS
+	public static final Pattern[] PREPROCESS
 		= new Pattern[]{
 			new Pattern("SetOpCode 0 VarUpdateConst",
 				new VInstructionMatch(VInstructionMatch.InstructionMatchType.FULL, "VarUpdateVar(VARIABLE, CONSTANT)")
 			),
 			new Pattern("SetOpCode 0 PushConst",
 				new VInstructionMatch(VInstructionMatch.InstructionMatchType.FULL, "PushVar(CONSTANT)")
-			),
-			new Pattern("Remap 0 1; Delete 0",
-				new VInstructionMatch(VInstructionMatch.InstructionMatchType.FULL, "Jump(ZERO)"),
-				new VInstructionMatch(VInstructionMatch.InstructionMatchType.ANY, null)
-			),
-			new Pattern("GetArg Var1 0 0; GetArg Var2 0 1; Cmp Var1 Var2; Remap 0 1; Delete 0",
-				new VInstructionMatch(VInstructionMatch.InstructionMatchType.FULL, "VarUpdateVar(VARIABLE, VARIABLE)"),
-				new VInstructionMatch(VInstructionMatch.InstructionMatchType.ANY, null)
 			)
 		};
 
@@ -134,8 +126,19 @@ public class VAsmOptimizer {
 			)
 		};
 
+	//Remove now redundant instructions
+	public static final Pattern[] POSTPROCESS = new Pattern[]{
+		new Pattern("GetArg Var1 0 0; GetArg Var2 0 1; Cmp Var1 Var2; Remap 0 1; Delete 0",
+		new VInstructionMatch(VInstructionMatch.InstructionMatchType.FULL, "VarUpdateVar(VARIABLE, VARIABLE)"),
+		new VInstructionMatch(VInstructionMatch.InstructionMatchType.ANY, null)
+		),
+		new Pattern("Remap 0 1; Delete 0",
+		new VInstructionMatch(VInstructionMatch.InstructionMatchType.FULL, "Jump(ZERO)"),
+		new VInstructionMatch(VInstructionMatch.InstructionMatchType.ANY, null)
+		)
+	};
+
 	public static final Pattern[][] OPTIMIZATION_TABLE = new Pattern[][]{
-		OPTFUNC_STREAMLINE_CALLS,
 		OPTFUNC_REGISTER_TO_DIRECT,
 		OPTFUNC_REGISTER_TO_DIRECT,
 		OPTFUNC_STACK_TO_DIRECT,
@@ -145,30 +148,39 @@ public class VAsmOptimizer {
 		OPTFUNC_COMPARISONS_REG_TO_DIRECT
 	};
 
+	private static void runOptPatternSet(Pattern[] pattern, VScriptFile scrFile) {
+		for (int i = 0; i < scrFile.instructions.size(); i++) {
+			for (Pattern p : pattern) {
+				if (p.match(scrFile.instructions, i)) {
+					try {
+						//System.out.println("optimizing with " + Arrays.toString(p.code));
+						if (p.optimize(scrFile, i)) {
+							i--;
+							break;
+						}
+					} catch (Exception ex) {
+						throw new RuntimeException("Error when processing pattern " + Arrays.toString(p.code), ex);
+					}
+				}
+			}
+		}
+	}
+
 	public static void optimize(VScriptFile scrFile, int optimizationLevel) {
 		if (optimizationLevel > OPTIMIZATION_TABLE.length) {
 			System.err.println("Optimization level " + optimizationLevel + " too high! Sanitizing to " + OPTIMIZATION_TABLE.length);
 			optimizationLevel = OPTIMIZATION_TABLE.length;
 		}
 
-		for (int lvl = 0; lvl < optimizationLevel; lvl++) {
-			for (int i = 0; i < scrFile.instructions.size(); i++) {
+		if (optimizationLevel > 0) {
+			runOptPatternSet(PREPROCESS, scrFile);
+			for (int lvl = 0; lvl < optimizationLevel; lvl++) {
 				//System.out.println("off now " + Integer.toHexString(scrFile.instructions.get(i).pointer) + " has " + scrFile.instructions.get(i));
-				for (Pattern p : OPTIMIZATION_TABLE[lvl]) {
-					if (p.match(scrFile.instructions, i)) {
-						try {
-							//System.out.println("optimizing with " + Arrays.toString(p.code));
-							if (p.optimize(scrFile, i)) {
-								i--;
-								break;
-							}
-						} catch (Exception ex) {
-							throw new RuntimeException("Error when processing pattern " + Arrays.toString(p.code), ex);
-						}
-					}
-				}
+				runOptPatternSet(OPTIMIZATION_TABLE[lvl], scrFile);
 			}
+			runOptPatternSet(POSTPROCESS, scrFile);
 		}
+
 		scrFile.updateLinks();
 	}
 

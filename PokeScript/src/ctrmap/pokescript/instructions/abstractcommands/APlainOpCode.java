@@ -42,6 +42,10 @@ public enum APlainOpCode {
 	OR,					//PRI = PRI | ALT
 	XOR,				//PRI = PRI ^ ALT
 	NOT,				//PRI = !PRI
+	SHL,				//PRI = PRI << ALT
+	SHR,				//PRI = PRI >> ALT
+	SHL_C,				//PRI = PRI << <constant>
+	SHR_C,				//PRI = PRI >> <constant>
 
 	//Jumps
 	JUMP,				//Branch to a label unconditionally

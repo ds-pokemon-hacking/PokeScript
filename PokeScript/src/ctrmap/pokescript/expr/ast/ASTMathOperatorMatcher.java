@@ -12,7 +12,7 @@ public class ASTMathOperatorMatcher extends ASTOperatorMatcher {
 	private final Class<? extends CmnMathOp> mathCls;
 
 	public ASTMathOperatorMatcher(Class<? extends CmnMathOp> cls, String... contents) {
-		this(cls, true, contents);
+		this(cls, false, contents);
 	}
 	
 	public ASTMathOperatorMatcher(Class<? extends CmnMathOp> cls, boolean allowDouble, String... contents) {
@@ -25,8 +25,8 @@ public class ASTMathOperatorMatcher extends ASTOperatorMatcher {
 	public CmnMathOp instantiate(String[] actualContent) {
 		try {
 			Constructor<? extends CmnMathOp> c = mathCls.getConstructor(Boolean.TYPE, Boolean.TYPE);
-			boolean isDouble = contents.length > 1;
-			return c.newInstance(isDouble && contents[1].equals(contents[0]) && allowDouble, isDouble && contents[1].equals("="));
+			boolean isMoreChar = contents.length > 1;
+			return c.newInstance(isMoreChar && contents[1].equals(contents[0]) && allowDouble, isMoreChar && contents[contents.length - 1].equals("="));
 		} catch (IllegalAccessException | NoSuchMethodException | SecurityException | InstantiationException | IllegalArgumentException | InvocationTargetException ex) {
 			Logger.getLogger(AST.class.getName()).log(Level.SEVERE, "Could not instantiate operator " + mathCls, ex);
 		}

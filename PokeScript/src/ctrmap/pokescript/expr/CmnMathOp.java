@@ -14,15 +14,20 @@ public abstract class CmnMathOp extends NumerableOperator {
 
 	public final boolean isSetTo;
 	public final boolean isDoubleOp;
-	
+
+	public APlainOpCode getRHSConstIntOperationOpcode() {
+		return getIntegerOperationOpcode();
+	}
+
 	public abstract APlainOpCode getIntegerOperationOpcode();
+
 	public abstract AFloatOpCode getFloatOperationOpcode();
-	
+
 	public CmnMathOp(boolean isDoubleOp, boolean isSetTo) {
 		this.isDoubleOp = isDoubleOp;
 		this.isSetTo = isSetTo | isDoubleOp;
 	}
-	
+
 	@Override
 	public String toString() {
 		return getClass().getSimpleName() + "; SetTo=" + isSetTo + "; Double=" + isDoubleOp;
@@ -45,11 +50,21 @@ public abstract class CmnMathOp extends NumerableOperator {
 
 	@Override
 	public Priority getPriority() {
+		if (isSetTo) {
+			return Priority.ASSIGNMENT;
+		}
 		return Priority.NORMAL;
 	}
 
 	public boolean isResultInAlt() {
 		return false;
+	}
+
+	private static List<AInstruction> getInputCode(Throughput[] inputs, int index, TypeDef type) {
+		if (index < inputs.length && inputs[index] != null) {
+			return inputs[index].getCode(type);
+		}
+		return null;
 	}
 
 	@Override
@@ -65,24 +80,31 @@ public abstract class CmnMathOp extends NumerableOperator {
 			}
 		}
 
-		List<AInstruction> l = createCommonMathOpSequence(
-			(inputs.length < 1 || inputs[0] == null) ? null : inputs[0].getCode(getInputTypeLHS()), 
-			(inputs.length < 2 || inputs[1] == null) ? null : inputs[1].getCode(getInputTypeRHS()), 
-			isDoubleOp, 
-			cg
-		);
+		List<AInstruction> l = new ArrayList<>();
 
-		if (useFloatingOps()) {
-			AFloatOpCode opcode = getFloatOperationOpcode();
-			if (opcode != null) {
-				l.add(cg.getPlainFloat(opcode));
-			}
-			else {
+		List<AInstruction> lhsCode = getInputCode(inputs, 0, getInputTypeLHS());
+		List<AInstruction> rhsCode = getInputCode(inputs, 1, getInputTypeRHS());
+
+		if (!useFloatingOps() && getRHSConstIntOperationOpcode() != getIntegerOperationOpcode() && rhsCode != null && inputs[1].isImmediate()) {
+			addOperandCode(l, lhsCode, cg);
+			l.add(cg.getPlain(getRHSConstIntOperationOpcode(), inputs[1].getImmediateValue()));
+		} else {
+			l.addAll(createCommonMathOpSequence(
+				lhsCode,
+				rhsCode,
+				isDoubleOp,
+				cg
+			));
+			if (useFloatingOps()) {
+				AFloatOpCode opcode = getFloatOperationOpcode();
+				if (opcode != null) {
+					l.add(cg.getPlainFloat(opcode));
+				} else {
+					l.add(cg.getPlain(getIntegerOperationOpcode()));
+				}
+			} else {
 				l.add(cg.getPlain(getIntegerOperationOpcode()));
 			}
-		}
-		else {
-			l.add(cg.getPlain(getIntegerOperationOpcode()));
 		}
 
 		if (isResultInAlt()) {
@@ -107,18 +129,12 @@ public abstract class CmnMathOp extends NumerableOperator {
 
 	public List<AInstruction> createCommonMathOpSequence(List<AInstruction> leftSource, List<AInstruction> rightSource, boolean doubleOp, NCompileGraph cg) {
 		List<AInstruction> l = new ArrayList<>();
-		if (leftSource != null) {
-			l.addAll(leftSource);
-			addFloatCvtIfNeeded(l, cg);
-		}
+		addOperandCode(l, leftSource, cg);
 		l.add(cg.getPlain(APlainOpCode.PUSH_PRI));
 		if (doubleOp) {
 			l.add(cg.getPlain(APlainOpCode.CONST_ALT, 1)); //will get optimized to INC/DEC in the assembler
 		} else {
-			if (rightSource != null) {
-				l.addAll(rightSource);
-				addFloatCvtIfNeeded(l, cg);
-			}
+			addOperandCode(l, rightSource, cg);
 			l.add(cg.getPlain(APlainOpCode.MOVE_PRI_TO_ALT));
 		}
 		l.add(cg.getPlain(APlainOpCode.POP_PRI));
@@ -130,7 +146,7 @@ public abstract class CmnMathOp extends NumerableOperator {
 	}
 
 	public static class Add extends CmnMathOp {
-		
+
 		public Add(boolean isDoubleOp, boolean isSetTo) {
 			super(isDoubleOp, isSetTo);
 		}
@@ -188,7 +204,7 @@ public abstract class CmnMathOp extends NumerableOperator {
 		public Mul(boolean isDoubleOp, boolean isSetTo) {
 			super(isDoubleOp, isSetTo);
 		}
-		
+
 		@Override
 		public APlainOpCode getIntegerOperationOpcode() {
 			return APlainOpCode.MULTIPLY;
@@ -211,21 +227,21 @@ public abstract class CmnMathOp extends NumerableOperator {
 	}
 
 	public static class Div extends Mul {
-		
+
 		public Div(boolean isDoubleOp, boolean isSetTo) {
 			super(isDoubleOp, isSetTo);
 		}
-		
+
 		@Override
 		public APlainOpCode getIntegerOperationOpcode() {
 			return APlainOpCode.DIVIDE;
 		}
-		
+
 		@Override
 		public OperatorOperation getOperationType() {
 			return OperatorOperation.DIV;
 		}
-		
+
 		@Override
 		public AFloatOpCode getFloatOperationOpcode() {
 			return AFloatOpCode.VDIVIDE;
@@ -242,12 +258,12 @@ public abstract class CmnMathOp extends NumerableOperator {
 		public APlainOpCode getIntegerOperationOpcode() {
 			return APlainOpCode.MODULO;
 		}
-		
+
 		@Override
 		public OperatorOperation getOperationType() {
 			return OperatorOperation.MOD;
 		}
-		
+
 		@Override
 		public AFloatOpCode getFloatOperationOpcode() {
 			return AFloatOpCode.VMODULO;
@@ -275,12 +291,12 @@ public abstract class CmnMathOp extends NumerableOperator {
 		public Priority getPriority() {
 			return Priority.BOOLOPS;
 		}
-		
+
 		@Override
 		public OperatorOperation getOperationType() {
 			return OperatorOperation.BIT_AND;
 		}
-		
+
 		@Override
 		public AFloatOpCode getFloatOperationOpcode() {
 			return null;
@@ -302,12 +318,12 @@ public abstract class CmnMathOp extends NumerableOperator {
 		public Priority getPriority() {
 			return Priority.BOOLOPS;
 		}
-		
+
 		@Override
 		public OperatorOperation getOperationType() {
 			return OperatorOperation.BIT_OR;
 		}
-		
+
 		@Override
 		public AFloatOpCode getFloatOperationOpcode() {
 			return null;
@@ -315,7 +331,7 @@ public abstract class CmnMathOp extends NumerableOperator {
 	}
 
 	public static class Xor extends Mul {
-		
+
 		public Xor(boolean isDoubleOp, boolean isSetTo) {
 			super(isDoubleOp, isSetTo);
 		}
@@ -329,15 +345,70 @@ public abstract class CmnMathOp extends NumerableOperator {
 		public Priority getPriority() {
 			return Priority.BOOLOPS;
 		}
-		
+
 		@Override
 		public OperatorOperation getOperationType() {
 			return OperatorOperation.BIT_XOR;
 		}
-		
+
 		@Override
 		public AFloatOpCode getFloatOperationOpcode() {
 			return null;
+		}
+	}
+
+	public static class ShiftLeft extends CmnMathOp {
+
+		public ShiftLeft(boolean isDoubleOp, boolean isSetTo) {
+			super(isDoubleOp, isSetTo);
+		}
+
+		@Override
+		public APlainOpCode getIntegerOperationOpcode() {
+			return APlainOpCode.SHL;
+		}
+
+		@Override
+		public Priority getPriority() {
+			return Priority.BITSHIFT;
+		}
+
+		@Override
+		public OperatorOperation getOperationType() {
+			return OperatorOperation.SHL;
+		}
+
+		@Override
+		public APlainOpCode getRHSConstIntOperationOpcode() {
+			return APlainOpCode.SHL_C;
+		}
+
+		@Override
+
+		public AFloatOpCode getFloatOperationOpcode() {
+			return null;
+		}
+	}
+
+	public static class ShiftRight extends ShiftLeft {
+
+		public ShiftRight(boolean isDoubleOp, boolean isSetTo) {
+			super(isDoubleOp, isSetTo);
+		}
+
+		@Override
+		public APlainOpCode getIntegerOperationOpcode() {
+			return APlainOpCode.SHR;
+		}
+
+		@Override
+		public OperatorOperation getOperationType() {
+			return OperatorOperation.SHR;
+		}
+
+		@Override
+		public APlainOpCode getRHSConstIntOperationOpcode() {
+			return APlainOpCode.SHR_C;
 		}
 	}
 }

@@ -203,7 +203,36 @@ public class VCodeFactory extends AbstractCodeFactory<NTRInstructionCall> {
 				addNot();	//If skipping failed, invert PRI
 				addLabel(xorKeepLabel);	//Prepare xorKeepLabel for skip
 				break;
+			case SHL:
+				add2PowAltToReg3(instruction);
+				addInstruction(VarUpdateMul, GP_REG_PRI, GP_REG_3);
+				break;
+			case SHR:
+				add2PowAltToReg3(instruction);
+				addInstruction(VarUpdateDiv, GP_REG_PRI, GP_REG_3);
+				break;
+			case SHL_C:
+				addInstruction(VarUpdateMul, GP_REG_PRI, (1 << instruction.getArgument(0)));
+				break;
+			case SHR_C:
+				addInstruction(VarUpdateDiv, GP_REG_PRI, (1 << instruction.getArgument(0)));
+				break;
 		}
+	}
+
+	private void add2PowAltToReg3(APlainInstruction instruction) {
+		//Doing exponentiation by squaring here would not improve performance
+		//much as it has a lot of division stuff in it and the maximum power here is only 15.
+		String shlBreakLabel = System.identityHashCode(instruction) + "_POW2_BREAK";
+		String shlLoopLabel = System.identityHashCode(instruction) + "_POW2_LOOP";
+		addInstruction(VarUpdateConst, GP_REG_3, 1);
+		addInstruction(VarUpdateConst, GP_REG_4, 0);
+		addLabel(shlLoopLabel);
+		addInstruction(CmpVarVar, GP_REG_4, GP_REG_ALT);
+		addJumpInstruction(JumpIf.createCall(VCmpResultRequest.GEQUAL), shlLoopLabel);
+		addInstruction(VarUpdateMul, GP_REG_3, 2);
+		addInstruction(VarUpdateAdd, GP_REG_4, 1);
+		addLabel(shlBreakLabel);
 	}
 
 	private void addNot() {
