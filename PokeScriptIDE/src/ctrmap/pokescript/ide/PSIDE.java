@@ -462,7 +462,7 @@ public class PSIDE extends javax.swing.JFrame {
 		for (int i = 0; i < fileEditors.size(); i++) {
 			FileEditorRSTA e = fileEditors.get(i);
 			IDEFile f = e.getEditedFile();
-			if (f == fsf) {
+			if (f.equals(fsf)) {
 				fileTabs.removeTabAt(i);
 				i--;
 			}
