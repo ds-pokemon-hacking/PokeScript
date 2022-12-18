@@ -50,16 +50,6 @@ public abstract class IDENodeBase extends CustomJTreeNode {
 	public void callNodeAction(String action) {
 
 	}
-	
-	@Override
-	public void remove(MutableTreeNode child) {
-		ide.getProjectTree().getModel().removeNodeFromParent(child);
-	}
-	
-	@Override
-	public void add(MutableTreeNode child) {
-		ide.getProjectTree().getModel().insertNodeInto(child, this, getChildCount());
-	}
 
 	public String[] getNodeActions() {
 		return new String[0];
