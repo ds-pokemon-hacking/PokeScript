@@ -36,7 +36,7 @@ public class PokeScriptToPawnOpCode {
 			case AND:
 				return PawnOpCode.AND;
 			case DIVIDE:
-				return PawnOpCode.SDIV_ALT;
+				return PawnOpCode.SDIV/*_ALT*/;
 			case EQUAL:
 				return PawnOpCode.EQ;
 			case GEQUAL:
@@ -54,7 +54,7 @@ public class PokeScriptToPawnOpCode {
 			case MULTIPLY:
 				return PawnOpCode.SMUL;
 			case MODULO:
-				return PawnOpCode.SDIV_ALT;
+				return PawnOpCode.SDIV/*_ALT*/;
 			case NEGATE:
 				return PawnOpCode.NEG;
 			case NEQUAL:
@@ -64,7 +64,7 @@ public class PokeScriptToPawnOpCode {
 			case OR:
 				return PawnOpCode.OR;
 			case SUBTRACT:
-				return PawnOpCode.SUB_ALT;
+				return PawnOpCode.SUB/*_ALT*/;
 			case XOR:
 				return PawnOpCode.XOR;
 			case SHL:

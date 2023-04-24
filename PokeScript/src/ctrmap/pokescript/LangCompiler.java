@@ -33,7 +33,7 @@ import java.util.Map;
  */
 public class LangCompiler {
 
-	public static final String COMPILER_VERSION = "0.11.4@2022/11/04";
+	public static final String COMPILER_VERSION = "0.11.5@2023/04/24";
 
 	public static final ArgumentPattern[] langCompilerArgConfig = new ArgumentPattern[]{
 		new ArgumentPattern("target", "Target platform (ntrv/ctr/nx)", ArgumentType.STRING, LangPlatform.AMX_CTR.name, true, "-t", "--target"),
@@ -48,10 +48,6 @@ public class LangCompiler {
 	};
 
 	public static void main(String[] args) {
-		if (args.length == 0) {
-			args = new String[]{"-i \"D:\\_REWorkspace\\scr\\globtest\\shifttest.pks\" -t ntrv"};
-		}
-
 		System.out.println("* * * New PokéScript compiler U version " + COMPILER_VERSION + " * * *\n");
 		System.out.println("PokéScript is part of CTRMap at https://github.com/HelloOO7/CTRMap-BleedingEdge\n");
 		ArgumentBuilder bld = new ArgumentBuilder(langCompilerArgConfig);
