@@ -1,2 +1,9 @@
 /PokeScriptIDE/nbproject/private/
 /PokeScript/nbproject/private/
+target/
+/PokeScript/target/
+/PokeScriptIDE/target/
+
+# IntelliJ IDEA
+.idea/
+*.iml
