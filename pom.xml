@@ -12,7 +12,6 @@
     <name>PokeScript</name>
 
     <modules>
-        <module>PokeScriptIDE/submodules/RSyntaxTextArea/RSyntaxTextArea</module>
         <module>PokeScript</module>
         <module>PokeScriptIDE</module>
     </modules>

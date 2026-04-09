@@ -26,7 +26,7 @@
 
     <dependencies>
         <dependency>
-            <groupId>ctrmap</groupId>
+            <groupId>com.github.hello007</groupId>
             <artifactId>xstandard</artifactId>
             <version>1.0-SNAPSHOT</version>
         </dependency>
@@ -36,19 +36,9 @@
             <version>1.0-SNAPSHOT</version>
         </dependency>
         <dependency>
-            <groupId>com.frankenjfx</groupId>
-            <artifactId>frankenjfx</artifactId>
-            <version>1.0</version>
-        </dependency>
-        <dependency>
-            <groupId>com.frankenjfx</groupId>
-            <artifactId>frankenjfx-natives-win32</artifactId>
-            <version>1.0</version>
-        </dependency>
-        <dependency>
             <groupId>com.fifesoft</groupId>
             <artifactId>rsyntaxtextarea</artifactId>
-            <version>3.1.3</version>
+            <version>3.1.3-pp</version>
         </dependency>
     </dependencies>
 
