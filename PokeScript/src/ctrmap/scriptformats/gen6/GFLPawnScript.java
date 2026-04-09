@@ -32,6 +32,7 @@ public class GFLPawnScript {
 
 	public short sNAMEMAX;
 	public Map<Integer, String> nameTable = new HashMap<>();
+	private boolean hasHashedNames;
 
 	public List<PawnInstruction> instructions = new ArrayList<>();
 	public List<PawnInstruction> data = new ArrayList<>();
@@ -194,6 +195,8 @@ public class GFLPawnScript {
 			while (codeReader.getPosition() < decCodeLen) {
 				data.add(new PawnInstruction(PawnInstruction.readCell(codeReader, cellSize)));
 			}
+			
+			hasHashedNames = decideHasHashedNames();
 
 			setInstructionListeners();
 		} catch (IOException ex) {
@@ -229,6 +232,32 @@ public class GFLPawnScript {
 			len++;
 		}
 		return len;
+	}
+	
+	private boolean decideHasHashedNames() {
+		return (
+			hasHashedNames(publics)
+			|| hasHashedNames(natives)
+			|| hasHashedNames(libraries)
+			|| hasHashedNames(publicVars)
+		);
+	}
+	
+	private boolean hasHashedNames(List<PawnPrefixEntry> symbolSet) {
+		for (PawnPrefixEntry e : symbolSet) {
+			if (!nameTable.containsKey((int)e.data[1])) {
+				return true;
+			}
+		}
+		return false;
+	}
+	
+	public boolean hasHashedNames() {
+		return hasHashedNames;
+	}
+	
+	public String getName(int offset) {
+		return nameTable.get(offset);
 	}
 
 	public void write(DataOutputEx dos) throws IOException {
