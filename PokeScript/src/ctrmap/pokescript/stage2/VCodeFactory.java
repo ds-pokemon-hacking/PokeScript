@@ -356,7 +356,7 @@ public class VCodeFactory extends AbstractCodeFactory<NTRInstructionCall> {
 			if (instruction.call.args[i].isImmediate()) {
 				arg = getImmediateValue(call.args[i]);
 
-				if (isHighWk(arg) && !def.def.args[i].requestedModifiers.contains(Modifier.FINAL)) {
+				if (isWk(arg) && !def.def.args[i].requestedModifiers.contains(Modifier.FINAL)) {
 					//if the value is a constant that is within a variable range and the method accepts variables,
 					//it has to be copied into a temporary variable so that it does not get dereferenced and is used as a proper constant
 					int destVar = VAR_START_LOCAL + localsCount + usedExtraLocalsNum;
