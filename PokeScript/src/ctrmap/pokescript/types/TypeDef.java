@@ -70,6 +70,7 @@ public class TypeDef {
 		return baseType.toString().toLowerCase();
 	}
 
+	@Deprecated
 	public boolean acceptsIncoming(TypeDef incomingType) {
 		if (incomingType == null) {
 			return false;

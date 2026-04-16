@@ -163,9 +163,8 @@ public class InboundDefinition implements IModifiable {
 					return false;
 				}
 			}
-			TypeDef incomingType = out.args[i].type;
 			TypeDef reqType = args[i].typeDef;
-			if (!reqType.acceptsIncoming(incomingType)) {
+			if (!out.args[i].checkImplicitCast(reqType)) {
 				return false;
 			}
 		}

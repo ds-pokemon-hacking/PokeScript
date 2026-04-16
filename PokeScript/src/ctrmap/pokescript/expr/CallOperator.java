@@ -77,7 +77,7 @@ public class CallOperator extends Operator {
 					else if (close.args[i].requestedModifiers.contains(Modifier.FINAL) && !def.args[i].isImmediate()) {
 						reasons.add("Argument '" + argName + "' is not final.");
 					}
-					else if (!def.args[i].type.acceptsIncoming(close.args[i].typeDef)) {
+					else if (!def.args[i].checkImplicitCast(close.args[i].typeDef)) {
 						reasons.add("Argument '" + argName + "' type " + def.args[i].type + " can not be cast to " + close.args[i].typeDef);
 					}
 				}

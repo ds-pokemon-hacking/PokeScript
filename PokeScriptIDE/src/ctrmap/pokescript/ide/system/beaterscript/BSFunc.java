@@ -89,7 +89,7 @@ public class BSFunc {
 					sb.append(", ");
 				}
 				if (a.type == NTRDataType.VAR) {
-					//	sb.append("var "); //do not do this, allow for numeric variables
+					sb.append("var ");
 				} else if (a.type != NTRDataType.FLEX) {
 					sb.append("final ");
 				}
@@ -119,7 +119,7 @@ public class BSFunc {
 					sb.append(", ");
 				}
 				if (a.type == NTRDataType.VAR) {
-					//sb.append("var ");
+					sb.append("var ");
 				} else if (a.type != NTRDataType.FLEX) {
 					sb.append("final ");
 				}

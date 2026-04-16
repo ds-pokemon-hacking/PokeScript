@@ -185,7 +185,7 @@ public class DeclarationContent extends AbstractContent {
 
 	private boolean checkVariableInitType(Throughput tp) {
 		if (tp != null) {
-			if (!Throughput.checkImplicitCast(declaredType, tp.type)) {
+			if (!tp.checkImplicitCast(declaredType)) {
 				line.throwException("Invalid assignment type: " + tp.type + " for variable of type " + declaredType + ".");
 				return true;
 			} else {

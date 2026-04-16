@@ -152,6 +152,10 @@ public enum DataType {
 	}
 
 	public String getFriendlyName() {
+		if (getBaseType() != getVarType() && this == getVarType()) {
+			// check if this is a variable type and add modifier
+			return "var " + getBaseType().getFriendlyName();
+		}
 		return name;
 	}
 

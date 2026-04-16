@@ -21,6 +21,7 @@ public class Throughput {
 	//gets exported from a child expression to a parent with all previous instructions
 	public TypeDef type;
 	protected List<AInstruction> code = new ArrayList<>();
+	private boolean varCastAllowed = false;
 
 	public Throughput(TypeDef t, List<AInstruction> code) {
 		type = t;
@@ -30,6 +31,9 @@ public class Throughput {
 	public Throughput(int immediateValue, NCompileGraph cg) {
 		type = DataType.INT.typeDef();
 		makeConstInt(immediateValue, cg);
+		if (cg.provider.getMachineInfo().isValidRawVarPointer(immediateValue)) {
+			varCastAllowed = true;
+		}
 	}
 
 	public Throughput(float immediateValue, NCompileGraph cg) {
@@ -142,11 +146,15 @@ public class Throughput {
 	}
 
 	public void checkCast(TypeDef input) {
-		checkImplicitCast(input, (EffectiveLine) null);
+		checkImplicitCast(input);
 	}
 
+	public boolean checkImplicitCast(TypeDef input) {
+		return checkImplicitCast(input, type, varCastAllowed);
+	}
+	
 	public boolean checkImplicitCast(TypeDef input, EffectiveLine line) {
-		boolean val = checkImplicitCast(input, type);
+		boolean val = checkImplicitCast(input);
 		if (!val) {
 			if (line == null) {
 				//throw new CompileGraph.CompileException("Invalid operand: " + input + " expected, got " + type);
@@ -158,9 +166,16 @@ public class Throughput {
 	}
 
 	public static boolean checkImplicitCast(TypeDef input, TypeDef output) {
+		return checkImplicitCast(input, output, false);
+	}
+	
+	private static boolean checkImplicitCast(TypeDef input, TypeDef output, boolean varCastAllowed) {
 		boolean allow = false;
 
 		DataType type = output.baseType;
+		if (type.equals(input.baseType)) {
+			return true;
+		}
 
 		switch (input.baseType) {
 			case ANY:
@@ -184,7 +199,12 @@ public class Throughput {
 			case VAR_BOOLEAN:
 			case VAR_INT:
 			case VAR_FLOAT:
-				allow = type == input.baseType;
+				if (input.baseType.getBaseType() == type) {
+					// constant passed as variable, check if it is possible to use as raw pointer
+					allow = varCastAllowed;
+				} else {
+					allow = type == input.baseType;
+				}
 				break;
 			case VAR_CLASS:
 				allow = type == DataType.VAR_CLASS && input.equals(output);

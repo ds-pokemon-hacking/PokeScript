@@ -1,5 +1,6 @@
 package ctrmap.pokescript.instructions.providers;
 
+import ctrmap.pokescript.instructions.gen5.VConstants;
 import ctrmap.pokescript.instructions.gen5.metahandlers.VExternFuncHandler;
 import ctrmap.pokescript.instructions.gen5.metahandlers.VActionSeqHandler;
 import xstandard.util.ParsingUtils;
@@ -10,6 +11,11 @@ public class VInstructionProvider implements AInstructionProvider {
 		@Override
 		public boolean getAllowsGotoStatement() {
 			return true;
+		}
+
+		@Override
+		public boolean isValidRawVarPointer(int value) {
+			return VConstants.isWk(value);
 		}
 	};
 
